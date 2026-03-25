@@ -110,6 +110,12 @@
         .export-row button:hover{border-color:rgba(255,255,255,.15);color:#94a3b8}
         @keyframes popIn{0%{transform:scale(.8);opacity:0}100%{transform:scale(1);opacity:1}}
         .xp-pop{animation:popIn .3s cubic-bezier(.175,.885,.32,1.275)}
+        /* Hydration tracker */
+        .hydration-bar-track{height:6px;background:#1e293b;border-radius:999px;width:100%;overflow:hidden}
+        .hydration-bar-fill{height:100%;border-radius:999px;transition:width .5s cubic-bezier(.4,0,.2,1);background:linear-gradient(90deg,#3b82f6,#06b6d4)}
+        .hydration-bar-fill.complete{background:linear-gradient(90deg,#10b981,#06b6d4)}
+        .water-btn{flex:1;padding:.5rem .25rem;border-radius:.75rem;font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;transition:all .2s;border:1px solid rgba(59,130,246,.2);background:rgba(59,130,246,.06);color:#60a5fa}
+        .water-btn:active{transform:scale(.95);background:rgba(59,130,246,.15)}
         /* Auth screen */
         #auth-screen{position:fixed;inset:0;background:var(--bg-deep);z-index:99999;display:flex;align-items:center;justify-content:center;padding:2rem}
         #auth-screen.hidden{display:none}
@@ -343,28 +349,53 @@
             <div class="stat-chip flex-1"><p class="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">Last BPEL</p><p id="last-bpel" class="text-lg font-black text-white" style="font-family:'JetBrains Mono',monospace">—</p></div>
             <div class="stat-chip flex-1"><p class="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Last MSEG</p><p id="last-mseg" class="text-lg font-black text-white" style="font-family:'JetBrains Mono',monospace">—</p></div>
         </div>
-        <div class="px-2 space-y-3">
-            <button id="launch-btn" class="btn-primary">BEGIN SESSION</button>
-            <div class="grid grid-cols-2 gap-3">
-                <button id="progress-btn" class="btn-outline flex items-center justify-center gap-2 py-3"><i class="fas fa-chart-line text-blue-400"></i> Progress</button>
-                <button id="ai-coach-btn" class="btn-outline btn-ai text-white flex items-center justify-center gap-2 py-3"><i class="fas fa-comment-dots"></i> Ask Coach Tee</button>
+        <!-- Hydration Tracker -->
+        <div class="instruction-card mx-2 border-blue-500/15" style="padding:1rem;">
+            <div class="flex justify-between items-center mb-2">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-droplet text-blue-400 text-sm"></i>
+                    <span class="text-[10px] font-black uppercase tracking-widest text-blue-400">Daily Hydration</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span id="hydration-amount" class="text-sm font-black text-white" style="font-family:'JetBrains Mono',monospace">0.0</span>
+                    <span class="text-[10px] text-slate-500 font-bold">/ 3.0L</span>
+                </div>
             </div>
-        </div>
-        <div class="px-2 space-y-2">
-            <p class="text-[9px] font-black uppercase tracking-[0.25em] text-slate-600 px-1">Recent Sessions</p>
-            <div id="session-log" class="space-y-1.5"></div>
-        </div>
-        <div class="px-2 space-y-2">
-            <p class="text-[9px] font-black uppercase tracking-[0.25em] text-slate-600 px-1">Data Management</p>
-            <div class="export-row">
-                <button id="export-btn"><i class="fas fa-download mr-1"></i>Export</button>
-                <button id="import-btn"><i class="fas fa-upload mr-1"></i>Import</button>
-                <button id="reset-api-btn"><i class="fas fa-key mr-1"></i>AI Key</button>
+            <div class="hydration-bar-track mb-3"><div id="hydration-bar" class="hydration-bar-fill" style="width:0%"></div></div>
+            <div class="flex gap-2">
+                <button class="water-btn" data-ml="250"><i class="fas fa-plus mr-1"></i>250ml</button>
+                <button class="water-btn" data-ml="500"><i class="fas fa-plus mr-1"></i>500ml</button>
+                <button class="water-btn" data-ml="750"><i class="fas fa-plus mr-1"></i>750ml</button>
+                <button class="water-btn" id="hydration-reset-btn" style="border-color:rgba(100,116,139,.2);background:rgba(100,116,139,.05);color:#475569;"><i class="fas fa-rotate-left"></i></button>
             </div>
-            <input type="file" id="import-file-input" accept=".json" class="hidden">
+            <p id="hydration-msg" class="text-[10px] text-slate-600 italic mt-2 text-center">Minimum 3L daily. Hydration is non-negotiable.</p>
         </div>
-        <div class="scroll-buffer"></div>
+
+```
+    <div class="px-2 space-y-3">
+        <button id="launch-btn" class="btn-primary">BEGIN SESSION</button>
+        <div class="grid grid-cols-2 gap-3">
+            <button id="progress-btn" class="btn-outline flex items-center justify-center gap-2 py-3"><i class="fas fa-chart-line text-blue-400"></i> Progress</button>
+            <button id="ai-coach-btn" class="btn-outline btn-ai text-white flex items-center justify-center gap-2 py-3"><i class="fas fa-comment-dots"></i> Ask Coach Tee</button>
+        </div>
     </div>
+    <div class="px-2 space-y-2">
+        <p class="text-[9px] font-black uppercase tracking-[0.25em] text-slate-600 px-1">Recent Sessions</p>
+        <div id="session-log" class="space-y-1.5"></div>
+    </div>
+    <div class="px-2 space-y-2">
+        <p class="text-[9px] font-black uppercase tracking-[0.25em] text-slate-600 px-1">Data Management</p>
+        <div class="export-row">
+            <button id="export-btn"><i class="fas fa-download mr-1"></i>Export</button>
+            <button id="import-btn"><i class="fas fa-upload mr-1"></i>Import</button>
+            <button id="reset-api-btn"><i class="fas fa-key mr-1"></i>AI Key</button>
+        </div>
+        <input type="file" id="import-file-input" accept=".json" class="hidden">
+    </div>
+    <div class="scroll-buffer"></div>
+</div>
+```
+
 </div>
 
 <!-- STEP 1: PRE-FLIGHT -->
@@ -575,9 +606,63 @@ const ROUTINES={
         {title:'V-Stretch',sets:3,duration:30,eq:'3-4 EQ',feel:'Pressurized lateral base flare. Moderate 50% force.',dontFeel:'Pinching base pain.',cues:[{time:30,text:'Thumb pins center. Hand pulls OUT. 50% force.'},{time:5,text:'Belly breath. Relax floor.'}]}
     ],
     girth:[
-        {title:'Uli Hold',sets:3,duration:30,eq:'7-8 EQ',feel:'Deep internal pressure — outer casing stretching from the inside out. Vascularity flush through the shaft.',dontFeel:'Sharp pain, glans engorgement, or any tingling/numbness.',cues:[{time:30,text:'70-80% EQ. Lock base with OK grip — or silicone ring if hands-free.'},{time:20,text:'Feel the internal expansion. Hold the trap. Do not squeeze tighter.'},{time:10,text:'Outer casing is stretching now — this is the adaptation signal.'},{time:3,text:'Release slowly. Let blood fully redistribute before next rep.'}]},
-        {title:'Squeeze Hold',sets:3,duration:30,eq:'7-8 EQ',feel:'Maximum expansion pressure held at base.',dontFeel:'Throbbing pain or visible discoloration.',cues:[{time:30,text:'OK grip at base. Squeeze and hold at maximum EQ.'},{time:10,text:'Maintain the hold. Do not release yet.'},{time:3,text:'Release slowly. Let blood redistribute.'}]},
-        {title:'Edging Compression',sets:2,duration:60,eq:'6-7 EQ',feel:'Deep internal pressure, expansion at base and mid-shaft.',dontFeel:'Glans engorgement or head pressure.',cues:[{time:60,text:'Both hands grip mid-shaft. Compress inward.'},{time:30,text:'Maintain compression. Breathe out slowly.'},{time:10,text:'Hold compression. Final stretch.'}]}
+        {
+            title:'Uli — Manual Clamp',
+            sets:3, duration:30,
+            eq:'7-8 EQ (80%)',
+            feel:'High internal pressure — like an overfilled balloon. The outer casing stretching from the inside out. Vascularity flush through the shaft.',
+            dontFeel:'Sharp pain, glans engorgement, tingling, or numbness. Those are overload signals — release immediately.',
+            cues:[
+                {time:30, text:'Get to 80% EQ. Use coconut oil or a thick cream — zero skin friction on this one.'},
+                {time:25, text:'OK grip at the very base — thumb and index finger. Seal tight. Blood cannot escape.'},
+                {time:18, text:'Use your free hand to milk more blood up into the shaft. You are overfilling the container.'},
+                {time:10, text:'Hold the seal. Feel the internal walls expanding under pressure. This is the adaptation signal.'},
+                {time:3,  text:'Release slowly. Let blood redistribute fully before the next rep.'}
+            ]
+        },
+        {
+            title:'Jelq — Manual Milk',
+            sets:1, duration:600,
+            eq:'6-8 EQ (60-80%)',
+            feel:'A rolling wave of hydraulic pressure moving from base to head. Steady rhythm, even strokes.',
+            dontFeel:'Dry friction, skin burning, or any stroking past the head. Those mean wrong technique.',
+            cues:[
+                {time:600, text:'Get to 60-80% EQ — this is the sweet spot. Enough volume to move, not so hard you risk blowout.'},
+                {time:570, text:'Apply generous lube — this is mandatory. No lube means friction burn, not gains.'},
+                {time:540, text:'OK grip at the base. Slide slowly toward the head — take 3 full seconds per stroke.'},
+                {time:480, text:'Stop just before the head. Switch hands. Keep a steady, rhythmic milking motion.'},
+                {time:300, text:'Halfway. Maintain your EQ in the 60-80% range. If you go harder, stop and let it settle.'},
+                {time:60,  text:'Final minute. Keep the rhythm consistent. Same pressure, same speed, all the way through.'},
+                {time:5,   text:'Done. Let the tissue rest before moving to the next exercise.'}
+            ]
+        },
+        {
+            title:'Squeeze Hold',
+            sets:3, duration:30,
+            eq:'7-8 EQ',
+            feel:'Maximum expansion pressure held at the base. Shaft feels fully pressurized.',
+            dontFeel:'Throbbing pain, visible discoloration, or any coldness in the glans.',
+            cues:[
+                {time:30, text:'80% EQ. OK grip at the base — squeeze tight enough to trap the blood.'},
+                {time:20, text:'Hold the squeeze. Do not pump tighter. Just maintain the seal and feel the pressure build.'},
+                {time:8,  text:'Almost done. The tissue is under load right now — this is where adaptation happens.'},
+                {time:3,  text:'Release slowly over 2 seconds. Let blood redistribute before the next rep.'}
+            ]
+        },
+        {
+            title:'Edging Compression',
+            sets:2, duration:60,
+            eq:'6-7 EQ',
+            feel:'Deep internal pressure, expansion at base and mid-shaft. Steady and controlled.',
+            dontFeel:'Glans engorgement, head pressure, or any electric sensation.',
+            cues:[
+                {time:60, text:'60-70% EQ. Both hands grip mid-shaft with moderate pressure.'},
+                {time:45, text:'Compress inward — you are squeezing from the sides, not along the length.'},
+                {time:30, text:'Breathe out slowly. Let the exhale deepen the internal expansion.'},
+                {time:15, text:'Hold the compression. The tunica is under lateral stress right now.'},
+                {time:5,  text:'Release. Shake out your hands. Reset for the next set.'}
+            ]
+        }
     ],
     recovery:[
         {
@@ -626,6 +711,54 @@ const ROUTINES={
                 {time:35, text:'Check your glutes and thighs — they should be fully relaxed. Isolate the floor.'},
                 {time:20, text:'You are building endurance now, not strength. Keep it controlled and even.'},
                 {time:5,  text:'Slowly release over 3 seconds. Full rest before next set.'}
+            ]
+        },
+        {
+            title:'Deep Squat — Malasana', sets:2, duration:60, isRecovery:true,
+            eq:'N/A', feel:'Pelvic outlet opening. Knees pushing wide, tailbone dropping toward the floor.',
+            dontFeel:'Heel lift — if heels come up, widen your stance until they stay flat.',
+            cues:[
+                {time:60, text:'Feet flat, wider than hip-width. Drop your butt toward the floor.'},
+                {time:48, text:'Elbows on inner knees — gently nudge them outward. This opens the pelvic outlet.'},
+                {time:30, text:'Breathe deep into your belly. Feel the floor of your pelvis release on every exhale.'},
+                {time:15, text:'This is the foundation of a heavy hang. Stay low. Let gravity do the work.'},
+                {time:5,  text:'Rise slowly. Shake out your legs before the next set.'}
+            ]
+        },
+        {
+            title:'Happy Baby', sets:2, duration:45, isRecovery:true,
+            eq:'N/A', feel:'Pelvic floor manually releasing. Inner groin and sacrum softening toward the floor.',
+            dontFeel:'Neck strain — keep your head on the ground and your shoulders relaxed.',
+            cues:[
+                {time:45, text:'Lie on your back. Grab the outsides of both feet.'},
+                {time:35, text:'Pull your knees toward your armpits. Feet point up toward the ceiling.'},
+                {time:22, text:'Rock gently side to side. This is the fastest way to turn off a tight pelvic floor.'},
+                {time:10, text:'Hold still. Breathe into the stretch. Feel the sacrum drop.'},
+                {time:3,  text:'Release. Let your legs rest flat before the next set.'}
+            ]
+        },
+        {
+            title:'Pigeon Pose', sets:2, duration:60, isRecovery:true,
+            eq:'N/A', feel:'Deep glute and hip rotator stretch. The tissue that pulls on your pelvis when you sit too much.',
+            dontFeel:'Sharp knee pain — if you feel it in the knee instead of the hip, adjust the angle.',
+            cues:[
+                {time:60, text:'Fold one leg in front at roughly a 90-degree angle. Stretch the other leg back.'},
+                {time:45, text:'Lower your torso forward over your front leg. Let your hips sink toward the floor.'},
+                {time:30, text:'This targets the glutes and deep hip rotators. Breathe into the resistance.'},
+                {time:15, text:'Tight glutes pull on the pelvis and kill your hang. Stay here and let them open.'},
+                {time:5,  text:'Switch sides for the next set.'}
+            ]
+        },
+        {
+            title:'Butterfly Stretch', sets:2, duration:45, isRecovery:true,
+            eq:'N/A', feel:'Inner thigh and adductor release. A pulling sensation along the inner groin — not sharp.',
+            dontFeel:'Bouncing your knees — that activates the stretch reflex and tightens what you are trying to open.',
+            cues:[
+                {time:45, text:'Sit up straight. Soles of your feet together, knees falling out to the sides.'},
+                {time:32, text:'Hold your feet and gently hinge forward at the hips — not the lower back.'},
+                {time:20, text:'Tight adductors mean your pelvic floor stays retracted. Let these release fully.'},
+                {time:8,  text:'Breathe out and sink a little deeper. Feel the inner thighs soften.'},
+                {time:3,  text:'Sit back up slowly. Reset before the next set.'}
             ]
         }
     ]
@@ -1148,7 +1281,39 @@ function advanceEx(){
 // ═══════════════════════════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+// HYDRATION TRACKER
+// ═══════════════════════════════════════════════════════════════════════════
+function getTodayKey(){ return 'bp_hydration_'+new Date().toISOString().split('T')[0]; }
+function getHydration(){ return parseFloat(localStorage.getItem(getTodayKey())||'0'); }
+function setHydration(ml){
+    const current=getHydration();
+    const newVal=Math.min(5000, current+ml);
+    localStorage.setItem(getTodayKey(), newVal);
+    renderHydration();
+}
+function resetHydration(){
+    localStorage.setItem(getTodayKey(),'0');
+    renderHydration();
+}
+function renderHydration(){
+    const ml=getHydration();
+    const liters=(ml/1000).toFixed(1);
+    const pct=Math.min(100,(ml/3000)*100);
+    const complete=ml>=3000;
+    document.getElementById('hydration-amount').innerText=liters;
+    const bar=document.getElementById('hydration-bar');
+    bar.style.width=pct+'%';
+    bar.className='hydration-bar-fill'+(complete?' complete':'');
+    const msg=document.getElementById('hydration-msg');
+    if(complete) msg.innerHTML='<span class="text-emerald-400 font-bold">✓ 3L goal hit. Tissue is primed.</span>';
+    else if(ml>=2000) msg.innerText='Almost there — one more glass.';
+    else if(ml>=1000) msg.innerText='Halfway. Keep drinking.';
+    else msg.innerText='Minimum 3L daily. Hydration is non-negotiable.';
+}
+
 function renderDashboard(){
+    renderHydration();
     const g=document.getElementById('dashboard-grid');g.innerHTML='';
     persisted.schedule.forEach((type,i)=>{
         const d=document.createElement('div');
@@ -1334,6 +1499,11 @@ function init(){
     document.getElementById('launch-btn').addEventListener('click',()=>goToStep(1));
     document.getElementById('ai-coach-btn').addEventListener('click',openCoach);
     document.getElementById('progress-btn').addEventListener('click',openProgressChart);
+    // Hydration buttons
+    document.querySelectorAll('.water-btn[data-ml]').forEach(btn=>{
+        btn.addEventListener('click',()=>setHydration(parseInt(btn.dataset.ml)));
+    });
+    document.getElementById('hydration-reset-btn').addEventListener('click',resetHydration);
     document.getElementById('export-btn').addEventListener('click',exportData);
     document.getElementById('import-btn').addEventListener('click',()=>document.getElementById('import-file-input').click());
     document.getElementById('import-file-input').addEventListener('change',e=>{importData(e.target.files[0]);e.target.value=''});
