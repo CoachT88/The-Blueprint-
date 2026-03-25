@@ -1252,28 +1252,25 @@ async function handleAuthSubmit(){
     if(authMode==='signup'&&password!==confirm){setAuthError('Passwords do not match.');return}
     btn.textContent='Please wait...';btn.disabled=true;setAuthError('');
 
-    // Timeout after 10 seconds
-    const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Request timed out. Check your connection and try again.')),20000));
-
     try{
         let result;
         if(authMode==='login'){
-            result=await Promise.race([sb.auth.signInWithPassword({email,password}),timeout]);
+            result=await sb.auth.signInWithPassword({email,password});
         } else {
-            result=await Promise.race([sb.auth.signUp({email,password}),timeout]);
+            result=await sb.auth.signUp({email,password});
             if(!result.error&&result.data?.user&&!result.data.session){
                 setAuthSuccess('Check your email to confirm your account, then sign in.');
                 btn.textContent='CREATE ACCOUNT';btn.disabled=false;return;
             }
         }
         if(result.error){
-            setAuthError(result.error.message);
+            setAuthError('Error: '+result.error.message+' ('+result.error.status+')');
             btn.textContent=authMode==='login'?'SIGN IN':'CREATE ACCOUNT';
             btn.disabled=false;return;
         }
         // Success handled by onAuthStateChange
     }catch(e){
-        setAuthError(e.message||'Connection failed. Check your internet and try again.');
+        setAuthError('Caught: '+(e.message||JSON.stringify(e)));
         btn.textContent=authMode==='login'?'SIGN IN':'CREATE ACCOUNT';
         btn.disabled=false;
     }
