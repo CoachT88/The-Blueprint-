@@ -235,7 +235,7 @@
 <div id="apikey-modal">
     <div style="background:linear-gradient(145deg,rgba(30,41,59,.95) 0%,rgba(15,23,42,.98) 100%);border:1px solid rgba(168,85,247,.3);border-top:1px solid rgba(168,85,247,.5);border-radius:2rem;padding:2rem;max-width:20rem;width:100%;text-align:center;">
         <i class="fas fa-brain text-purple-400 text-4xl mb-4"></i>
-        <h3 class="text-xl font-black uppercase italic text-white mb-2">AI Coach Setup</h3>
+        <h3 class="text-xl font-black uppercase italic text-white mb-2">Connect Coach Tee</h3>
         <p class="text-slate-400 text-xs leading-relaxed mb-5">Enter your Anthropic API key to enable AI coaching. Get one free at <span class="text-purple-400 font-bold">console.anthropic.com</span>. Stored only on this device.</p>
         <input id="apikey-input" type="password" placeholder="sk-ant-..." class="glass-input mb-4" style="font-family:'JetBrains Mono',monospace;font-size:.8rem;letter-spacing:.05em;">
         <div class="flex gap-3">
@@ -347,7 +347,7 @@
             <button id="launch-btn" class="btn-primary">BEGIN SESSION</button>
             <div class="grid grid-cols-2 gap-3">
                 <button id="progress-btn" class="btn-outline flex items-center justify-center gap-2 py-3"><i class="fas fa-chart-line text-blue-400"></i> Progress</button>
-                <button id="ai-coach-btn" class="btn-outline btn-ai text-white flex items-center justify-center gap-2 py-3"><i class="fas fa-brain"></i> AI Coach</button>
+                <button id="ai-coach-btn" class="btn-outline btn-ai text-white flex items-center justify-center gap-2 py-3"><i class="fas fa-comment-dots"></i> Ask Coach Tee</button>
             </div>
         </div>
         <div class="px-2 space-y-2">
@@ -528,11 +528,11 @@
 
 <div id="coach-modal" class="fixed inset-0 bg-black/95 backdrop-blur-xl z-[200] hidden flex items-center justify-center p-4">
     <div class="bg-slate-900/95 border border-purple-500/30 w-full max-w-md rounded-[2rem] p-6 space-y-4 flex flex-col max-h-[90vh]">
-        <div class="flex justify-between items-center"><h3 class="font-black uppercase italic text-purple-400 tracking-widest"><i class="fas fa-brain"></i> AI Coach ✨</h3><button id="coach-close-btn" class="text-slate-500 cursor-pointer"><i class="fas fa-xmark text-xl"></i></button></div>
-        <div id="coach-chat-area" class="flex-grow overflow-y-auto bg-slate-950/50 rounded-xl p-4 border border-slate-800/80 text-sm text-slate-300 space-y-3 min-h-[200px]"><p class="italic text-slate-500 text-sm">Ask safety or mechanics questions...</p></div>
+        <div class="flex justify-between items-center"><h3 class="font-black uppercase italic text-purple-400 tracking-widest"><i class="fas fa-comment-dots"></i> Ask Coach Tee ✨</h3><button id="coach-close-btn" class="text-slate-500 cursor-pointer"><i class="fas fa-xmark text-xl"></i></button></div>
+        <div id="coach-chat-area" class="flex-grow overflow-y-auto bg-slate-950/50 rounded-xl p-4 border border-slate-800/80 text-sm text-slate-300 space-y-3 min-h-[200px]"><p class="italic text-slate-500 text-sm">CoachTee is ready. Ask anything.</p></div>
         <div class="pt-2 flex flex-col gap-3">
-            <textarea id="coach-input" class="glass-input h-20" placeholder="Why is my EQ dropping?"></textarea>
-            <button id="coach-submit-btn" class="btn-primary btn-ai py-4 text-sm">Ask Question</button>
+            <textarea id="coach-input" class="glass-input h-20" placeholder="What's good Coach Tee..."></textarea>
+            <button id="coach-submit-btn" class="btn-primary btn-ai py-4 text-sm">Send</button>
         </div>
     </div>
 </div>
@@ -918,7 +918,7 @@ async function getClaudeKey(){
 
 async function fetchClaude(userMsg, systemPrompt){
     const key=await getClaudeKey();
-    if(!key)return{ok:false,error:'No API key — tap AI Coach to set one up.'};
+    if(!key)return{ok:false,error:'No API key — tap Ask Coach Tee to set one up.'};
     try{
         const res=await fetch('https://api.anthropic.com/v1/messages',{
             method:'POST',
@@ -947,12 +947,12 @@ async function fetchClaude(userMsg, systemPrompt){
 async function askCoach(){
     const inp=document.getElementById('coach-input'),btn=document.getElementById('coach-submit-btn'),area=document.getElementById('coach-chat-area');
     const q=inp.value.trim();if(!q)return;
-    area.innerHTML+=`<div class="chat-msg user">${esc(q)}</div>`;inp.value='';btn.textContent='Thinking...';btn.disabled=true;area.scrollTop=area.scrollHeight;
-    const sys=`You are an expert male tissue expansion coach with deep knowledge of PE protocols, anatomy, and injury prevention. You give direct, safety-focused answers. Be concise — 2-4 sentences max unless the question genuinely needs more. Never use markdown formatting. Refer to yourself as Coach.`;
+    area.innerHTML+=`<div class="chat-msg user">${esc(q)}</div>`;inp.value='';btn.textContent='...';btn.disabled=true;area.scrollTop=area.scrollHeight;
+    const sys=`You are CoachTee — a real one. You know PE protocols, pelvic health, and male performance inside out. Talk like a knowledgeable friend, not a textbook. Keep it relaxed, direct, and real. No markdown, no bullet points, no fluff. 2-4 sentences unless they really need more. Always start your response with nothing before the answer — just talk.`;
     const r=await fetchClaude(q,sys);
-    if(r.ok) area.innerHTML+=`<div class="chat-msg ai">Coach: ${esc(r.text)}</div>`;
+    if(r.ok) area.innerHTML+=`<div class="chat-msg ai">CoachTee: ${esc(r.text)}</div>`;
     else area.innerHTML+=`<div class="chat-msg error"><i class="fas fa-exclamation-triangle"></i> ${esc(r.error)}</div>`;
-    btn.textContent='Ask Question';btn.disabled=false;area.scrollTop=area.scrollHeight;
+    btn.textContent='Send';btn.disabled=false;area.scrollTop=area.scrollHeight;
 }
 
 async function analyzeRecovery(){
@@ -1326,7 +1326,7 @@ function init(){
     document.getElementById('export-btn').addEventListener('click',exportData);
     document.getElementById('import-btn').addEventListener('click',()=>document.getElementById('import-file-input').click());
     document.getElementById('import-file-input').addEventListener('change',e=>{importData(e.target.files[0]);e.target.value=''});
-    document.getElementById('reset-api-btn').addEventListener('click',()=>{localStorage.removeItem('bp_claude_key');alert('API key cleared. Open AI Coach to re-enter.')});
+    document.getElementById('reset-api-btn').addEventListener('click',()=>{localStorage.removeItem('bp_claude_key');alert('API key cleared. Open Ask Coach Tee to re-enter.')});
     // Difficulty buttons
     document.querySelectorAll('.diff-btn').forEach(btn=>{
         btn.addEventListener('click',()=>setDifficulty(btn.dataset.diff));
