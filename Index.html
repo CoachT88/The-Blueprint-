@@ -1400,14 +1400,21 @@ function startSet(){
     document.getElementById('ex-btn').style.display='none';
     document.getElementById('ex-pause-btn').style.display='flex';
     document.getElementById('pause-icon').className='fas fa-pause text-2xl';
+    // Show the first cue immediately at full duration before timer ticks
+    {
+        const firstCue=[...ex.cues].sort((a,b)=>b.time-a.time).find(c=>c.time>=ex.duration);
+        if(firstCue) document.getElementById('ex-live-text').innerText=firstCue.text.replace('{DIR}',DIRECTIONALS[session.directionalIndex]);
+    }
     session.timer=createTimer(ex.duration,rem=>{
         document.getElementById('ex-timer').innerText=fmtDuration(rem);
         session.xp+=Math.round(5*getDiff().xpMult);document.getElementById('live-xp').innerText=`${session.xp} XP`;
-        // Cues fire based on seconds REMAINING (countdown) — find the cue for the current moment
-        // Sort descending by time so we get the most-recently-passed cue
-        const sortedCues=[...ex.cues].sort((a,b)=>b.time-a.time);
-        const cue=sortedCues.find(c=>rem<=c.time);
-        if(cue)document.getElementById('ex-live-text').innerText=cue.text.replace('{DIR}',DIRECTIONALS[session.directionalIndex]);
+        // Find the active cue: highest time value that is still >= current remaining seconds
+        // e.g. cue {time:30} shows when rem drops to 30 and stays until a lower-time cue takes over
+        const activeCue=[...ex.cues].sort((a,b)=>b.time-a.time).find(c=>c.time>=rem);
+        if(activeCue){
+            const txt=activeCue.text.replace('{DIR}',DIRECTIONALS[session.directionalIndex]);
+            document.getElementById('ex-live-text').innerText=txt;
+        }
     },()=>onSetDone());
     session.timer.start();
 }
