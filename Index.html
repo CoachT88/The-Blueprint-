@@ -110,6 +110,15 @@
         .export-row button:hover{border-color:rgba(255,255,255,.15);color:#94a3b8}
         @keyframes popIn{0%{transform:scale(.8);opacity:0}100%{transform:scale(1);opacity:1}}
         .xp-pop{animation:popIn .3s cubic-bezier(.175,.885,.32,1.275)}
+        /* Recovery exercise picker */
+        .ex-pick-card{background:linear-gradient(145deg,rgba(30,41,59,.35) 0%,rgba(15,23,42,.55) 100%);border:1px solid rgba(255,255,255,.06);border-radius:1.25rem;padding:.9rem 1rem;display:flex;align-items:center;gap:.75rem;cursor:pointer;transition:all .2s;position:relative}
+        .ex-pick-card.selected{border-color:rgba(245,158,11,.5);background:linear-gradient(145deg,rgba(245,158,11,.08) 0%,rgba(15,23,42,.6) 100%)}
+        .ex-pick-check{width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,.15);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        .ex-pick-card.selected .ex-pick-check{background:rgba(245,158,11,.9);border-color:rgba(245,158,11,1)}
+        .coach-rec-banner{background:linear-gradient(135deg,rgba(245,158,11,.1) 0%,rgba(234,88,12,.05) 100%);border:1px solid rgba(245,158,11,.2);border-radius:1rem;padding:.75rem 1rem;display:flex;align-items:flex-start;gap:.75rem}
+        /* Exercise detail drawer */
+        .ex-detail-card{background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.15);border-radius:1rem;padding:.9rem 1rem;font-size:.75rem;line-height:1.6;color:#cbd5e1;display:none}
+        .ex-detail-card.show{display:block}
         /* Hydration tracker */
         .hydration-bar-track{height:6px;background:#1e293b;border-radius:999px;width:100%;overflow:hidden}
         .hydration-bar-fill{height:100%;border-radius:999px;transition:width .5s cubic-bezier(.4,0,.2,1);background:linear-gradient(90deg,#3b82f6,#06b6d4)}
@@ -464,12 +473,52 @@
             <i class="fas fa-heart-pulse text-2xl text-amber-400 flex-shrink-0"></i>
             <div class="text-left">
                 <p class="text-xl font-black uppercase italic text-amber-300">Recovery</p>
-                <p class="text-[10px] text-slate-500 font-semibold mt-0.5">Rest day protocol — kegels, RK stretch, flaccid work, blood flow</p>
+                <p class="text-[10px] text-slate-500 font-semibold mt-0.5">6 exercises — pelvic floor, hip openers &amp; The Big Four</p>
             </div>
             <i class="fas fa-chevron-right text-slate-700 text-xs ml-auto flex-shrink-0"></i>
         </button>
     </div>
     <button id="mission-abort-btn" class="text-slate-600 font-black uppercase text-[10px] pt-4">Abort Session</button>
+    <div class="scroll-buffer"></div>
+</div>
+```
+
+</div>
+
+<!-- STEP 3B: RECOVERY EXERCISE PICKER -->
+
+<div id="step-3b" class="step-content hidden-step">
+    <div class="inner-step-wrapper py-12 space-y-5">
+        <div class="flex items-center gap-3 px-2 pt-4">
+            <button id="recovery-back-btn" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-800/50 text-slate-400 flex-shrink-0"><i class="fas fa-arrow-left text-sm"></i></button>
+            <div>
+                <h2 class="text-3xl font-black italic uppercase text-slate-50 leading-none">Recovery</h2>
+                <p class="text-[10px] text-slate-500 font-semibold mt-0.5">Choose your exercises</p>
+            </div>
+        </div>
+
+```
+    <!-- Coach Tee recommendation -->
+    <div class="coach-rec-banner mx-2">
+        <i class="fas fa-comment-dots text-amber-400 text-lg flex-shrink-0 mt-0.5"></i>
+        <div>
+            <p class="text-amber-300 text-[10px] font-black uppercase tracking-widest mb-1">CoachTee Recommends</p>
+            <p class="text-slate-400 text-[11px] leading-relaxed">Do all 6. The kegels and RK build the floor, the releases decompress it, and The Big Four open the hips and pelvis so the whole system works together. This is your rest day protocol <em>and</em> your nightly routine.</p>
+            <button id="recovery-select-all-btn" class="mt-2 text-amber-400 text-[10px] font-black uppercase tracking-widest border border-amber-500/30 bg-amber-500/08 px-3 py-1 rounded-full">Select All 6</button>
+        </div>
+    </div>
+
+    <!-- Exercise list -->
+    <div class="px-2 space-y-2" id="recovery-ex-list">
+        <!-- Injected by JS -->
+    </div>
+
+    <div class="px-2 pt-2 space-y-3">
+        <button id="recovery-start-btn" class="btn-primary py-5" style="background:linear-gradient(135deg,#d97706 0%,#b45309 100%)">
+            <span id="recovery-start-label">START SESSION</span>
+        </button>
+        <p class="text-slate-600 text-[10px] text-center italic">Exercises run in order. You can always skip any set.</p>
+    </div>
     <div class="scroll-buffer"></div>
 </div>
 ```
@@ -499,6 +548,8 @@
                 <div class="border-l border-slate-700/50 pl-6"><p class="text-[9px] font-black text-red-400 uppercase mb-1.5">Danger Sign</p><p id="dont-feel-msg" class="text-[11px] text-slate-300 italic leading-relaxed font-medium">--</p></div>
             </div>
         </div>
+        <!-- Exercise detail for recovery -->
+        <div id="ex-detail-card" class="ex-detail-card mx-2" style="position:relative;z-index:15;"></div>
         <div id="deload-ex-badge" class="hidden" style="position:relative;z-index:15"><span class="text-[10px] font-black text-orange-400 uppercase tracking-widest bg-orange-500/10 border border-orange-500/20 px-3 py-1.5 rounded-full"><i class="fas fa-battery-quarter mr-1.5"></i>Deload Volume</span></div>
         <div class="py-4" style="position:relative;z-index:15"><div id="ex-timer" class="text-[11rem] font-black tracking-tighter tabular-nums leading-none timer-glow text-blue-400">30</div></div>
         <div class="flex gap-4 px-2 pb-4" style="position:relative;z-index:15">
@@ -666,7 +717,7 @@ const ROUTINES={
     ],
     recovery:[
         {
-            title:'Kegel Contractions', sets:3, duration:60, isRecovery:true,
+            title:'Kegel Contractions', detail:'Contract upward as if stopping urine — 3 seconds on, 3 seconds full release. Keep glutes and thighs completely relaxed. Isolate the pelvic floor only.', sets:3, duration:60, isRecovery:true,
             eq:'Soft — 0-3 EQ', feel:'Controlled voluntary contraction and full release. Symmetrical engagement.',
             dontFeel:'Straining, breath-holding, or hip/glute compensation.',
             cues:[
@@ -679,7 +730,7 @@ const ROUTINES={
             ]
         },
         {
-            title:'Reverse Kegel Stretch', sets:3, duration:45, isRecovery:true,
+            title:'Reverse Kegel Stretch', detail:'Inhale deep into the belly and gently bear down — as if allowing urine to flow faster. The pelvic floor physically drops on the inhale. Never strain or push hard.', sets:3, duration:45, isRecovery:true,
             eq:'Soft — 0-2 EQ', feel:'Pelvic floor dropping and opening. Gentle downward pressure without strain.',
             dontFeel:'Abdominal straining or bearing down with full force.',
             cues:[
@@ -690,7 +741,7 @@ const ROUTINES={
             ]
         },
         {
-            title:'Pelvic Floor Release', sets:3, duration:45, isRecovery:true,
+            title:'Pelvic Floor Release', detail:'Imagine the pelvic floor as a tight fist slowly opening. Use your breath and gravity — no active pushing. Jaw loose, shoulders dropped, floor follows.', sets:3, duration:45, isRecovery:true,
             eq:'Soft — 0 EQ', feel:'Progressive tension melting from the pelvic floor. Deep tissue warmth and heaviness.',
             dontFeel:'Straining, breath-holding, or any active pushing downward.',
             cues:[
@@ -702,7 +753,7 @@ const ROUTINES={
             ]
         },
         {
-            title:'Pelvic Floor Endurance Hold', sets:3, duration:60, isRecovery:true,
+            title:'Pelvic Floor Endurance Hold', detail:'40% contraction — half your max. Hold steady for the full set without the contraction wavering with your breath. Builds motor control and stamina, not peak strength.', sets:3, duration:60, isRecovery:true,
             eq:'Soft — 0 EQ', feel:'Sustained low-intensity contraction without fatigue. Steady, even engagement.',
             dontFeel:'Glute or thigh involvement. If those fire, the contraction is too intense.',
             cues:[
@@ -714,7 +765,7 @@ const ROUTINES={
             ]
         },
         {
-            title:'Deep Squat — Malasana', sets:2, duration:60, isRecovery:true,
+            title:'Deep Squat — Malasana', detail:'Feet flat, wider than hip-width. Drop your butt toward the floor and use your elbows to nudge your knees outward. This physically opens the pelvic outlet — the foundation of a heavy hang.', sets:2, duration:60, isRecovery:true,
             eq:'N/A', feel:'Pelvic outlet opening. Knees pushing wide, tailbone dropping toward the floor.',
             dontFeel:'Heel lift — if heels come up, widen your stance until they stay flat.',
             cues:[
@@ -726,7 +777,7 @@ const ROUTINES={
             ]
         },
         {
-            title:'Happy Baby', sets:2, duration:45, isRecovery:true,
+            title:'Happy Baby', detail:'Lie on your back, grab the outsides of both feet, pull knees toward armpits. Rock gently side to side. This is the fastest way to manually turn off a tight pelvic floor.', sets:2, duration:45, isRecovery:true,
             eq:'N/A', feel:'Pelvic floor manually releasing. Inner groin and sacrum softening toward the floor.',
             dontFeel:'Neck strain — keep your head on the ground and your shoulders relaxed.',
             cues:[
@@ -738,7 +789,7 @@ const ROUTINES={
             ]
         },
         {
-            title:'Pigeon Pose', sets:2, duration:60, isRecovery:true,
+            title:'Pigeon Pose', detail:'Fold one leg in front at 90 degrees, stretch the other back. Sink your hips toward the floor. Targets the glutes and deep hip rotators that pull on your pelvis from sitting too much.', sets:2, duration:60, isRecovery:true,
             eq:'N/A', feel:'Deep glute and hip rotator stretch. The tissue that pulls on your pelvis when you sit too much.',
             dontFeel:'Sharp knee pain — if you feel it in the knee instead of the hip, adjust the angle.',
             cues:[
@@ -750,7 +801,7 @@ const ROUTINES={
             ]
         },
         {
-            title:'Butterfly Stretch', sets:2, duration:45, isRecovery:true,
+            title:'Butterfly Stretch', detail:'Soles of feet together, knees falling out. Hinge forward at the hips — not the lower back. Tight adductors (inner thighs) keep the pelvic floor retracted. Let these open fully.', sets:2, duration:45, isRecovery:true,
             eq:'N/A', feel:'Inner thigh and adductor release. A pulling sensation along the inner groin — not sharp.',
             dontFeel:'Bouncing your knees — that activates the stretch reflex and tightens what you are trying to open.',
             cues:[
@@ -822,6 +873,7 @@ function resetSession(){
     if(session.warmupTimer){session.warmupTimer.cancel();session.warmupTimer=null}
     stopCarousel();
     session.exerciseIndex=0;session.setIndex=1;session.directionalIndex=0;session.xp=0;
+    session.recoveryQueue=null;session.recoveryQueuePos=0;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1142,7 +1194,83 @@ function stopWarmup(){if(session.warmupTimer){session.warmupTimer.cancel();sessi
 // ═══════════════════════════════════════════════════════════════════════════
 // EXERCISE ENGINE
 // ═══════════════════════════════════════════════════════════════════════════
-function getCurEx(){const ex=ROUTINES[session.routineType][session.exerciseIndex];if(ex.isRecovery)return ex;return applyDeload(applyDifficulty(ex));}
+// ═══════════════════════════════════════════════════════════════════════════
+// RECOVERY PICKER
+// ═══════════════════════════════════════════════════════════════════════════
+const RECOVERY_EX_IDS = ['Kegel Contractions','Reverse Kegel Stretch','Pelvic Floor Release','Pelvic Floor Endurance Hold','Deep Squat — Malasana','Happy Baby','Pigeon Pose','Butterfly Stretch'];
+// The 6 Coach Tee recommends (indices into ROUTINES.recovery)
+const COACH_REC_INDICES = [0,1,2,3,4,5]; // first 6: kegels, RK, release, endurance, squat, happy baby — user can also pick pigeon+butterfly
+let selectedRecoveryIndices = [0,1,2,3,4,5]; // default = Coach rec
+
+function buildRecoveryPicker(){
+    const list = document.getElementById('recovery-ex-list');
+    list.innerHTML = '';
+    ROUTINES.recovery.forEach((ex, i) => {
+        const selected = selectedRecoveryIndices.includes(i);
+        const card = document.createElement('div');
+        card.className = 'ex-pick-card' + (selected ? ' selected' : '');
+        card.dataset.idx = i;
+        card.innerHTML = `
+            <div class="ex-pick-check">${selected ? '<i class="fas fa-check text-white text-[10px]"></i>' : ''}</div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-black text-white leading-snug">${ex.title}</p>
+                <p class="text-[10px] text-slate-500 mt-0.5">${ex.sets} sets · ${fmtDuration(ex.duration, ex.duration)} · ${ex.eq}</p>
+            </div>
+        `;
+        card.addEventListener('click', () => toggleRecoveryEx(i));
+        list.appendChild(card);
+    });
+    updateRecoveryStartBtn();
+}
+
+function toggleRecoveryEx(idx){
+    const i = selectedRecoveryIndices.indexOf(idx);
+    if(i >= 0) selectedRecoveryIndices.splice(i, 1);
+    else selectedRecoveryIndices.push(idx);
+    selectedRecoveryIndices.sort((a,b)=>a-b);
+    buildRecoveryPicker();
+}
+
+function selectAllRecovery(){
+    selectedRecoveryIndices = ROUTINES.recovery.map((_,i)=>i);
+    buildRecoveryPicker();
+}
+
+function updateRecoveryStartBtn(){
+    const btn = document.getElementById('recovery-start-btn');
+    const lbl = document.getElementById('recovery-start-label');
+    const n = selectedRecoveryIndices.length;
+    btn.disabled = n === 0;
+    lbl.innerText = n === 0 ? 'SELECT AT LEAST ONE' : `START ${n} EXERCISE${n>1?'S':''}`;
+}
+
+function goToRecoveryPicker(){
+    buildRecoveryPicker();
+    document.querySelectorAll('.step-content').forEach(s=>{s.classList.add('hidden-step');s.classList.remove('active-step')});
+    const t = document.getElementById('step-3b');
+    t.classList.remove('hidden-step'); t.classList.add('active-step');
+}
+
+function startRecoverySession(){
+    if(!selectedRecoveryIndices.length) return;
+    // Build a custom routine from selected exercises
+    session.recoveryQueue = [...selectedRecoveryIndices];
+    session.recoveryQueuePos = 0;
+    session.routineType = 'recovery';
+    resetSession();
+    // Override exerciseIndex to first selected
+    session.exerciseIndex = session.recoveryQueue[0];
+    updateExUI();
+    document.querySelectorAll('.step-content').forEach(s=>{s.classList.add('hidden-step');s.classList.remove('active-step')});
+    const t = document.getElementById('step-4');
+    t.classList.remove('hidden-step'); t.classList.add('active-step');
+}
+
+function getCurEx(){
+    const ex = ROUTINES[session.routineType][session.exerciseIndex];
+    if(ex.isRecovery) return ex;
+    return applyDeload(applyDifficulty(ex));
+}
 function updateExUI(){
     const ex=getCurEx(),dl=isDeloadWeek();
     document.getElementById('ex-title').innerText=ex.title;
@@ -1152,6 +1280,15 @@ function updateExUI(){
     _curExDuration=ex.duration;
     document.getElementById('ex-timer').innerText=fmtDuration(ex.duration,ex.duration);
     document.getElementById('ex-live-text').innerText='Ready...';
+    // Show exercise detail for recovery exercises
+    const detailCard=document.getElementById('ex-detail-card');
+    if(ex.isRecovery && ex.detail){
+        detailCard.innerHTML=ex.detail;
+        detailCard.classList.add('show');
+    } else {
+        detailCard.classList.remove('show');
+        detailCard.innerHTML='';
+    }
     document.getElementById('ex-tag').innerText='Phase '+String(session.exerciseIndex+1).padStart(2,'0');
     const isRecovSession=session.routineType==='recovery';
     const timerEl=document.getElementById('ex-timer');
@@ -1185,7 +1322,10 @@ function startSet(){
     session.timer=createTimer(ex.duration,rem=>{
         document.getElementById('ex-timer').innerText=fmtDuration(rem);
         session.xp+=Math.round(5*getDiff().xpMult);document.getElementById('live-xp').innerText=`${session.xp} XP`;
-        const cue=[...ex.cues].reverse().find(c=>rem<=c.time);
+        // Cues fire based on seconds REMAINING (countdown) — find the cue for the current moment
+        // Sort descending by time so we get the most-recently-passed cue
+        const sortedCues=[...ex.cues].sort((a,b)=>b.time-a.time);
+        const cue=sortedCues.find(c=>rem<=c.time);
         if(cue)document.getElementById('ex-live-text').innerText=cue.text.replace('{DIR}',DIRECTIONALS[session.directionalIndex]);
     },()=>onSetDone());
     session.timer.start();
@@ -1273,9 +1413,19 @@ function skipRest(){
     session.setIndex++;updateExUI();
 }
 function advanceEx(){
-    const exs=ROUTINES[session.routineType];
-    if(session.exerciseIndex<exs.length-1){session.exerciseIndex++;session.setIndex=1;session.directionalIndex=0;updateExUI()}
-    else{haptic([100,50,100,50,300]);document.getElementById('success-xp-text').innerText=`+${session.xp} XP EARNED`;goToStep(5)}
+    if(session.routineType==='recovery'&&session.recoveryQueue&&session.recoveryQueue.length){
+        session.recoveryQueuePos=(session.recoveryQueuePos||0)+1;
+        if(session.recoveryQueuePos<session.recoveryQueue.length){
+            session.exerciseIndex=session.recoveryQueue[session.recoveryQueuePos];
+            session.setIndex=1;session.directionalIndex=0;updateExUI();return;
+        }
+    } else {
+        const exs=ROUTINES[session.routineType];
+        if(session.exerciseIndex<exs.length-1){session.exerciseIndex++;session.setIndex=1;session.directionalIndex=0;updateExUI();return;}
+    }
+    haptic([100,50,100,50,300]);
+    document.getElementById('success-xp-text').innerText=`+${session.routineType==='recovery'?50:session.xp} XP EARNED`;
+    goToStep(5);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1522,7 +1672,10 @@ function init(){
     // Mission Select
     document.getElementById('mission-length-btn').addEventListener('click',()=>{session.routineType='length';goToStep(4)});
     document.getElementById('mission-girth-btn').addEventListener('click',()=>{session.routineType='girth';goToStep(4)});
-    document.getElementById('mission-recovery-btn').addEventListener('click',()=>{session.routineType='recovery';goToStep(4)});
+    document.getElementById('mission-recovery-btn').addEventListener('click',()=>{session.routineType='recovery';goToRecoveryPicker()});
+    document.getElementById('recovery-back-btn').addEventListener('click',()=>goToStep(3));
+    document.getElementById('recovery-select-all-btn').addEventListener('click',selectAllRecovery);
+    document.getElementById('recovery-start-btn').addEventListener('click',startRecoverySession);
     document.getElementById('mission-abort-btn').addEventListener('click',()=>goToStep(0));
     // Pilot Engine
     document.getElementById('ex-abort-btn').addEventListener('click',()=>goToStep(0));
