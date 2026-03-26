@@ -166,6 +166,7 @@
         .hydration-bar-fill.complete{background:linear-gradient(90deg,#10b981,#06b6d4)}
         .water-btn{flex:1;padding:.5rem .25rem;border-radius:.75rem;font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;transition:all .2s;border:1px solid rgba(59,130,246,.2);background:rgba(59,130,246,.06);color:#60a5fa}
         .water-btn:active{transform:scale(.95);background:rgba(59,130,246,.15)}
+        .unit-active{background:rgba(59,130,246,.2)!important;color:#93c5fd!important}
         .hydration-liter{flex:1;padding:.6rem .25rem;border-radius:.875rem;font-size:.75rem;font-weight:900;text-align:center;cursor:pointer;transition:all .25s;border:1px solid rgba(59,130,246,.2);background:rgba(59,130,246,.04);color:#475569;letter-spacing:.05em}
         .hydration-liter.hit{background:rgba(59,130,246,.18);border-color:rgba(59,130,246,.6);color:#93c5fd;box-shadow:0 0 12px rgba(59,130,246,.2)}
         .hydration-liter.complete{background:rgba(16,185,129,.18);border-color:rgba(16,185,129,.6);color:#6ee7b7;box-shadow:0 0 12px rgba(16,185,129,.2)}
@@ -418,13 +419,17 @@
                 <div class="hydration-liter" data-l="3">3L</div>
             </div>
             <div class="hydration-bar-track mb-3"><div id="hydration-bar" class="hydration-bar-fill" style="width:0%"></div></div>
-            <!-- Custom input row -->
-            <div class="flex gap-2 items-center">
-                <input id="hydration-custom-input" type="number" min="0.1" max="5" step="0.1" placeholder="Custom (L)" class="auth-input text-center" style="font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:.5rem .75rem;flex:1;">
+            <!-- Unit toggle + input -->
+            <div class="flex gap-2 items-center mb-2">
+                <div class="flex rounded-lg overflow-hidden border border-slate-700/50 flex-shrink-0">
+                    <button id="unit-oz-btn" class="px-2.5 py-1.5 text-[10px] font-black uppercase bg-slate-800 text-slate-400 transition-colors" style="min-width:36px">oz</button>
+                    <button id="unit-l-btn"  class="px-2.5 py-1.5 text-[10px] font-black uppercase bg-blue-500/20 text-blue-400 transition-colors border-l border-slate-700/50" style="min-width:28px">L</button>
+                </div>
+                <input id="hydration-custom-input" type="number" min="0" step="any" placeholder="Amount" class="auth-input text-center" style="font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:.5rem .75rem;flex:1;">
                 <button id="hydration-custom-btn" class="water-btn" style="flex-shrink:0;width:52px;"><i class="fas fa-plus"></i></button>
                 <button id="hydration-reset-btn" class="water-btn" style="flex-shrink:0;width:40px;border-color:rgba(100,116,139,.2);background:rgba(100,116,139,.05);color:#475569;"><i class="fas fa-rotate-left"></i></button>
             </div>
-            <p id="hydration-msg" class="text-[10px] text-slate-600 italic mt-2 text-center">Minimum 3L daily. Hydration is non-negotiable.</p>
+            <p id="hydration-msg" class="text-[10px] text-slate-600 italic mt-1 text-center">Log in oz or L — tap to switch units</p>
         </div>
 
 ```
@@ -1268,12 +1273,25 @@ function unlockTierIfEligible(tierId){
 // ── Hydration Check ───────────────────────────────────────────────────────
 function getHydrationWarning(){
     const ml=getHydration();
+    const hour=new Date().getHours();
+    const isMorning=hour<11;
+    const liters=(ml/1000).toFixed(1);
     const diff=getDiff();
+
+    if(isMorning){
+        // Morning — encouraging, not alarming
+        if(ml<500) return `Good morning. Start hydrating now — aim for 3L throughout the day before training.`;
+        return null; // No warning if they have something logged in the morning
+    }
+
+    // Afternoon/evening — stricter
     if(diff.id==='advanced'||diff.id==='elite'){
-        if(ml<2000) return 'Only '+(ml/1000).toFixed(1)+'L logged today. Advanced sessions require full hydration. Hit 3L before training.';
-        if(ml<3000) return 'Almost there — log more water before an '+diff.label+' session for best results.';
-    } else if(ml<1000){
-        return 'Low hydration detected. Drink at least 1L before training.';
+        if(ml<2000) return `Only ${liters}L logged today. ${diff.label} sessions put serious demand on your tissue. Hit 3L before training.`;
+        if(ml<3000) return `Almost at 3L — top off before an ${diff.label} session.`;
+    } else if(diff.id==='intermediate'){
+        if(ml<1500) return `Only ${liters}L today. Aim for at least 2L before training — hydrated tissue expands, dry tissue tears.`;
+    } else {
+        if(ml<1000) return `Only ${liters}L today. Even Beginner sessions need good hydration. Drink up before starting.`;
     }
     return null;
 }
@@ -1328,14 +1346,9 @@ function renderDifficultySelector(){
         // Store locked state as data attr, handled by delegated listener
         btn.dataset.locked = locked ? 'true' : '';
     });
-    // Show Elite requirement badge if on advanced
+    // Show Elite requirement badge only when hovering/selecting elite
     const eliteNote=document.getElementById('elite-req-note');
-    if(eliteNote){
-        const eliteLocked=isTierLocked('elite');
-        const info=getTierUnlockInfo('elite');
-        eliteNote.classList.toggle('hidden',!eliteLocked||diff.id==='elite');
-        if(info) eliteNote.innerText='Elite requires: '+info;
-    }
+    if(eliteNote) eliteNote.classList.add('hidden'); // hidden by default — shown on tap of locked elite
     const detail=document.getElementById('diff-detail');
     const recovNote=document.getElementById('diff-recovery-note');
     const isRecov=session.routineType==='recovery';
@@ -1914,10 +1927,26 @@ function advanceEx(){
 // ═══════════════════════════════════════════════════════════════════════════
 function getTodayKey(){ return 'bp_hydration_'+new Date().toISOString().split('T')[0]; }
 function getHydration(){ return parseFloat(localStorage.getItem(getTodayKey())||'0'); }
-function setHydration(liters){
+let _hydrationUnit='L'; // 'L' or 'oz'
+
+function setHydrationUnit(unit){
+    _hydrationUnit=unit;
+    const ozBtn=document.getElementById('unit-oz-btn');
+    const lBtn=document.getElementById('unit-l-btn');
+    if(ozBtn&&lBtn){
+        ozBtn.classList.toggle('unit-active', unit==='oz');
+        lBtn.classList.toggle('unit-active', unit==='L');
+    }
+    // Update placeholder
+    const inp=document.getElementById('hydration-custom-input');
+    if(inp) inp.placeholder=unit==='oz'?'e.g. 24':'e.g. 0.5';
+}
+
+function setHydration(amount){
+    // amount is in current unit — convert to ml for storage
+    const ml=_hydrationUnit==='oz'?(amount*29.5735):(amount*1000);
     const current=getHydration();
-    const newVal=current+(liters*1000);
-    localStorage.setItem(getTodayKey(), newVal);
+    localStorage.setItem(getTodayKey(), current+ml);
     renderHydration();
 }
 function setHydrationToLiter(l){
@@ -2367,6 +2396,8 @@ function init(){
         el.addEventListener('click',()=>setHydrationToLiter(parseInt(el.dataset.l)));
     });
     // Hydration — custom input
+    document.getElementById('unit-oz-btn').addEventListener('click',()=>setHydrationUnit('oz'));
+    document.getElementById('unit-l-btn').addEventListener('click',()=>setHydrationUnit('L'));
     document.getElementById('hydration-custom-btn').addEventListener('click',()=>{
         const inp=document.getElementById('hydration-custom-input');
         const val=parseFloat(inp.value);
