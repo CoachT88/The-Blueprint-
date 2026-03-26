@@ -121,6 +121,14 @@
         .export-row button:hover{border-color:rgba(255,255,255,.15);color:#94a3b8}
         @keyframes popIn{0%{transform:scale(.8);opacity:0}100%{transform:scale(1);opacity:1}}
         .xp-pop{animation:popIn .3s cubic-bezier(.175,.885,.32,1.275)}
+        /* Onboarding slides */
+        #onboarding-overlay{position:fixed;inset:0;background:var(--bg-deep);z-index:99994;display:none;flex-direction:column;}
+        #onboarding-overlay.show{display:flex;}
+        .ob-slide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2.5rem;text-align:center;opacity:0;transform:translateX(40px);transition:opacity .4s,transform .4s;pointer-events:none;}
+        .ob-slide.active{opacity:1;transform:translateX(0);pointer-events:auto;}
+        .ob-slide.exit{opacity:0;transform:translateX(-40px);}
+        .ob-dot{width:6px;height:6px;border-radius:50%;background:#1e293b;transition:all .3s;}
+        .ob-dot.active{background:#3b82f6;transform:scale(1.4);}
         /* Coach tip */
         .tip-card{background:linear-gradient(135deg,rgba(168,85,247,.08) 0%,rgba(15,23,42,.6) 100%);border:1px solid rgba(168,85,247,.2);border-radius:1.25rem;padding:.9rem 1rem}
         /* EQ check-in */
@@ -152,10 +160,19 @@
         .howto-num{width:18px;height:18px;border-radius:50%;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:#60a5fa;font-size:.6rem;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
         .howto-num.amber{background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.3);color:#fbbf24}
         /* Recovery exercise picker */
-        .ex-pick-card{background:linear-gradient(145deg,rgba(30,41,59,.35) 0%,rgba(15,23,42,.55) 100%);border:1px solid rgba(255,255,255,.06);border-radius:1.25rem;padding:.9rem 1rem;display:flex;align-items:center;gap:.75rem;cursor:pointer;transition:all .2s;position:relative}
-        .ex-pick-card.selected{border-color:rgba(245,158,11,.5);background:linear-gradient(145deg,rgba(245,158,11,.08) 0%,rgba(15,23,42,.6) 100%)}
+        .ex-pick-card{background:linear-gradient(145deg,rgba(30,41,59,.35) 0%,rgba(15,23,42,.55) 100%);border:1px solid rgba(255,255,255,.06);border-radius:1.25rem;padding:.9rem 1rem;cursor:pointer;transition:all .2s;position:relative}
+        .ex-pick-card.selected{border-color:rgba(245,158,11,.5);background:linear-gradient(145deg,rgba(245,158,11,.06) 0%,rgba(15,23,42,.6) 100%)}
+        .ex-pick-card .ex-pick-top{display:flex;align-items:center;gap:.75rem}
         .ex-pick-check{width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,.15);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s}
         .ex-pick-card.selected .ex-pick-check{background:rgba(245,158,11,.9);border-color:rgba(245,158,11,1)}
+        .ex-pick-benefit{font-size:.68rem;color:#64748b;line-height:1.5;margin-top:.5rem;padding-top:.5rem;border-top:1px solid rgba(255,255,255,.04);display:none}
+        .ex-pick-card.selected .ex-pick-benefit{display:block;color:#94a3b8}
+        .ex-pick-tod{font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;padding:.15rem .45rem;border-radius:999px;border:1px solid;opacity:.7}
+        .ex-pick-tod.morning{color:#fbbf24;border-color:rgba(251,191,36,.3);background:rgba(251,191,36,.06)}
+        .ex-pick-tod.afternoon{color:#fb923c;border-color:rgba(251,146,60,.3);background:rgba(251,146,60,.06)}
+        .ex-pick-tod.night{color:#818cf8;border-color:rgba(129,140,248,.3);background:rgba(129,140,248,.06)}
+        .rec-section-label{font-size:.62rem;font-weight:900;text-transform:uppercase;letter-spacing:.15em;color:#475569;padding:.25rem .5rem}
+        .tod-header{display:flex;align-items:center;gap:.6rem;padding:.5rem 0 .25rem}
         .coach-rec-banner{background:linear-gradient(135deg,rgba(245,158,11,.1) 0%,rgba(234,88,12,.05) 100%);border:1px solid rgba(245,158,11,.2);border-radius:1rem;padding:.75rem 1rem;display:flex;align-items:flex-start;gap:.75rem}
         /* Exercise detail drawer */
         .ex-detail-card{background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.15);border-radius:1rem;padding:.9rem 1rem;font-size:.75rem;line-height:1.6;color:#cbd5e1;display:none}
@@ -586,7 +603,7 @@
             <i class="fas fa-heart-pulse text-2xl text-amber-400 flex-shrink-0"></i>
             <div class="text-left">
                 <p class="text-xl font-black uppercase italic text-amber-300">Recovery</p>
-                <p class="text-[10px] text-slate-500 font-semibold mt-0.5">6 exercises — pelvic floor, hip openers &amp; The Big Four</p>
+                <p class="text-[10px] text-slate-500 font-semibold mt-0.5">8 exercises — pelvic floor, hip openers &amp; The Big Four</p>
             </div>
             <i class="fas fa-chevron-right text-slate-700 text-xs ml-auto flex-shrink-0"></i>
         </button>
@@ -616,8 +633,11 @@
         <i class="fas fa-comment-dots text-amber-400 text-lg flex-shrink-0 mt-0.5"></i>
         <div>
             <p class="text-amber-300 text-[10px] font-black uppercase tracking-widest mb-1">CoachTee Recommends</p>
-            <p class="text-slate-400 text-[11px] leading-relaxed">Do all 6. The kegels and RK build the floor, the releases decompress it, and The Big Four open the hips and pelvis so the whole system works together. This is your rest day protocol <em>and</em> your nightly routine.</p>
-            <button id="recovery-select-all-btn" class="mt-2 text-amber-400 text-[10px] font-black uppercase tracking-widest border border-amber-500/30 bg-amber-500/08 px-3 py-1 rounded-full">Select All 6</button>
+            <p class="text-slate-400 text-[11px] leading-relaxed">All 8 are designed to work together — the kegels and RK build and release the floor, the pelvic exercises decompress it, and The Big Four open the hips and pelvis. Each session has a recommended set based on time of day.</p>
+            <div class="flex gap-2 mt-2 flex-wrap">
+                <button id="recovery-select-all-btn" class="text-amber-400 text-[10px] font-black uppercase tracking-widest border border-amber-500/30 px-3 py-1 rounded-full" style="background:rgba(245,158,11,.05)">Select All 8</button>
+                <button id="recovery-select-daily-btn" class="text-amber-300 text-[10px] font-black uppercase tracking-widest border border-amber-400/50 px-3 py-1 rounded-full" style="background:rgba(245,158,11,.12)"><i class="fas fa-star mr-1"></i>Today's Pick</button>
+            </div>
         </div>
     </div>
 
@@ -641,40 +661,67 @@
 <!-- STEP 4: PILOT ENGINE -->
 
 <div id="step-4" class="step-content hidden-step" style="z-index:11">
-    <div class="inner-step-wrapper min-h-screen py-6 text-center space-y-6 relative justify-center">
-        <div class="absolute top-0 right-2 bg-slate-900/80 border border-yellow-500/30 px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-lg" style="z-index:15"><i class="fas fa-bolt text-yellow-400 text-xs"></i><span id="live-xp" class="text-xs font-black text-yellow-400">0 XP</span></div>
-        <div class="flex justify-between items-center pb-2 px-2 mt-4" style="position:relative;z-index:15">
-            <div class="flex items-center gap-3">
-                <button id="ex-abort-btn" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-800/50 text-slate-400"><i class="fas fa-xmark text-lg"></i></button>
-                <span id="ex-tag" class="text-[10px] font-black uppercase px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20">Phase 01</span>
-                <button id="dim-toggle-btn" class="dim-toggle-btn" title="Dim screen"><i class="fas fa-moon text-slate-400 text-sm"></i></button>
-            </div>
-            <div class="text-right"><p class="text-[8px] font-black text-slate-500 uppercase tracking-widest">Suggested EQ</p><p id="ex-eq-req" class="text-sm font-black text-blue-400 italic">3-4 EQ</p></div>
+    <div class="inner-step-wrapper min-h-screen py-6 text-center relative justify-center" style="gap:0;">
+
+```
+    <!-- Top bar -->
+    <div class="flex justify-between items-center pb-3 px-2 mt-4" style="position:relative;z-index:15">
+        <div class="flex items-center gap-3">
+            <button id="ex-abort-btn" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-800/50 text-slate-400"><i class="fas fa-xmark text-lg"></i></button>
+            <span id="ex-tag" class="text-[10px] font-black uppercase px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20">Phase 01</span>
+            <button id="dim-toggle-btn" class="dim-toggle-btn" title="Dim screen"><i class="fas fa-moon text-slate-400 text-sm"></i></button>
         </div>
-        <div id="pip-container" class="flex justify-center gap-3" style="position:relative;z-index:15"></div>
-        <h2 id="ex-title" class="text-4xl font-black italic uppercase leading-none text-slate-50" style="position:relative;z-index:15">--</h2>
-        <div class="px-8" style="position:relative;z-index:15"><svg viewBox="0 0 200 80" class="tension-line"><path id="tension-path" d="M0,40 Q10,20 20,40 T40,40 T60,40 T80,40 T100,40 T120,40 T140,40 T160,40 T180,40 T200,40"/></svg></div>
-        <div class="instruction-card mx-2 bg-gradient-to-b from-slate-800/40 to-slate-900/60" style="position:relative;z-index:15">
-            <p id="ex-live-text" class="text-md font-semibold text-blue-100 italic mb-6">Ready...</p>
-            <div class="grid grid-cols-2 gap-6 w-full px-2 border-t border-slate-700/50 pt-5 text-left">
-                <div><p class="text-[9px] font-black text-emerald-400 uppercase mb-1.5">Optimal Feel</p><p id="feel-msg" class="text-[11px] text-slate-300 italic leading-relaxed font-medium">--</p></div>
-                <div class="border-l border-slate-700/50 pl-6"><p class="text-[9px] font-black text-red-400 uppercase mb-1.5">Danger Sign</p><p id="dont-feel-msg" class="text-[11px] text-slate-300 italic leading-relaxed font-medium">--</p></div>
+        <div class="flex items-center gap-2">
+            <div class="bg-slate-900/80 border border-yellow-500/30 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5"><i class="fas fa-bolt text-yellow-400 text-xs"></i><span id="live-xp" class="text-xs font-black text-yellow-400">0 XP</span></div>
+            <div class="text-right"><p class="text-[8px] font-black text-slate-500 uppercase">EQ</p><p id="ex-eq-req" class="text-sm font-black text-blue-400 italic leading-none">--</p></div>
+        </div>
+    </div>
+
+    <!-- Pip dots -->
+    <div id="pip-container" class="flex justify-center gap-3 mb-3" style="position:relative;z-index:15"></div>
+
+    <!-- Exercise title -->
+    <h2 id="ex-title" class="text-4xl font-black italic uppercase leading-none text-slate-50 px-4 mb-4" style="position:relative;z-index:15">--</h2>
+
+    <!-- Collapsible info panels — hidden when active -->
+    <div id="ex-info-panels" class="space-y-3 transition-all duration-300" style="position:relative;z-index:15;">
+        <div class="instruction-card mx-2 bg-gradient-to-b from-slate-800/40 to-slate-900/60">
+            <p id="ex-live-text" class="text-sm font-semibold text-blue-100 italic mb-4">Ready...</p>
+            <div class="grid grid-cols-2 gap-4 w-full border-t border-slate-700/50 pt-4 text-left">
+                <div><p class="text-[9px] font-black text-emerald-400 uppercase mb-1">Optimal Feel</p><p id="feel-msg" class="text-[11px] text-slate-300 italic leading-relaxed">--</p></div>
+                <div class="border-l border-slate-700/50 pl-4"><p class="text-[9px] font-black text-red-400 uppercase mb-1">Danger Sign</p><p id="dont-feel-msg" class="text-[11px] text-slate-300 italic leading-relaxed">--</p></div>
             </div>
         </div>
-        <!-- How-to steps panel (girth + recovery) -->
-        <div id="howto-panel" class="howto-panel mx-2" style="position:relative;z-index:15;">
+        <div id="howto-panel" class="howto-panel mx-2">
             <p class="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><i class="fas fa-list-ol"></i> How To Do It</p>
             <div id="howto-steps"></div>
         </div>
-        <!-- Exercise detail for recovery -->
-        <div id="ex-detail-card" class="ex-detail-card mx-2" style="position:relative;z-index:15;"></div>
-        <div id="deload-ex-badge" class="hidden" style="position:relative;z-index:15"><span class="text-[10px] font-black text-orange-400 uppercase tracking-widest bg-orange-500/10 border border-orange-500/20 px-3 py-1.5 rounded-full"><i class="fas fa-battery-quarter mr-1.5"></i>Deload Volume</span></div>
-        <div class="py-4" style="position:relative;z-index:15"><div id="ex-timer" class="text-[11rem] font-black tracking-tighter tabular-nums leading-none timer-glow text-blue-400">30</div></div>
-        <div class="flex gap-4 px-2 pb-4" style="position:relative;z-index:15">
-            <button id="ex-btn" class="btn-primary py-6 text-xl">ENGAGE SET</button>
-            <button id="ex-pause-btn" class="hidden btn-outline w-24 items-center justify-center border-slate-700"><i id="pause-icon" class="fas fa-pause text-2xl"></i></button>
-        </div>
+        <div id="ex-detail-card" class="ex-detail-card mx-2"></div>
+        <div id="deload-ex-badge" class="hidden mx-2"><span class="text-[10px] font-black text-orange-400 uppercase tracking-widest bg-orange-500/10 border border-orange-500/20 px-3 py-1.5 rounded-full"><i class="fas fa-battery-quarter mr-1.5"></i>Deload Volume</span></div>
     </div>
+
+    <!-- Active cue — only shown when running -->
+    <div id="ex-active-cue" class="hidden mx-2 my-3 px-4 py-3 rounded-2xl bg-blue-500/08 border border-blue-500/15 text-center" style="position:relative;z-index:15;">
+        <p id="ex-cue-text" class="text-sm font-bold text-blue-200 italic leading-relaxed"></p>
+    </div>
+
+    <!-- BIG TIMER -->
+    <div class="py-2" style="position:relative;z-index:15;">
+        <div id="ex-timer" class="font-black tracking-tighter tabular-nums leading-none timer-glow text-blue-400" style="font-size:clamp(5rem,22vw,10rem)">30</div>
+    </div>
+
+    <!-- ENGAGE button (ready state) -->
+    <div class="px-4 pb-6 w-full" style="position:relative;z-index:15;">
+        <button id="ex-btn" class="btn-primary py-6 text-xl w-full">ENGAGE SET</button>
+        <!-- MASSIVE pause button (active state) -->
+        <button id="ex-pause-btn" class="hidden w-full rounded-2xl border-2 border-slate-700 bg-slate-900/60 flex items-center justify-center gap-4 py-6 cursor-pointer transition-all active:scale-95" style="min-height:80px;">
+            <i id="pause-icon" class="fas fa-pause text-4xl text-slate-300"></i>
+            <span id="pause-label" class="text-lg font-black uppercase text-slate-300 tracking-wider">Pause</span>
+        </button>
+    </div>
+</div>
+```
+
 </div>
 
 <!-- STEP 5: SUCCESS -->
@@ -782,6 +829,85 @@
             <button id="weekly-report-close-btn" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-800/50 text-slate-400"><i class="fas fa-xmark text-lg"></i></button>
         </div>
         <div id="weekly-report-content" class="space-y-4"></div>
+        <div class="scroll-buffer"></div>
+    </div>
+</div>
+
+<!-- ONBOARDING OVERLAY -->
+
+<div id="onboarding-overlay">
+    <!-- Slide 1: The Schedule -->
+    <div class="ob-slide active" id="ob-slide-0">
+        <div class="relative mb-8">
+            <div class="absolute inset-0 bg-blue-500/20 blur-[40px] rounded-full"></div>
+            <div class="relative p-7 bg-blue-500/08 rounded-full border border-blue-500/20 w-fit mx-auto">
+                <i class="fas fa-calendar-week text-5xl text-blue-400"></i>
+            </div>
+        </div>
+        <h2 class="text-3xl font-black italic uppercase text-white mb-3">Your Weekly Schedule</h2>
+        <p class="text-slate-400 text-sm leading-relaxed max-w-xs">The HQ shows your 7-day training plan. Each day is assigned Length, Girth, or Rest. Tap any day to change it. Rest days are mandatory — your tissue adapts during recovery, not during training.</p>
+        <div class="mt-6 flex gap-3 justify-center">
+            <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 w-16"><i class="fas fa-up-right-and-down-left-from-center text-blue-400 text-lg"></i><span class="text-[9px] font-black text-blue-300 uppercase">Length</span></div>
+            <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 w-16"><i class="fas fa-expand text-emerald-400 text-lg"></i><span class="text-[9px] font-black text-emerald-300 uppercase">Girth</span></div>
+            <div class="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-slate-800/50 border border-slate-700 w-16"><i class="fas fa-bed text-slate-400 text-lg"></i><span class="text-[9px] font-black text-slate-400 uppercase">Rest</span></div>
+        </div>
+    </div>
+    <!-- Slide 2: EQ explained -->
+    <div class="ob-slide" id="ob-slide-1">
+        <div class="relative mb-8">
+            <div class="absolute inset-0 bg-emerald-500/20 blur-[40px] rounded-full"></div>
+            <div class="relative p-7 bg-emerald-500/08 rounded-full border border-emerald-500/20 w-fit mx-auto">
+                <i class="fas fa-gauge-high text-5xl text-emerald-400"></i>
+            </div>
+        </div>
+        <h2 class="text-3xl font-black italic uppercase text-white mb-3">What is EQ?</h2>
+        <p class="text-slate-400 text-sm leading-relaxed max-w-xs">EQ is your Erection Quality on a scale of 1–10. It tells the app how primed your tissue is for each exercise. Each exercise has a target EQ range — too soft means no pressure, too hard means overload risk.</p>
+        <div class="mt-6 grid grid-cols-3 gap-3 w-full max-w-xs">
+            <div class="p-2.5 rounded-xl bg-slate-800/60 border border-slate-700 text-center"><p class="text-xl font-black text-slate-300">1–4</p><p class="text-[9px] text-slate-500 mt-0.5">Length work</p></div>
+            <div class="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-center"><p class="text-xl font-black text-blue-300">6–7</p><p class="text-[9px] text-blue-400 mt-0.5">Jelq / Uli</p></div>
+            <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center"><p class="text-xl font-black text-emerald-300">7–8</p><p class="text-[9px] text-emerald-400 mt-0.5">Squeeze</p></div>
+        </div>
+    </div>
+    <!-- Slide 3: Difficulty + Recovery -->
+    <div class="ob-slide" id="ob-slide-2">
+        <div class="relative mb-8">
+            <div class="absolute inset-0 bg-amber-500/20 blur-[40px] rounded-full"></div>
+            <div class="relative p-7 bg-amber-500/08 rounded-full border border-amber-500/20 w-fit mx-auto">
+                <i class="fas fa-shield-halved text-5xl text-amber-400"></i>
+            </div>
+        </div>
+        <h2 class="text-3xl font-black italic uppercase text-white mb-3">Start at Beginner</h2>
+        <p class="text-slate-400 text-sm leading-relaxed max-w-xs">The app has 4 difficulty tiers. Every new user starts at Beginner regardless of experience. Higher tiers unlock after 4 weeks — this protects your tissue from adapting faster than it can handle. On rest days, do the Recovery Protocol.</p>
+        <div class="mt-6 p-4 rounded-2xl bg-amber-500/08 border border-amber-500/20 text-left max-w-xs w-full">
+            <p class="text-amber-300 text-[10px] font-black uppercase tracking-widest mb-1">CoachTee Says</p>
+            <p class="text-slate-400 text-xs leading-relaxed">The guys who try to skip to Advanced in week one are the same guys who quit in week three. Trust the process.</p>
+        </div>
+    </div>
+
+```
+<!-- Nav -->
+<div class="absolute bottom-0 left-0 right-0 p-8 flex flex-col items-center gap-4">
+    <div class="flex gap-2" id="ob-dots">
+        <div class="ob-dot active"></div>
+        <div class="ob-dot"></div>
+        <div class="ob-dot"></div>
+    </div>
+    <button id="ob-next-btn" class="btn-primary py-5 w-full max-w-xs">Next</button>
+    <button id="ob-skip-btn" class="text-slate-600 text-[10px] font-bold uppercase tracking-widest">Skip intro</button>
+</div>
+```
+
+</div>
+
+<!-- SESSION HISTORY MODAL -->
+
+<div id="history-modal" style="position:fixed;inset:0;background:rgba(2,6,23,.97);z-index:99993;backdrop-filter:blur(20px);display:none;flex-direction:column;overflow-y:auto;">
+    <div class="inner-step-wrapper py-10 space-y-4">
+        <div class="flex justify-between items-center px-2 pt-4">
+            <h2 class="text-3xl font-black italic uppercase text-white">Session History</h2>
+            <button id="history-close-btn" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-800/50 text-slate-400"><i class="fas fa-xmark text-lg"></i></button>
+        </div>
+        <div id="history-list" class="space-y-2 px-2"></div>
         <div class="scroll-buffer"></div>
     </div>
 </div>
@@ -1038,7 +1164,7 @@ const ROUTINES={
         },
         {
             title:'Deep Squat — Malasana', detail:'Feet flat, wider than hip-width. Drop your butt toward the floor and use your elbows to nudge your knees outward. This physically opens the pelvic outlet — the foundation of a heavy hang.', sets:2, duration:60, isRecovery:true,
-            eq:'N/A', feel:'Pelvic outlet opening. Knees pushing wide, tailbone dropping toward the floor.',
+            eq:'No EQ needed', feel:'Pelvic outlet opening. Knees pushing wide, tailbone dropping toward the floor.',
             dontFeel:'Heel lift — if heels come up, widen your stance until they stay flat.',
             cues:[
                 {time:60, text:'Feet flat, wider than hip-width. Drop your butt toward the floor.'},
@@ -1050,7 +1176,7 @@ const ROUTINES={
         },
         {
             title:'Happy Baby', detail:'Lie on your back, grab the outsides of both feet, pull knees toward armpits. Rock gently side to side. This is the fastest way to manually turn off a tight pelvic floor.', sets:2, duration:45, isRecovery:true,
-            eq:'N/A', feel:'Pelvic floor manually releasing. Inner groin and sacrum softening toward the floor.',
+            eq:'No EQ needed', feel:'Pelvic floor manually releasing. Inner groin and sacrum softening toward the floor.',
             dontFeel:'Neck strain — keep your head on the ground and your shoulders relaxed.',
             cues:[
                 {time:45, text:'Lie on your back. Grab the outsides of both feet.'},
@@ -1062,7 +1188,7 @@ const ROUTINES={
         },
         {
             title:'Pigeon Pose', detail:'Fold one leg in front at 90 degrees, stretch the other back. Sink your hips toward the floor. Targets the glutes and deep hip rotators that pull on your pelvis from sitting too much.', sets:2, duration:60, isRecovery:true,
-            eq:'N/A', feel:'Deep glute and hip rotator stretch. The tissue that pulls on your pelvis when you sit too much.',
+            eq:'No EQ needed', feel:'Deep glute and hip rotator stretch. The tissue that pulls on your pelvis when you sit too much.',
             dontFeel:'Sharp knee pain — if you feel it in the knee instead of the hip, adjust the angle.',
             cues:[
                 {time:60, text:'Fold one leg in front at roughly a 90-degree angle. Stretch the other leg back.'},
@@ -1074,7 +1200,7 @@ const ROUTINES={
         },
         {
             title:'Butterfly Stretch', detail:'Soles of feet together, knees falling out. Hinge forward at the hips — not the lower back. Tight adductors (inner thighs) keep the pelvic floor retracted. Let these open fully.', sets:2, duration:45, isRecovery:true,
-            eq:'N/A', feel:'Inner thigh and adductor release. A pulling sensation along the inner groin — not sharp.',
+            eq:'No EQ needed', feel:'Inner thigh and adductor release. A pulling sensation along the inner groin — not sharp.',
             dontFeel:'Bouncing your knees — that activates the stretch reflex and tightens what you are trying to open.',
             cues:[
                 {time:45, text:'Sit up straight. Soles of your feet together, knees falling out to the sides.'},
@@ -1637,23 +1763,112 @@ function stopWarmup(){if(session.warmupTimer){session.warmupTimer.cancel();sessi
 // ═══════════════════════════════════════════════════════════════════════════
 const RECOVERY_EX_IDS = ['Kegel Contractions','Reverse Kegel Stretch','Pelvic Floor Release','Pelvic Floor Endurance Hold','Deep Squat — Malasana','Happy Baby','Pigeon Pose','Butterfly Stretch'];
 // The 6 Coach Tee recommends (indices into ROUTINES.recovery)
-const COACH_REC_INDICES = [0,1,2,3,4,5]; // first 6: kegels, RK, release, endurance, squat, happy baby — user can also pick pigeon+butterfly
-let selectedRecoveryIndices = [0,1,2,3,4,5]; // default = Coach rec
+const COACH_REC_INDICES = [0,1,2,3,4,5,6,7]; // all 8
+let selectedRecoveryIndices = [0,1,2,3,4,5,6,7]; // default = all 8
+
+// Per-exercise UI metadata
+const RECOVERY_META = [
+    {
+        icon:'fa-arrows-up-down',    color:'text-blue-400',
+        category:'Pelvic Strength',  tod:['night'],
+        benefit:'Builds voluntary pelvic floor control. Stronger contractions = better blood flow, better EQ, and stronger tissue response during training.'
+    },
+    {
+        icon:'fa-wind',              color:'text-cyan-400',
+        category:'Pelvic Release',   tod:['night'],
+        benefit:'Trains the antagonist to the kegel. A floor that can fully release expands more during training. Without this, tightness caps your gains.'
+    },
+    {
+        icon:'fa-hand-holding',      color:'text-purple-400',
+        category:'Deep Relaxation',  tod:['night'],
+        benefit:'Decompresses accumulated tension from training. Collagen remodels during rest — a released floor means better overnight adaptation.'
+    },
+    {
+        icon:'fa-stopwatch',         color:'text-emerald-400',
+        category:'Endurance',        tod:['night'],
+        benefit:'Builds stamina without fatigue. Motor control at low intensity translates directly to sustained EQ during longer girth sessions.'
+    },
+    {
+        icon:'fa-person-rays',       color:'text-amber-400',
+        category:'Hip + Pelvis',     tod:['morning','afternoon'],
+        benefit:'Opens the pelvic outlet. A deep squat physically widens the space your tissue hangs from. This is the mechanical foundation of length work.'
+    },
+    {
+        icon:'fa-baby',              color:'text-pink-400',
+        category:'Hip Release',      tod:['morning','night'],
+        benefit:'Fastest way to turn off a tight pelvic floor. Resets hip flexor tension built up overnight or from sitting. Do this first thing if you wake up tight.'
+    },
+    {
+        icon:'fa-person-walking',    color:'text-orange-400',
+        category:'Hip Rotators',     tod:['afternoon'],
+        benefit:'Targets the glutes and piriformis — the muscles that pull on your pelvis when you sit. Tight hip rotators create a forward pelvic tilt that restricts tissue mobility.'
+    },
+    {
+        icon:'fa-angles-down',       color:'text-rose-400',
+        category:'Inner Thigh',      tod:['afternoon','night'],
+        benefit:'Releases the adductors — directly linked to pelvic floor tension. If these are tight, the hang always looks retracted. This is the unlock most guys miss.'
+    },
+];
+
+// Time-of-day recommendation
+function getDailyRecommended(){
+    const hour = new Date().getHours();
+    let tod;
+    if(hour < 11) tod = 'morning';
+    else if(hour < 17) tod = 'afternoon';
+    else tod = 'night';
+    return ROUTINES.recovery.map((_,i)=>i).filter(i => {
+        const meta = RECOVERY_META[i];
+        return meta && meta.tod.includes(tod);
+    });
+}
 
 function buildRecoveryPicker(){
     const list = document.getElementById('recovery-ex-list');
     list.innerHTML = '';
+    const recommended = getDailyRecommended();
+    const hour = new Date().getHours();
+    const todLabel = hour<11?'Morning Picks':hour<17?'Afternoon Picks':'Tonight\'s Protocol';
+    const todIcon = hour<11?'fa-sun':hour<17?'fa-cloud-sun':'fa-moon';
+
+    // Daily recommended header
+    if(recommended.length){
+        const hdr = document.createElement('div');
+        hdr.className = 'tod-header px-1';
+        hdr.innerHTML = `<i class="fas ${todIcon} text-amber-400 text-xs"></i><span class="text-[10px] font-black text-amber-400 uppercase tracking-widest">${todLabel}</span><span class="text-[9px] text-slate-600 ml-auto">${recommended.length} recommended</span>`;
+        list.appendChild(hdr);
+    }
+
     ROUTINES.recovery.forEach((ex, i) => {
         const selected = selectedRecoveryIndices.includes(i);
+        const meta = RECOVERY_META[i] || {};
+        const isRec = recommended.includes(i);
+        const eqDisplay = ex.eq === 'N/A' ? 'No EQ needed' : ex.eq;
+        const todBadges = (meta.tod||[]).map(t=>`<span class="ex-pick-tod ${t}">${t}</span>`).join('');
+
         const card = document.createElement('div');
-        card.className = 'ex-pick-card' + (selected ? ' selected' : '');
+        card.className = 'ex-pick-card' + (selected?' selected':'') + (isRec?' ring-1 ring-amber-500/30':'');
         card.dataset.idx = i;
         card.innerHTML = `
-            <div class="ex-pick-check">${selected ? '<i class="fas fa-check text-white text-[10px]"></i>' : ''}</div>
-            <div class="flex-1 min-w-0">
-                <p class="text-sm font-black text-white leading-snug">${ex.title}</p>
-                <p class="text-[10px] text-slate-500 mt-0.5">${ex.sets} sets · ${fmtDuration(ex.duration, ex.duration)} · ${ex.eq}</p>
+            <div class="ex-pick-top">
+                <div class="ex-pick-check">${selected?'<i class="fas fa-check text-white text-[10px]"></i>':''}</div>
+                <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background:rgba(255,255,255,.04)">
+                    <i class="fas ${meta.icon||'fa-circle'} ${meta.color||'text-slate-400'} text-xs"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <p class="text-sm font-black text-white leading-snug">${ex.title}</p>
+                        ${isRec?'<span class="text-[8px] font-black text-amber-400 uppercase tracking-wider bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/20">Today</span>':''}
+                    </div>
+                    <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <span class="text-[10px] text-slate-500">${ex.sets} sets · ${fmtDuration(ex.duration,ex.duration)}</span>
+                        <span class="text-slate-700">·</span>
+                        <span class="text-[9px] font-black ${meta.color||'text-slate-500'} uppercase">${meta.category||''}</span>
+                        ${todBadges}
+                    </div>
+                </div>
             </div>
+            <p class="ex-pick-benefit">${meta.benefit||ex.detail||''}</p>
         `;
         card.addEventListener('click', () => toggleRecoveryEx(i));
         list.appendChild(card);
@@ -1673,6 +1888,11 @@ function selectAllRecovery(){
     selectedRecoveryIndices = ROUTINES.recovery.map((_,i)=>i);
     buildRecoveryPicker();
 }
+function selectDailyRecommended(){
+    selectedRecoveryIndices = getDailyRecommended();
+    if(!selectedRecoveryIndices.length) selectedRecoveryIndices = ROUTINES.recovery.map((_,i)=>i);
+    buildRecoveryPicker();
+}
 
 function updateRecoveryStartBtn(){
     const btn = document.getElementById('recovery-start-btn');
@@ -1683,6 +1903,9 @@ function updateRecoveryStartBtn(){
 }
 
 function goToRecoveryPicker(){
+    // Default to daily recommended selection
+    const rec = getDailyRecommended();
+    selectedRecoveryIndices = rec.length ? rec : ROUTINES.recovery.map((_,i)=>i);
     buildRecoveryPicker();
     document.querySelectorAll('.step-content').forEach(s=>{s.classList.add('hidden-step');s.classList.remove('active-step')});
     const t = document.getElementById('step-3b');
@@ -1726,6 +1949,7 @@ function updateExUI(){
         document.getElementById('ex-live-text').innerText=`Direction: ${dir} — grip below glans, pull ${dir} at 60% force.`;
     } else {
         document.getElementById('ex-live-text').innerText='Ready...';
+    setFocusedMode(false);
     }
 
     // Timer color
@@ -1797,40 +2021,59 @@ function fmtDuration(sec,baseDur){
     if(useMinutes) return `${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`;
     return String(sec);
 }
+function setFocusedMode(active){
+    const panels=document.getElementById('ex-info-panels');
+    const cuePanel=document.getElementById('ex-active-cue');
+    const pauseBtn=document.getElementById('ex-pause-btn');
+    const pauseLbl=document.getElementById('pause-label');
+    if(panels) panels.style.display=active?'none':'';
+    if(cuePanel) cuePanel.classList.toggle('hidden',!active);
+    if(pauseLbl) pauseLbl.innerText='Pause';
+}
+
+function updateActiveCue(txt){
+    const cueEl=document.getElementById('ex-cue-text');
+    const liveTxt=document.getElementById('ex-live-text');
+    if(cueEl) cueEl.innerText=txt;
+    if(liveTxt) liveTxt.innerText=txt;
+}
+
 function startSet(){
-    // Cancel any leftover timer (completed rest timer) before creating new one
     if(session.timer){session.timer.cancel();session.timer=null;}
     const ex=getCurEx();
     _curExDuration=ex.duration;
     document.getElementById('ex-btn').style.display='none';
     document.getElementById('ex-pause-btn').style.display='flex';
-    document.getElementById('pause-icon').className='fas fa-pause text-2xl';
-    // Show the first cue immediately at full duration before timer ticks
-    {
-        const firstCue=[...ex.cues].sort((a,b)=>b.time-a.time).find(c=>c.time>=ex.duration);
-        if(firstCue) document.getElementById('ex-live-text').innerText=firstCue.text.replace('{DIR}',DIRECTIONALS[session.directionalIndex]);
-    }
+    document.getElementById('pause-icon').className='fas fa-pause text-4xl text-slate-300';
+    setFocusedMode(true);
+    // Show first cue immediately
+    const firstCue=[...ex.cues].sort((a,b)=>b.time-a.time).find(c=>c.time>=ex.duration);
+    if(firstCue) updateActiveCue(firstCue.text.replace('{DIR}',DIRECTIONALS[session.directionalIndex]));
     session.timer=createTimer(ex.duration,rem=>{
         document.getElementById('ex-timer').innerText=fmtDuration(rem);
         session.xp+=Math.round(5*getDiff().xpMult);document.getElementById('live-xp').innerText=`${session.xp} XP`;
-        // Find the active cue: highest time value that is still >= current remaining seconds
-        // e.g. cue {time:30} shows when rem drops to 30 and stays until a lower-time cue takes over
         const activeCue=[...ex.cues].sort((a,b)=>b.time-a.time).find(c=>c.time>=rem);
-        if(activeCue){
-            const txt=activeCue.text.replace('{DIR}',DIRECTIONALS[session.directionalIndex]);
-            document.getElementById('ex-live-text').innerText=txt;
-        }
+        if(activeCue) updateActiveCue(activeCue.text.replace('{DIR}',DIRECTIONALS[session.directionalIndex]));
     },()=>onSetDone());
     session.timer.start();
 }
 function pauseResumeSet(){
     if(!session.timer)return;
     const ic=document.getElementById('pause-icon');
-    if(session.timer.isRunning()){session.timer.pause();ic.className='fas fa-play text-2xl'}
-    else{session.timer.resume();ic.className='fas fa-pause text-2xl'}
+    const lbl=document.getElementById('pause-label');
+    if(session.timer.isRunning()){
+        session.timer.pause();
+        ic.className='fas fa-play text-4xl text-slate-300';
+        if(lbl)lbl.innerText='Resume';
+    } else {
+        session.timer.resume();
+        ic.className='fas fa-pause text-4xl text-slate-300';
+        if(lbl)lbl.innerText='Pause';
+    }
 }
 function onSetDone(){
     document.getElementById('ex-pause-btn').style.display='none';
+    setFocusedMode(false);
     session.timer=null;
     haptic([60,30,60]);
     const ex=getCurEx();
@@ -1891,7 +2134,11 @@ function startRest(){
     if(session.timer&&session.timer.isRunning())return; // prevent double-fire
     const ov=document.getElementById('rest-overlay');ov.classList.remove('hidden');ov.style.opacity='1';
     startBoxBreathing();
-    session.timer=createTimer(30,rem=>{
+    // Rest scales with set duration: 30s base, +10s per 30s of set duration
+    const ex=getCurEx();
+    const restDur=Math.min(90, Math.max(20, Math.round(ex.duration/3)));
+    document.getElementById('rest-timer').innerText=restDur;
+    session.timer=createTimer(restDur,rem=>{
         document.getElementById('rest-timer').innerText=rem;
     },()=>{
         ov.classList.add('hidden');
@@ -2223,17 +2470,43 @@ function showWeeklyReport(){
     const avgRPE=weekSessions.filter(s=>s.rpe).length
         ? (weekSessions.filter(s=>s.rpe).reduce((t,s)=>t+s.rpe,0)/weekSessions.filter(s=>s.rpe).length).toFixed(1)
         : '—';
+    // EQ trend insight
+    let eqInsight='';
+    if(weekSessions.filter(s=>s.eq).length>=2){
+        const eqVals=weekSessions.filter(s=>s.eq).map(s=>s.eq);
+        const trend=eqVals[eqVals.length-1]-eqVals[0];
+        eqInsight=trend>0?`<span class="text-emerald-400">↑ EQ trending up</span>`:trend<0?`<span class="text-red-400">↓ EQ trending down — check hydration and sleep</span>`:`<span class="text-slate-400">EQ stable</span>`;
+    }
+    let rpeInsight='';
+    if(weekSessions.filter(s=>s.rpe).length>=2){
+        const rpeVals=weekSessions.filter(s=>s.rpe).map(s=>s.rpe);
+        const avgR=rpeVals.reduce((t,v)=>t+v,0)/rpeVals.length;
+        rpeInsight=avgR>8?'<span class="text-red-400">High RPE average — consider a deload</span>':avgR<4?'<span class="text-blue-400">Low RPE — you may be ready to increase volume</span>':'<span class="text-emerald-400">RPE in optimal range</span>';
+    }
     content.innerHTML=`
         <div class="grid grid-cols-2 gap-3">
             <div class="summary-stat"><p class="text-[9px] font-black text-yellow-400 uppercase tracking-widest mb-1">Week XP</p><p class="text-2xl font-black text-white">${weekXp}</p></div>
-            <div class="summary-stat"><p class="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">Sessions</p><p class="text-2xl font-black text-white">${weekSessions.length}</p></div>
-            <div class="summary-stat"><p class="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Avg EQ</p><p class="text-2xl font-black text-white">${avgEQ}</p></div>
-            <div class="summary-stat"><p class="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-1">Avg RPE</p><p class="text-2xl font-black text-white">${avgRPE}</p></div>
+            <div class="summary-stat"><p class="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">Sessions</p><p class="text-2xl font-black text-white">${weekSessions.length}/7</p></div>
+            <div class="summary-stat"><p class="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Avg EQ</p><p class="text-2xl font-black text-white">${avgEQ}</p>${eqInsight?`<p class="text-[9px] mt-1">${eqInsight}</p>`:''}</div>
+            <div class="summary-stat"><p class="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-1">Avg RPE</p><p class="text-2xl font-black text-white">${avgRPE}</p>${rpeInsight?`<p class="text-[9px] mt-1">${rpeInsight}</p>`:''}</div>
         </div>
-        <div class="summary-stat"><p class="text-[9px] font-black text-orange-400 uppercase tracking-widest mb-1">Active Days This Week</p><p class="text-3xl font-black text-white">${streak} / 7</p></div>
-        ${meas.length>=2?`<div class="summary-stat text-left"><p class="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2">Measurement Progress</p><div class="flex gap-4"><div><p class="text-[10px] text-slate-500">BPEL</p><p class="font-black text-white text-lg">${meas[meas.length-1].bpel||'—'}"</p></div><div><p class="text-[10px] text-slate-500">MSEG</p><p class="font-black text-white text-lg">${meas[meas.length-1].mseg||'—'}"</p></div></div></div>`:''}
-        ${weekSessions.length===0?'<p class="text-slate-600 text-sm italic text-center py-4">No sessions logged this week yet.</p>':''}
+        <div class="summary-stat"><p class="text-[9px] font-black text-orange-400 uppercase tracking-widest mb-1">Active Days</p><p class="text-3xl font-black text-white">${streak} / 7</p></div>
+        ${meas.length>=2?`<div class="summary-stat text-left"><p class="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2">Latest Measurements</p><div class="flex gap-4"><div><p class="text-[10px] text-slate-500">BPEL</p><p class="font-black text-white text-lg">${meas[meas.length-1].bpel||'—'}"</p></div><div><p class="text-[10px] text-slate-500">MSEG</p><p class="font-black text-white text-lg">${meas[meas.length-1].mseg||'—'}"</p></div></div></div>`:''}
+        <div class="summary-stat text-left">
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Recent Sessions</p>
+            ${weekSessions.length===0?'<p class="text-slate-600 text-sm italic">No sessions this week yet.</p>':
+            weekSessions.slice(-5).reverse().map(s=>{
+                const d=new Date(s.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+                return `<div class="flex items-center gap-2 py-1.5 border-b border-slate-800/50"><span class="text-[10px] text-slate-400 w-24 flex-shrink-0">${d}</span><span class="text-[10px] font-bold capitalize ${s.routineType==='length'?'text-blue-400':s.routineType==='girth'?'text-emerald-400':'text-amber-400'}">${s.routineType}</span>${s.eq?`<span class="text-[10px] text-slate-500 ml-auto">EQ ${s.eq}</span>`:''}</div>`;
+            }).join('')}
+        </div>
+        <button id="view-all-sessions-btn" class="btn-outline py-3 text-sm w-full">View Full History</button>
     `;
+    // Wire view all button
+    setTimeout(()=>{
+        const btn=document.getElementById('view-all-sessions-btn');
+        if(btn) btn.addEventListener('click', showSessionHistory);
+    },100);
     modal.classList.add('show');
 }
 function closeWeeklyReport(){
@@ -2255,6 +2528,72 @@ function showTierLockInfo(tierId){
     if(tierId==='elite'&&info){eliteReq.classList.remove('hidden');eliteText.innerText=info}
     else eliteReq.classList.add('hidden');
     modal.classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SESSION HISTORY
+// ═══════════════════════════════════════════════════════════════════════════
+function showSessionHistory(){
+    const modal=document.getElementById('history-modal');
+    const list=document.getElementById('history-list');
+    const logs=(persisted.sessionLog||[]).slice().reverse();
+    if(!logs.length){
+        list.innerHTML='<p class="text-slate-600 text-sm italic text-center py-8">No sessions logged yet.</p>';
+    } else {
+        list.innerHTML=logs.map(s=>{
+            const d=new Date(s.date);
+            const dateStr=d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+            const timeStr=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+            const icon=s.routineType==='length'?'fa-up-right-and-down-left-from-center':s.routineType==='girth'?'fa-expand':'fa-heart-pulse';
+            const color=s.routineType==='length'?'text-blue-400':s.routineType==='girth'?'text-emerald-400':'text-amber-400';
+            return `<div class="instruction-card" style="padding:.85rem 1rem;">
+                <div class="flex items-center gap-3">
+                    <i class="fas ${icon} ${color} text-sm w-5 text-center flex-shrink-0"></i>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-center">
+                            <p class="text-sm font-black text-white capitalize">${s.routineType}</p>
+                            <span class="text-yellow-400 text-[11px] font-bold">+${s.xpEarned} XP</span>
+                        </div>
+                        <p class="text-[10px] text-slate-500 mt-0.5">${dateStr} · ${timeStr}</p>
+                        ${s.eq||s.rpe?`<div class="flex gap-3 mt-1.5">${s.eq?`<span class="text-[10px] text-slate-400">EQ <span class="text-white font-bold">${s.eq}</span></span>`:''}${s.rpe?`<span class="text-[10px] text-slate-400">RPE <span class="text-white font-bold">${s.rpe}</span></span>`:''}</div>`:''}
+                        ${s.note?`<p class="text-[10px] text-slate-500 italic mt-1 truncate">${s.note}</p>`:''}
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+    modal.style.display='flex';
+    closeWeeklyReport();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ONBOARDING
+// ═══════════════════════════════════════════════════════════════════════════
+let _obSlide=0;
+function showOnboarding(){
+    document.getElementById('onboarding-overlay').classList.add('show');
+    goToObSlide(0);
+}
+function hideOnboarding(){
+    document.getElementById('onboarding-overlay').classList.remove('show');
+    if(currentUser) localStorage.setItem('bp_onboarded_'+currentUser.id,'1');
+}
+function goToObSlide(idx){
+    document.querySelectorAll('.ob-slide').forEach((s,i)=>{
+        s.classList.remove('active','exit');
+        if(i===idx) s.classList.add('active');
+        else if(i<idx) s.classList.add('exit');
+    });
+    document.querySelectorAll('.ob-dot').forEach((d,i)=>{
+        d.classList.toggle('active',i===idx);
+    });
+    _obSlide=idx;
+    const btn=document.getElementById('ob-next-btn');
+    if(btn) btn.innerText=idx>=2?'Get Started':'Next';
+}
+function obNext(){
+    if(_obSlide>=2) hideOnboarding();
+    else goToObSlide(_obSlide+1);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2353,8 +2692,12 @@ async function onUserSignedIn(user){
     await loadPersisted();
     hideAuthScreen();
     const welcomed=localStorage.getItem('bp_welcomed_'+user.id);
-    if(welcomed){goToStep(0);}
-    else{
+    const onboarded=localStorage.getItem('bp_onboarded_'+user.id);
+    if(welcomed){
+        goToStep(0);
+        // Show onboarding if never seen
+        if(!onboarded) setTimeout(showOnboarding, 600);
+    } else {
         document.querySelectorAll('.step-content').forEach(s=>{s.classList.add('hidden-step');s.classList.remove('active-step')});
         const w=document.getElementById('step-welcome');
         w.classList.remove('hidden-step');w.classList.add('active-step');
@@ -2455,6 +2798,7 @@ function init(){
     document.getElementById('mission-recovery-btn').addEventListener('click',()=>{session.routineType='recovery';goToRecoveryPicker()});
     document.getElementById('recovery-back-btn').addEventListener('click',()=>goToStep(3));
     document.getElementById('recovery-select-all-btn').addEventListener('click',selectAllRecovery);
+    document.getElementById('recovery-select-daily-btn').addEventListener('click',selectDailyRecommended);
     document.getElementById('recovery-start-btn').addEventListener('click',startRecoverySession);
     document.getElementById('mission-abort-btn').addEventListener('click',()=>goToStep(0));
     // Pilot Engine
@@ -2479,6 +2823,9 @@ function init(){
     document.getElementById('modal-dismiss-btn').addEventListener('click',closeModal);
     // Chart + Milestone
     document.getElementById('chart-close-btn').addEventListener('click',closeProgressChart);
+    document.getElementById('history-close-btn').addEventListener('click',()=>document.getElementById('history-modal').style.display='none');
+    document.getElementById('ob-next-btn').addEventListener('click',obNext);
+    document.getElementById('ob-skip-btn').addEventListener('click',hideOnboarding);
     document.getElementById('tier-lock-close-btn').addEventListener('click',()=>document.getElementById('tier-lock-modal').classList.add('hidden'));
     document.getElementById('soreness-dismiss-btn').addEventListener('click',()=>document.getElementById('soreness-warning-modal').classList.remove('show'));
     document.getElementById('soreness-go-recovery-btn').addEventListener('click',()=>{
@@ -2507,6 +2854,11 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     });
     const {data:{session}}=await sb.auth.getSession();
     if(!session) showAuthScreen();
+
+    // Save on tab hide (catches closed browser mid-session)
+    document.addEventListener('visibilitychange',()=>{
+        if(document.visibilityState==='hidden'&&currentUser) savePersisted();
+    });
 });
 </script>
 
