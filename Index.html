@@ -166,7 +166,10 @@
         .hydration-bar-fill.complete{background:linear-gradient(90deg,#10b981,#06b6d4)}
         .water-btn{flex:1;padding:.5rem .25rem;border-radius:.75rem;font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;transition:all .2s;border:1px solid rgba(59,130,246,.2);background:rgba(59,130,246,.06);color:#60a5fa}
         .water-btn:active{transform:scale(.95);background:rgba(59,130,246,.15)}
-        .unit-active{background:rgba(59,130,246,.2)!important;color:#93c5fd!important}
+        /* Hydration unit switch */
+        .unit-switch{display:flex;background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:3px;gap:2px;flex-shrink:0}
+        .unit-pill{padding:.3rem .65rem;border-radius:999px;font-size:.65rem;font-weight:900;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;transition:all .2s;color:#475569;border:none;background:transparent}
+        .unit-pill.active{background:rgba(59,130,246,.9);color:white;box-shadow:0 2px 8px rgba(59,130,246,.4)}
         .hydration-liter{flex:1;padding:.6rem .25rem;border-radius:.875rem;font-size:.75rem;font-weight:900;text-align:center;cursor:pointer;transition:all .25s;border:1px solid rgba(59,130,246,.2);background:rgba(59,130,246,.04);color:#475569;letter-spacing:.05em}
         .hydration-liter.hit{background:rgba(59,130,246,.18);border-color:rgba(59,130,246,.6);color:#93c5fd;box-shadow:0 0 12px rgba(59,130,246,.2)}
         .hydration-liter.complete{background:rgba(16,185,129,.18);border-color:rgba(16,185,129,.6);color:#6ee7b7;box-shadow:0 0 12px rgba(16,185,129,.2)}
@@ -419,17 +422,17 @@
                 <div class="hydration-liter" data-l="3">3L</div>
             </div>
             <div class="hydration-bar-track mb-3"><div id="hydration-bar" class="hydration-bar-fill" style="width:0%"></div></div>
-            <!-- Unit toggle + input -->
+            <!-- Unit switch + input -->
             <div class="flex gap-2 items-center mb-2">
-                <div class="flex rounded-lg overflow-hidden border border-slate-700/50 flex-shrink-0">
-                    <button id="unit-oz-btn" class="px-2.5 py-1.5 text-[10px] font-black uppercase bg-slate-800 text-slate-400 transition-colors" style="min-width:36px">oz</button>
-                    <button id="unit-l-btn"  class="px-2.5 py-1.5 text-[10px] font-black uppercase bg-blue-500/20 text-blue-400 transition-colors border-l border-slate-700/50" style="min-width:28px">L</button>
+                <div class="unit-switch">
+                    <button id="unit-oz-btn" class="unit-pill">oz</button>
+                    <button id="unit-l-btn"  class="unit-pill active">L</button>
                 </div>
-                <input id="hydration-custom-input" type="number" min="0" step="any" placeholder="Amount" class="auth-input text-center" style="font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:.5rem .75rem;flex:1;">
+                <input id="hydration-custom-input" type="number" min="0" step="any" placeholder="e.g. 0.5" class="auth-input text-center" style="font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:.5rem .75rem;flex:1;">
                 <button id="hydration-custom-btn" class="water-btn" style="flex-shrink:0;width:52px;"><i class="fas fa-plus"></i></button>
                 <button id="hydration-reset-btn" class="water-btn" style="flex-shrink:0;width:40px;border-color:rgba(100,116,139,.2);background:rgba(100,116,139,.05);color:#475569;"><i class="fas fa-rotate-left"></i></button>
             </div>
-            <p id="hydration-msg" class="text-[10px] text-slate-600 italic mt-1 text-center">Log in oz or L — tap to switch units</p>
+            <p id="hydration-msg" class="text-[10px] text-slate-500 italic mt-1 text-center">Sip throughout the day — don't chug.</p>
         </div>
 
 ```
@@ -1934,10 +1937,9 @@ function setHydrationUnit(unit){
     const ozBtn=document.getElementById('unit-oz-btn');
     const lBtn=document.getElementById('unit-l-btn');
     if(ozBtn&&lBtn){
-        ozBtn.classList.toggle('unit-active', unit==='oz');
-        lBtn.classList.toggle('unit-active', unit==='L');
+        ozBtn.classList.toggle('active', unit==='oz');
+        lBtn.classList.toggle('active', unit==='L');
     }
-    // Update placeholder
     const inp=document.getElementById('hydration-custom-input');
     if(inp) inp.placeholder=unit==='oz'?'e.g. 24':'e.g. 0.5';
 }
@@ -1962,24 +1964,43 @@ function resetHydration(){
 }
 function renderHydration(){
     const ml=getHydration();
-    const liters=(ml/1000);
-    const pct=Math.min(100,(ml/3000)*100); // bar caps at 100% but total can exceed
+    const pct=Math.min(100,(ml/3000)*100);
     const complete=ml>=3000;
-    document.getElementById('hydration-amount').innerText=liters.toFixed(1)+'L / 3L';
+
+    // Display in current unit
+    const isOz=_hydrationUnit==='oz';
+    const displayed=isOz?(ml/29.5735):(ml/1000);
+    const goal=isOz?101.4:3; // 3L in oz = ~101.4oz
+    const unit=isOz?'oz':'L';
+    const decimals=isOz?0:1;
+    document.getElementById('hydration-amount').innerText=displayed.toFixed(decimals)+unit+' / '+goal.toFixed(isOz?0:0)+unit;
+
+    // Bar
     const bar=document.getElementById('hydration-bar');
     bar.style.width=pct+'%';
     bar.className='hydration-bar-fill'+(complete?' complete':'');
-    // Update liter milestone bubbles
+
+    // Milestone bubbles — always show in L
     document.querySelectorAll('.hydration-liter').forEach(el=>{
         const l=parseInt(el.dataset.l);
         el.classList.remove('hit','complete');
         if(ml>=l*1000) el.classList.add(complete&&l===3?'complete':'hit');
     });
+
+    // Message
     const msg=document.getElementById('hydration-msg');
-    if(complete) msg.innerHTML='<span class="text-emerald-400 font-bold">✓ 3L hit. Tissue is primed.</span>';
-    else if(ml>=2000) msg.innerText='Almost there — one more liter.';
-    else if(ml>=1000) msg.innerText='1L down. Keep going.';
-    else msg.innerText='Minimum 3L daily. Hydration is non-negotiable.';
+    if(complete){
+        msg.innerHTML='<span class="text-emerald-400 font-bold">✓ Goal hit. Tissue is primed.</span>';
+    } else {
+        const remaining=isOz?((3000-ml)/29.5735).toFixed(0)+'oz':(((3000-ml)/1000).toFixed(1)+'L');
+        const sipMessages=[
+            'Sip throughout the day — don\'t chug.',
+            'Small sips every 20-30 min. Not a race.',
+            'Spread it out. Constant intake beats cramming.',
+        ];
+        const sipTip=sipMessages[Math.floor(ml/300)%sipMessages.length];
+        msg.innerText=ml<500?'Start hydrating now. Small sips, not gulps.':ml>=2000?(remaining+' left. You\'re close.'):sipTip;
+    }
 }
 
 function renderDashboard(){
