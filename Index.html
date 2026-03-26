@@ -251,45 +251,64 @@
 <!-- REST OVERLAY -->
 
 <div id="rest-overlay" class="hidden">
-    <p class="text-emerald-400 font-black uppercase italic tracking-[0.3em] text-xs mb-5 drop-shadow-md">Active Recovery</p>
+    <!-- Top bar -->
+    <div class="absolute top-0 left-0 right-0 flex justify-between items-center px-4 pt-8 pb-4">
+        <button id="rest-back-btn" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-800/60 border border-slate-700/50 text-slate-400 active:scale-95">
+            <i class="fas fa-arrow-left text-sm"></i>
+        </button>
+        <div class="text-center">
+            <p class="text-emerald-400 font-black uppercase tracking-[0.25em] text-[10px]">Rest</p>
+            <p id="rest-next-label" class="text-slate-500 text-[9px] mt-0.5">Next set coming up</p>
+        </div>
+        <button id="rest-skip-btn" class="text-slate-500 font-black text-[10px] uppercase tracking-widest py-1.5 px-4 border border-slate-800 rounded-full active:scale-95">Skip</button>
+    </div>
 
 ```
-<!-- Box breathing visual -->
-<div class="flex flex-col items-center mb-5">
-    <p id="box-phase-label" class="text-emerald-400 mb-2">INHALE</p>
-    <div class="relative flex items-center justify-center" style="width:160px;height:160px;">
-        <svg id="box-svg" viewBox="0 0 120 120" width="160" height="160">
-            <!-- Background box -->
-            <rect x="10" y="10" width="100" height="100" fill="none" stroke="#1e293b" stroke-width="2" rx="3"/>
-            <!-- Corner dots -->
-            <circle cx="10"  cy="10"  r="3" fill="#10b981" opacity="0.4"/>
-            <circle cx="110" cy="10"  r="3" fill="#10b981" opacity="0.4"/>
-            <circle cx="110" cy="110" r="3" fill="#10b981" opacity="0.4"/>
-            <circle cx="10"  cy="110" r="3" fill="#10b981" opacity="0.4"/>
-            <!-- Completed sides (filled in by JS) -->
-            <path id="box-done-0" class="box-done" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" d=""/>
-            <path id="box-done-1" class="box-done" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" d=""/>
-            <path id="box-done-2" class="box-done" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" d=""/>
-            <path id="box-done-3" class="box-done" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" d=""/>
-            <!-- Active animated segment -->
-            <path id="box-active-seg" class="box-seg" fill="none" stroke="#10b981" stroke-width="3.5" stroke-linecap="round" d="M10,110 L10,10" filter="url(#glow-box)"/>
-            <defs><filter id="glow-box"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+<!-- Rest countdown arc -->
+<div class="flex flex-col items-center" style="margin-top:80px;">
+    <div class="relative flex items-center justify-center mb-4" style="width:180px;height:180px;">
+        <svg viewBox="0 0 120 120" width="180" height="180" style="transform:rotate(-90deg)">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="#1e293b" stroke-width="6"/>
+            <circle id="rest-arc" cx="60" cy="60" r="52" fill="none" stroke="#10b981" stroke-width="6"
+                stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="0"
+                style="transition:stroke-dashoffset .9s linear;filter:drop-shadow(0 0 6px #10b981)"/>
         </svg>
-        <!-- Count in center -->
-        <div class="absolute flex flex-col items-center pointer-events-none">
-            <span id="box-phase-count" class="text-emerald-400">4</span>
+        <div class="absolute flex flex-col items-center">
+            <span id="rest-timer" class="text-5xl font-black tabular-nums text-emerald-400 leading-none" style="text-shadow:0 0 20px rgba(16,185,129,.4)">30</span>
+            <span class="text-emerald-600 text-[9px] font-black uppercase tracking-widest mt-1">seconds</span>
         </div>
     </div>
-    <p id="box-phase-sub" class="text-emerald-600 text-[10px] font-black uppercase tracking-widest mt-1">breathe deep</p>
+
+    <!-- Breathing phase -->
+    <div class="text-center mb-6">
+        <p id="box-phase-label" class="text-2xl font-black uppercase italic text-emerald-400 mb-1">INHALE</p>
+        <p id="box-phase-sub" class="text-emerald-600/70 text-[10px] font-black uppercase tracking-widest">bear down gently</p>
+        <div class="flex justify-center gap-2 mt-3">
+            <div id="box-phase-count" class="text-4xl font-black text-emerald-300 tabular-nums">4</div>
+        </div>
+    </div>
+
+    <!-- Box breathing mini indicator -->
+    <div class="flex gap-2 mb-6">
+        <div id="box-pip-0" class="w-2 h-2 rounded-full bg-emerald-800 transition-all duration-300"></div>
+        <div id="box-pip-1" class="w-2 h-2 rounded-full bg-emerald-800 transition-all duration-300"></div>
+        <div id="box-pip-2" class="w-2 h-2 rounded-full bg-emerald-800 transition-all duration-300"></div>
+        <div id="box-pip-3" class="w-2 h-2 rounded-full bg-emerald-800 transition-all duration-300"></div>
+    </div>
+
+    <!-- RK tip card -->
+    <div class="bg-emerald-950/40 border border-emerald-500/20 rounded-2xl p-4 mx-6 text-center">
+        <p class="text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-2"><i class="fas fa-lungs mr-1"></i>Breath Sync</p>
+        <p class="text-slate-400 text-[11px] leading-relaxed">On the <strong class="text-emerald-300">INHALE</strong> — belly deep, gently bear down. Floor drops and opens. On the <strong class="text-emerald-300">EXHALE</strong> — full release. Never clench during rest.</p>
+    </div>
 </div>
 
-<p id="rest-timer" class="text-5xl font-black tabular-nums timer-glow text-emerald-400 mb-5">30</p>
-
-<div class="bg-emerald-900/20 border border-emerald-500/30 rounded-2xl p-4 max-w-sm mx-4 text-center mb-5">
-    <p class="text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-2"><i class="fas fa-info-circle"></i> Reverse Kegel — Inhale Phase</p>
-    <p class="text-slate-300 text-xs leading-relaxed">On the <strong class="text-emerald-200">INHALE</strong>, fill your belly deep and gently bear down as if forcing urine out faster — pelvic floor drops and stretches as air comes in. On <strong class="text-emerald-200">EXHALE</strong>, release everything. Never clench.</p>
+<!-- Hidden elements needed by box breathing JS -->
+<div class="hidden">
+    <path id="box-done-0" d=""/><path id="box-done-1" d=""/><path id="box-done-2" d=""/><path id="box-done-3" d=""/>
+    <path id="box-active-seg" d=""/>
+    <svg id="box-svg"></svg>
 </div>
-<button id="rest-skip-btn" class="text-slate-500 font-black text-[10px] uppercase tracking-widest py-2 px-6 border border-slate-800 rounded-full">Skip Rest</button>
 ```
 
 </div>
@@ -2094,18 +2113,19 @@ function renderBoxPhase(){
     document.getElementById('box-phase-label').innerText=p.label;
     document.getElementById('box-phase-sub').innerText=p.sub;
     document.getElementById('box-phase-count').innerText=p.secs;
-    // Light up completed sides
-    BOX_PHASES.forEach((_,i)=>{
-        const done=document.getElementById(`box-done-${i}`);
-        done.setAttribute('d', i<_boxPhaseIdx ? BOX_PHASES[i].d : '');
-    });
-    // Animate active segment
-    const seg=document.getElementById('box-active-seg');
-    seg.setAttribute('d',p.d);
-    seg.style.setProperty('--seg-dur',p.secs+'s');
-    seg.classList.remove('drawing');
-    void seg.getBoundingClientRect(); // force reflow
-    seg.classList.add('drawing');
+    // Update pip dots
+    for(let i=0;i<4;i++){
+        const pip=document.getElementById('box-pip-'+i);
+        if(pip) pip.style.background=i===_boxPhaseIdx?'#10b981':i<_boxPhaseIdx?'rgba(16,185,129,0.4)':'rgba(16,185,129,0.1)';
+        if(pip&&i===_boxPhaseIdx) pip.style.transform='scale(1.5)';
+        else if(pip) pip.style.transform='scale(1)';
+    }
+    // Legacy SVG elements (kept for compat but hidden)
+    try{
+        const seg=document.getElementById('box-active-seg');
+        if(seg){seg.setAttribute('d',p.d);seg.style.setProperty('--seg-dur',p.secs+'s');seg.classList.remove('drawing');void seg.getBoundingClientRect();seg.classList.add('drawing');}
+        BOX_PHASES.forEach((_,i)=>{const done=document.getElementById('box-done-'+i);if(done)done.setAttribute('d',i<_boxPhaseIdx?BOX_PHASES[i].d:'');});
+    }catch(e){}
 }
 
 function startBoxBreathing(){
@@ -2131,15 +2151,25 @@ function stopBoxBreathing(){
 }
 
 function startRest(){
-    if(session.timer&&session.timer.isRunning())return; // prevent double-fire
+    if(session.timer&&session.timer.isRunning())return;
     const ov=document.getElementById('rest-overlay');ov.classList.remove('hidden');ov.style.opacity='1';
     startBoxBreathing();
-    // Rest scales with set duration: 30s base, +10s per 30s of set duration
     const ex=getCurEx();
-    const restDur=Math.min(90, Math.max(20, Math.round(ex.duration/3)));
+    const restDur=Math.min(90,Math.max(20,Math.round(ex.duration/3)));
+    const arc=document.getElementById('rest-arc');
+    const circumference=326.7;
+    if(arc){arc.style.strokeDashoffset='0';}
+    // Set next label
+    const nextLbl=document.getElementById('rest-next-label');
+    if(nextLbl){
+        const isLast=session.setIndex>=ex.sets;
+        nextLbl.innerText=isLast?'Last set done — next exercise coming':'Set '+(session.setIndex)+' of '+ex.sets+' complete';
+    }
     document.getElementById('rest-timer').innerText=restDur;
     session.timer=createTimer(restDur,rem=>{
         document.getElementById('rest-timer').innerText=rem;
+        // Animate arc
+        if(arc) arc.style.strokeDashoffset=String((1-(rem/restDur))*circumference);
     },()=>{
         ov.classList.add('hidden');
         stopBoxBreathing();
@@ -2811,6 +2841,14 @@ function init(){
     document.getElementById('finish-session-btn').addEventListener('click',finishSession);
     // Rest overlay
     document.getElementById('rest-skip-btn').addEventListener('click',skipRest);
+    document.getElementById('rest-back-btn').addEventListener('click',()=>{
+        // Back = abort rest, keep session active, return to exercise ready state
+        if(session.timer){session.timer.cancel();session.timer=null;}
+        stopBoxBreathing();
+        document.getElementById('rest-overlay').classList.add('hidden');
+        // Don't advance setIndex — let user re-engage the same set
+        updateExUI();
+    });
     // Coach modal
     document.getElementById('coach-submit-btn').addEventListener('click',askCoach);
     document.getElementById('coach-close-btn').addEventListener('click',closeCoach);
