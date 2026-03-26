@@ -2275,7 +2275,11 @@ function updateExUI(){
 
     // Phase tag
     const tagEl=document.getElementById('ex-tag');
-    tagEl.innerText='Phase '+String(session.exerciseIndex+1).padStart(2,'0');
+    if(ex.isDirectional){
+        tagEl.innerText=`DIR ${session.directionalIndex+1}/5 · SET ${session.setIndex}/${ex.sets}`;
+    } else {
+        tagEl.innerText='Phase '+String(session.exerciseIndex+1).padStart(2,'0');
+    }
     tagEl.className=isRecovSession
         ?'text-[10px] font-black uppercase px-3 py-1.5 bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/20'
         :'text-[10px] font-black uppercase px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20';
@@ -2296,10 +2300,29 @@ function updateExUI(){
 
     // Set pips
     const pips=document.getElementById('pip-container');pips.innerHTML='';
-    for(let i=1;i<=ex.sets;i++){
-        const p=document.createElement('div');
-        p.className=`w-2 h-2 rounded-full ${i<=session.setIndex?(isRecovSession?'bg-amber-500 shadow-[0_0_10px_#f59e0b]':'bg-blue-500 shadow-[0_0_10px_#3b82f6]'):'bg-slate-800'}`;
-        pips.appendChild(p);
+    if(ex.isDirectional){
+        // Show all 5 direction labels, highlight current
+        DIRECTIONALS.forEach((dir,i)=>{
+            const p=document.createElement('div');
+            const isCurrent=i===session.directionalIndex;
+            const isDone=i<session.directionalIndex;
+            p.className='flex flex-col items-center gap-0.5';
+            p.innerHTML=`
+                <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:900;transition:all .3s;
+                    background:${isCurrent?'rgba(59,130,246,.25)':isDone?'rgba(59,130,246,.08)':'rgba(30,41,59,.4)'};
+                    border:${isCurrent?'2px solid rgba(59,130,246,.8)':isDone?'1px solid rgba(59,130,246,.3)':'1px solid rgba(255,255,255,.06)'};
+                    color:${isCurrent?'#93c5fd':isDone?'#3b82f6':'#475569'};
+                    box-shadow:${isCurrent?'0 0 12px rgba(59,130,246,.4)':'none'}">
+                    ${dir.slice(0,2)}
+                </div>`;
+            pips.appendChild(p);
+        });
+    } else {
+        for(let i=1;i<=ex.sets;i++){
+            const p=document.createElement('div');
+            p.className=`w-2 h-2 rounded-full ${i<=session.setIndex?(isRecovSession?'bg-amber-500 shadow-[0_0_10px_#f59e0b]':'bg-blue-500 shadow-[0_0_10px_#3b82f6]'):'bg-slate-800'}`;
+            pips.appendChild(p);
+        }
     }
 
     // Detail card (recovery)
