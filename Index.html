@@ -98,6 +98,14 @@
         .diff-intermediate.active-diff{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.4);color:#93c5fd;box-shadow:0 4px 12px -4px rgba(59,130,246,.3)}
         .diff-advanced.active-diff{background:rgba(168,85,247,.12);border-color:rgba(168,85,247,.4);color:#c4b5fd;box-shadow:0 4px 12px -4px rgba(168,85,247,.3)}
         .diff-elite.active-diff{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.4);color:#fca5a5;box-shadow:0 4px 12px -4px rgba(239,68,68,.3)}
+        .diff-btn.locked{opacity:.4;cursor:not-allowed;position:relative}
+        .diff-btn.locked::after{content:'🔒';position:absolute;top:-6px;right:-4px;font-size:.65rem}
+        /* Hydration warning */
+        .hydration-warning{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:1rem;padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem}
+        /* Blackout day */
+        .blackout-banner{background:linear-gradient(135deg,rgba(99,102,241,.1) 0%,rgba(15,23,42,.6) 100%);border:1px solid rgba(99,102,241,.25);border-radius:1rem;padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem}
+        /* Elite requirement badge */
+        .elite-req{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:.75rem;padding:.5rem .75rem;font-size:.65rem;font-weight:800;color:#fca5a5;text-transform:uppercase;letter-spacing:.06em}
         /* Milestone modal */
         #milestone-modal{position:fixed;inset:0;background:rgba(2,6,23,.92);z-index:99998;backdrop-filter:blur(20px);display:none;align-items:center;justify-content:center;padding:2rem}
         #milestone-modal.show{display:flex}
@@ -541,9 +549,23 @@
             <button class="diff-btn diff-elite"        data-diff="elite"><i class="fas fa-skull-crossbones mr-1"></i>Elite</button>
         </div>
         <div id="diff-detail" class="text-[10px] text-slate-500 italic px-1"></div>
+        <p id="elite-req-note" class="hidden elite-req mt-1 px-1"><i class="fas fa-lock mr-1"></i></p>
         <p id="diff-recovery-note" class="hidden text-[10px] text-amber-500/70 italic px-1"><i class="fas fa-info-circle mr-1"></i>Difficulty does not apply to recovery sessions.</p>
     </div>
 
+    <!-- Hydration warning -->
+    <div id="hydration-warning-banner" class="hydration-warning mx-2 hidden">
+        <i class="fas fa-droplet text-red-400 text-lg flex-shrink-0"></i>
+        <p id="hydration-warning-text" class="text-red-300 text-[11px] leading-relaxed"></p>
+    </div>
+    <!-- Blackout day banner -->
+    <div id="blackout-banner" class="blackout-banner mx-2 hidden">
+        <i class="fas fa-moon text-indigo-400 text-lg flex-shrink-0"></i>
+        <div>
+            <p class="text-indigo-300 text-[10px] font-black uppercase tracking-widest">Rest Day — Blackout Active</p>
+            <p class="text-slate-400 text-[11px] mt-0.5">Training is locked today. Access Recovery Protocol only — The Big Four and pelvic work.</p>
+        </div>
+    </div>
     <div class="grid grid-cols-1 gap-4 px-2 w-full">
         <div class="grid grid-cols-2 gap-4">
             <button id="mission-length-btn" class="instruction-card hover:border-blue-500/50 transition-all flex flex-col items-center gap-3 py-8"><i class="fas fa-up-right-and-down-left-from-center text-2xl text-blue-400"></i><span class="text-xl font-black uppercase italic">Length</span></button>
@@ -750,6 +772,18 @@
         </div>
         <div id="weekly-report-content" class="space-y-4"></div>
         <div class="scroll-buffer"></div>
+    </div>
+</div>
+
+<!-- TIER LOCK MODAL -->
+
+<div id="tier-lock-modal" class="fixed inset-0 bg-black/95 backdrop-blur-xl z-[300] hidden flex items-center justify-center p-6">
+    <div class="bg-slate-900/95 border border-red-500/30 w-full max-w-xs rounded-[2rem] p-8 text-center space-y-4">
+        <i class="fas fa-lock text-red-400 text-3xl"></i>
+        <h3 id="tier-lock-title" class="text-xl font-black uppercase italic text-white">Tier Locked</h3>
+        <p id="tier-lock-desc" class="text-slate-400 text-sm leading-relaxed"></p>
+        <div id="tier-lock-elite-req" class="hidden elite-req text-left"><i class="fas fa-skull-crossbones mr-1.5"></i><span id="tier-lock-elite-text"></span></div>
+        <button id="tier-lock-close-btn" class="btn-primary py-4 text-sm">GOT IT</button>
     </div>
 </div>
 
@@ -1039,14 +1073,16 @@ const DEFAULT_PERSISTED={
     schedule:['length','girth','rest','length','girth','rest','rest'],
     completedDays:[false,false,false,false,false,false,false],
     totalXp:0,
-    sessionLog:[],      // [{date,routineType,xpEarned,note,rpe,eqBefore,duration}]
+    sessionLog:[],
     measurements:[],
     seenMilestones:[],
     difficulty:'intermediate',
+    diffUnlockedDate:{intermediate:'', advanced:'', elite:''},  // ISO dates when each tier was unlocked
     records:{longestStreak:0,bestWeekXp:0,bestSessionXp:0},
     weekKey:'',
-    tipIndex:0,         // rotates daily
+    tipIndex:0,
     lastTipDate:'',
+    firstSessionDate:'',   // used for tier lock calculation
 };
 let persisted={...DEFAULT_PERSISTED};
 let currentUser = null;
@@ -1072,6 +1108,8 @@ async function loadPersisted(){
             measurements:   data.measurements    || [],
             seenMilestones: data.seen_milestones || [],
             difficulty:     data.difficulty      || 'intermediate',
+            diffUnlockedDate: data.diff_unlocked_date || {intermediate:'',advanced:'',elite:''},
+            firstSessionDate: data.first_session_date || '',
             weekKey:        data.week_key        || '',
             records:        data.records         || {longestStreak:0,bestWeekXp:0,bestSessionXp:0},
             tipIndex:       data.tip_index       || 0,
@@ -1101,6 +1139,8 @@ function savePersisted(){
                 measurements:   persisted.measurements,
                 seen_milestones:persisted.seenMilestones,
                 difficulty:     persisted.difficulty,
+                diff_unlocked_date: persisted.diffUnlockedDate||{intermediate:'',advanced:'',elite:''},
+                first_session_date: persisted.firstSessionDate||'',
                 week_key:       persisted.weekKey||getCurrentWeekKey(),
                 records:        persisted.records||{longestStreak:0,bestWeekXp:0,bestSessionXp:0},
                 tip_index:      persisted.tipIndex||0,
@@ -1154,6 +1194,78 @@ function haptic(p=[40]){try{if(navigator.vibrate)navigator.vibrate(p)}catch(e){}
 // DIFFICULTY
 // ═══════════════════════════════════════════════════════════════════════════
 function getDiff(){return DIFFICULTIES.find(d=>d.id===(persisted.difficulty||'intermediate'))||DIFFICULTIES[1]}
+
+// ── Tier Lock System ──────────────────────────────────────────────────────
+// Each tier requires 4 weeks (28 days) at the previous tier before unlocking
+const TIER_ORDER=['beginner','intermediate','advanced','elite'];
+const TIER_WEEKS_REQUIRED={beginner:0,intermediate:0,advanced:4,elite:4};
+const ELITE_EQ_REQUIREMENT=9; // must avg 9+ EQ to unlock elite
+
+function getWeeksSinceUnlock(tierId){
+    const unlockDate=persisted.diffUnlockedDate?.[tierId];
+    if(!unlockDate) return 0;
+    return Math.floor((Date.now()-new Date(unlockDate).getTime())/(7*24*60*60*1000));
+}
+
+function isTierLocked(tierId){
+    if(tierId==='beginner'||tierId==='intermediate') return false;
+    const tierIdx=TIER_ORDER.indexOf(tierId);
+    if(tierIdx<0) return true;
+    const prevTier=TIER_ORDER[tierIdx-1];
+    const weeksAtPrev=getWeeksSinceUnlock(prevTier);
+    const required=TIER_WEEKS_REQUIRED[tierId];
+    if(weeksAtPrev<required) return true;
+    // Elite also requires avg EQ of 9+
+    if(tierId==='elite'){
+        const recentSessions=(persisted.sessionLog||[]).slice(-10).filter(s=>s.eq);
+        if(recentSessions.length<3) return true; // need at least 3 sessions with EQ data
+        const avgEQ=recentSessions.reduce((t,s)=>t+s.eq,0)/recentSessions.length;
+        if(avgEQ<ELITE_EQ_REQUIREMENT) return true;
+    }
+    return false;
+}
+
+function getTierUnlockInfo(tierId){
+    if(!isTierLocked(tierId)) return null;
+    const tierIdx=TIER_ORDER.indexOf(tierId);
+    const prevTier=TIER_ORDER[tierIdx-1];
+    const weeksAtPrev=getWeeksSinceUnlock(prevTier);
+    const required=TIER_WEEKS_REQUIRED[tierId];
+    const weeksLeft=Math.max(0,required-weeksAtPrev);
+    if(tierId==='elite'){
+        const recentSessions=(persisted.sessionLog||[]).slice(-10).filter(s=>s.eq);
+        const avgEQ=recentSessions.length?recentSessions.reduce((t,s)=>t+s.eq,0)/recentSessions.length:0;
+        if(avgEQ<ELITE_EQ_REQUIREMENT) return `Requires avg EQ ${ELITE_EQ_REQUIREMENT}+ (yours: ${avgEQ.toFixed(1)}) + ${weeksLeft}w at Advanced`;
+    }
+    return weeksLeft>0?`${weeksLeft} more week${weeksLeft>1?'s':''} at ${prevTier} required`:null;
+}
+
+function unlockTierIfEligible(tierId){
+    if(!persisted.diffUnlockedDate) persisted.diffUnlockedDate={};
+    if(!persisted.diffUnlockedDate[tierId]){
+        persisted.diffUnlockedDate[tierId]=new Date().toISOString();
+        savePersisted();
+    }
+}
+
+// ── Hydration Check ───────────────────────────────────────────────────────
+function getHydrationWarning(){
+    const ml=getHydration();
+    const diff=getDiff();
+    if(diff.id==='advanced'||diff.id==='elite'){
+        if(ml<2000) return 'Only '+(ml/1000).toFixed(1)+'L logged today. Advanced sessions require full hydration. Hit 3L before training.';
+        if(ml<3000) return 'Almost there — log more water before an '+diff.label+' session for best results.';
+    } else if(ml<1000){
+        return 'Low hydration detected. Drink at least 1L before training.';
+    }
+    return null;
+}
+
+// ── Blackout Day (Rest Day) Enforcement ───────────────────────────────────
+function isBlackoutDay(){
+    const todayType=persisted.schedule[new Date().getDay()];
+    return todayType==='rest';
+}
 function applyDifficulty(ex){
     const d=getDiff();
     const expKey=d.id==='elite'?'advanced':d.id; // elite maps to advanced for per-ex overrides
@@ -1178,16 +1290,35 @@ function applyDeload(ex){
 }
 
 function setDifficulty(id){
+    if(isTierLocked(id)) return; // blocked
+    const prev=persisted.difficulty;
     persisted.difficulty=id;
+    // Record unlock date for new tier
+    unlockTierIfEligible(id);
+    // If this is the first session date, record it
+    if(!persisted.firstSessionDate) persisted.firstSessionDate=new Date().toISOString();
     savePersisted();
     renderDifficultySelector();
 }
 function renderDifficultySelector(){
     const diff=getDiff();
     document.querySelectorAll('.diff-btn').forEach(btn=>{
-        const d=DIFFICULTIES.find(x=>x.id===btn.dataset.diff);
-        btn.classList.toggle('active-diff', btn.dataset.diff===diff.id);
+        const tid=btn.dataset.diff;
+        const locked=isTierLocked(tid);
+        btn.classList.toggle('active-diff', tid===diff.id);
+        btn.classList.toggle('locked', locked);
+        btn.title=locked?(getTierUnlockInfo(tid)||'Locked'):'';
+        if(locked) btn.onclick=(e)=>{e.preventDefault();showTierLockInfo(tid);return false};
+        else btn.onclick=null;
     });
+    // Show Elite requirement badge if on advanced
+    const eliteNote=document.getElementById('elite-req-note');
+    if(eliteNote){
+        const eliteLocked=isTierLocked('elite');
+        const info=getTierUnlockInfo('elite');
+        eliteNote.classList.toggle('hidden',!eliteLocked||diff.id==='elite');
+        if(info) eliteNote.innerText='Elite requires: '+info;
+    }
     const detail=document.getElementById('diff-detail');
     const recovNote=document.getElementById('diff-recovery-note');
     const isRecov=session.routineType==='recovery';
@@ -1428,7 +1559,24 @@ function goToStep(step){
     const t=document.getElementById(`step-${step}`);t.classList.remove('hidden-step');t.classList.add('active-step');
     if(step===0)renderDashboard();
     if(step===2){resetWarmupUI();buildCarousel();startCarousel()}
-    if(step===3){document.getElementById('deload-mission-note').classList.toggle('hidden',!isDeloadWeek());renderDifficultySelector()}
+    if(step===3){
+        document.getElementById('deload-mission-note').classList.toggle('hidden',!isDeloadWeek());
+        renderDifficultySelector();
+        // Blackout day enforcement
+        const blackout=isBlackoutDay();
+        document.getElementById('blackout-banner').classList.toggle('hidden',!blackout);
+        document.getElementById('mission-length-btn').disabled=blackout;
+        document.getElementById('mission-girth-btn').disabled=blackout;
+        document.getElementById('mission-length-btn').style.opacity=blackout?'0.35':'';
+        document.getElementById('mission-girth-btn').style.opacity=blackout?'0.35':'';
+        // Hydration warning
+        const hydWarn=getHydrationWarning();
+        const hydBanner=document.getElementById('hydration-warning-banner');
+        hydBanner.classList.toggle('hidden',!hydWarn);
+        if(hydWarn) document.getElementById('hydration-warning-text').innerText=hydWarn;
+        // Unlock intermediate on first session
+        unlockTierIfEligible('intermediate');
+    }
     if(step===4){resetSession();_sessionStartTime=Date.now();updateExUI()}
     if(step===5){selectedEQ=null;selectedRPE=null;['ai-recovery-response','session-note-input','input-bpel','input-mseg','ai-recovery-input'].forEach(id=>{const el=document.getElementById(id);if(el.tagName==='INPUT'||el.tagName==='TEXTAREA')el.value='';else el.style.display='none'})}
 }
@@ -2009,6 +2157,23 @@ function closeWeeklyReport(){
     document.getElementById('weekly-report-modal').classList.remove('show');
 }
 
+function showTierLockInfo(tierId){
+    const modal=document.getElementById('tier-lock-modal');
+    const titles={advanced:'Advanced Locked',elite:'Elite Locked'};
+    const descs={
+        advanced:'Advanced tier requires 4 weeks of consistent training at Intermediate before unlocking. This protects your tissue from progressing faster than it can adapt.',
+        elite:'Elite requires 4 weeks at Advanced AND avg EQ 9+ across your last 10 sessions. If EQ is not consistently 9+, the volume will outpace your vascular capacity.'
+    };
+    document.getElementById('tier-lock-title').innerText=titles[tierId]||'Tier Locked';
+    document.getElementById('tier-lock-desc').innerText=descs[tierId]||'';
+    const info=getTierUnlockInfo(tierId);
+    const eliteReq=document.getElementById('tier-lock-elite-req');
+    const eliteText=document.getElementById('tier-lock-elite-text');
+    if(tierId==='elite'&&info){eliteReq.classList.remove('hidden');eliteText.innerText=info}
+    else eliteReq.classList.add('hidden');
+    modal.classList.remove('hidden');
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // EXPORT / IMPORT
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2226,6 +2391,7 @@ function init(){
     document.getElementById('modal-dismiss-btn').addEventListener('click',closeModal);
     // Chart + Milestone
     document.getElementById('chart-close-btn').addEventListener('click',closeProgressChart);
+    document.getElementById('tier-lock-close-btn').addEventListener('click',()=>document.getElementById('tier-lock-modal').classList.add('hidden'));
     document.getElementById('milestone-close-btn').addEventListener('click',closeMilestone);
     } catch(err) {
         console.error('Blueprint init error:', err);
