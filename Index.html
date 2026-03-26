@@ -1539,7 +1539,13 @@ function updateExUI(){
     document.getElementById('dont-feel-msg').innerText=ex.dontFeel;
     _curExDuration=ex.duration;
     document.getElementById('ex-timer').innerText=fmtDuration(ex.duration,ex.duration);
-    document.getElementById('ex-live-text').innerText='Ready...';
+    // For directional exercises, show current direction in ready state
+    if(ex.isDirectional){
+        const dir=DIRECTIONALS[session.directionalIndex];
+        document.getElementById('ex-live-text').innerText=`Direction: ${dir} — grip below glans, pull ${dir} at 60% force.`;
+    } else {
+        document.getElementById('ex-live-text').innerText='Ready...';
+    }
 
     // Timer color
     document.getElementById('ex-timer').className=`text-[11rem] font-black tracking-tighter tabular-nums leading-none timer-glow ${accentColor}`;
@@ -1556,7 +1562,11 @@ function updateExUI(){
 
     // Engage button
     const eb=document.getElementById('ex-btn');
-    eb.innerText=session.directionalIndex>0?`NEXT DIR: ${DIRECTIONALS[session.directionalIndex]}`:`START ROUND ${session.setIndex}`;
+    if(ex.isDirectional){
+        eb.innerText=`PULL ${DIRECTIONALS[session.directionalIndex]} — START`;
+    } else {
+        eb.innerText=`START ROUND ${session.setIndex}`;
+    }
     eb.style.display='';
     document.getElementById('ex-pause-btn').style.display='none';
     document.getElementById('pause-icon').className='fas fa-pause text-2xl';
@@ -1643,7 +1653,7 @@ function onSetDone(){
     session.timer=null;
     haptic([60,30,60]);
     const ex=getCurEx();
-    if(ex.isDirectional&&session.directionalIndex<DIRECTIONALS.length-1){session.directionalIndex++;document.getElementById('ex-timer').innerText=fmtDuration(ex.duration);updateExUI()}
+    if(ex.isDirectional&&session.directionalIndex<DIRECTIONALS.length-1){session.directionalIndex++;document.getElementById('ex-timer').innerText=fmtDuration(ex.duration);updateExUI();}
     else{session.directionalIndex=0;if(session.setIndex<ex.sets)startRest();else advanceEx()}
 }
 // ── Box breathing (4-4-4-4) ────────────────────────────────────────────
