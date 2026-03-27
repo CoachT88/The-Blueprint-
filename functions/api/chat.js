@@ -1,64 +1,71 @@
 export async function onRequestPost(context) {
-// CORS headers — allow requests from your Pages domain
-const headers = {
-‘Access-Control-Allow-Origin’: ‘*’,
-‘Access-Control-Allow-Methods’: ‘POST, OPTIONS’,
-‘Access-Control-Allow-Headers’: ‘Content-Type’,
-‘Content-Type’: ‘application/json’,
+const corsHeaders = {
+“Access-Control-Allow-Origin”: “*”,
+“Access-Control-Allow-Methods”: “POST, OPTIONS”,
+“Access-Control-Allow-Headers”: “Content-Type”,
+“Content-Type”: “application/json”
 };
 
 ```
 try {
-    const { userMsg, systemPrompt } = await context.request.json();
+    const body = await context.request.json();
+    const userMsg = body.userMsg;
+    const systemPrompt = body.systemPrompt;
 
     if (!userMsg) {
-        return new Response(JSON.stringify({ error: 'No message provided' }), { status: 400, headers });
+        return new Response(JSON.stringify({ error: "No message provided" }), { status: 400, headers: corsHeaders });
     }
 
-    // Get key from Cloudflare secret (CLAUDE_API_KEY)
     const apiKey = context.env.CLAUDE_API_KEY;
     if (!apiKey) {
-        return new Response(JSON.stringify({ error: 'Service unavailable' }), { status: 500, headers });
+        return new Response(JSON.stringify({ error: "Service unavailable" }), { status: 500, headers: corsHeaders });
     }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
+    const claudeResponse = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
         headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01"
         },
         body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
+            model: "claude-sonnet-4-20250514",
             max_tokens: 1000,
-            system: systemPrompt || 'You are CoachTee — a real one. You know PE protocols, pelvic health, and male performance inside out. Talk like a knowledgeable friend, not a textbook. Keep it relaxed, direct, and real. No markdown, no bullet points, no fluff. 2-4 sentences unless they really need more.',
-            messages: [{ role: 'user', content: userMsg }]
+            system: systemPrompt || "You are CoachTee. You know PE protocols, pelvic health, and male performance inside out. Talk like a knowledgeable friend. Keep it relaxed, direct, and real. No markdown, no bullet points. 2-4 sentences unless they really need more.",
+            messages: [{ role: "user", content: userMsg }]
         })
     });
 
-    const data = await response.json();
+    const data = await claudeResponse.json();
 
-    if (!response.ok) {
-        return new Response(JSON.stringify({ error: data.error?.message || 'Claude error' }), { status: response.status, headers });
+    if (!claudeResponse.ok) {
+        return new Response(JSON.stringify({ error: data.error ? data.error.message : "Claude error" }), { status: claudeResponse.status, headers: corsHeaders });
     }
 
-    const text = data.content?.map(b => b.type === 'text' ? b.text : '').join('') || '';
-    return new Response(JSON.stringify({ text }), { status: 200, headers });
+    let text = "";
+    if (data.content && data.content.length > 0) {
+        for (const block of data.content) {
+            if (block.type === "text") {
+                text += block.text;
+            }
+        }
+    }
+
+    return new Response(JSON.stringify({ text: text }), { status: 200, headers: corsHeaders });
 
 } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers });
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
 }
 ```
 
 }
 
-// Handle preflight OPTIONS request
 export async function onRequestOptions() {
 return new Response(null, {
 headers: {
-‘Access-Control-Allow-Origin’: ‘*’,
-‘Access-Control-Allow-Methods’: ‘POST, OPTIONS’,
-‘Access-Control-Allow-Headers’: ‘Content-Type’,
+“Access-Control-Allow-Origin”: “*”,
+“Access-Control-Allow-Methods”: “POST, OPTIONS”,
+“Access-Control-Allow-Headers”: “Content-Type”
 }
 });
 }
