@@ -2480,8 +2480,11 @@ function startSet(){
     document.getElementById('ex-pause-btn').style.display='flex';
     document.getElementById('pause-icon').className='fas fa-pause text-4xl text-slate-300';
     setFocusedMode(true);
-    // Show first cue immediately
-    const firstCue=[...ex.cues].sort((a,b)=>b.time-a.time).find(c=>c.time>=ex.duration);
+    // Show first cue immediately — fall back to the highest-time cue if none
+    // covers the full (difficulty-adjusted) duration, and always clear any
+    // stale cue text left over from a previous exercise or session.
+    const sortedCues=[...ex.cues].sort((a,b)=>b.time-a.time);
+    const firstCue=sortedCues.find(c=>c.time>=ex.duration)||sortedCues[0];
     if(firstCue) updateActiveCue(firstCue.text.replace('{DIR}',DIRECTIONALS[session.directionalIndex]));
     session.timer=createTimer(ex.duration,rem=>{
         document.getElementById('ex-timer').innerText=fmtDuration(rem);
