@@ -466,10 +466,17 @@
 </div>
 
 <!-- PHOTO VIEWER OVERLAY -->
-<div id="photo-viewer-overlay" class="hidden fixed inset-0 z-[99999] flex items-center justify-center p-4" style="background:rgba(2,6,23,.98)">
-    <button id="photo-viewer-close" class="absolute top-4 right-4 w-11 h-11 flex items-center justify-center rounded-full bg-slate-800/80 text-white z-10"><i class="fas fa-xmark text-lg"></i></button>
-    <div class="absolute top-4 left-4 z-10" id="photo-viewer-date"></div>
-    <img id="photo-viewer-img" src="" class="max-w-full max-h-full rounded-2xl object-contain">
+<div id="photo-viewer-overlay" class="hidden fixed inset-0 z-[99999] flex flex-col items-center justify-center p-4" style="background:rgba(2,6,23,.98)">
+    <div class="flex justify-between items-center w-full max-w-sm mb-4 flex-shrink-0">
+        <div id="photo-viewer-date" class="text-[10px] font-black text-slate-400 uppercase tracking-widest"></div>
+        <button id="photo-viewer-close" class="w-11 h-11 flex items-center justify-center rounded-full bg-slate-800/80 text-white"><i class="fas fa-xmark text-lg"></i></button>
+    </div>
+    <img id="photo-viewer-img" src="" class="max-w-full max-h-[70vh] rounded-2xl object-contain flex-1 min-h-0">
+    <div class="mt-5 flex-shrink-0">
+        <button id="photo-delete-btn" class="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-[11px] font-black uppercase tracking-widest active:opacity-70 transition-opacity">
+            <i class="fas fa-trash-can text-xs"></i> Delete Photo
+        </button>
+    </div>
 </div>
 
 <!-- APP -->
@@ -2145,12 +2152,44 @@ async function handlePhotoSelect(file){
     }
 }
 async function renderPhotoGallery(){await renderGalleryInto('photo-gallery');}
-function openPhotoViewer(url,date){
+let _viewerPath=null,_deleteConfirmed=false,_deleteTimer=null;
+function openPhotoViewer(url,date,path){
+    _viewerPath=path||null;
+    _deleteConfirmed=false;
+    const btn=document.getElementById('photo-delete-btn');
+    btn.innerHTML='<i class="fas fa-trash-can text-xs"></i> Delete Photo';
+    btn.style.color='';
     document.getElementById('photo-viewer-img').src=url;
-    document.getElementById('photo-viewer-date').innerHTML=`<span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${date}</span>`;
+    document.getElementById('photo-viewer-date').innerText=date;
     document.getElementById('photo-viewer-overlay').classList.remove('hidden');
 }
-function closePhotoViewer(){document.getElementById('photo-viewer-overlay').classList.add('hidden');document.getElementById('photo-viewer-img').src='';}
+function closePhotoViewer(){
+    clearTimeout(_deleteTimer);_deleteConfirmed=false;
+    document.getElementById('photo-viewer-overlay').classList.add('hidden');
+    document.getElementById('photo-viewer-img').src='';
+}
+async function handlePhotoDelete(){
+    if(!_viewerPath||!currentUser)return;
+    const btn=document.getElementById('photo-delete-btn');
+    if(!_deleteConfirmed){
+        _deleteConfirmed=true;
+        btn.innerHTML='<i class="fas fa-trash-can text-xs"></i> Tap again to confirm';
+        btn.style.color='#f87171';
+        _deleteTimer=setTimeout(()=>{_deleteConfirmed=false;btn.innerHTML='<i class="fas fa-trash-can text-xs"></i> Delete Photo';btn.style.color='';},3000);
+        return;
+    }
+    clearTimeout(_deleteTimer);
+    btn.innerHTML='<i class="fas fa-spinner fa-spin text-xs"></i> Deleting...';
+    btn.disabled=true;
+    const {error}=await sb.storage.from('progress-photos').remove([_viewerPath]);
+    btn.disabled=false;
+    if(error){btn.innerHTML='<i class="fas fa-triangle-exclamation text-xs"></i> Failed — try again';btn.style.color='#f87171';return;}
+    closePhotoViewer();
+    // Refresh whichever gallery is visible
+    const logModal=document.getElementById('photo-log-modal');
+    if(!logModal.classList.contains('hidden'))await renderGalleryInto('photo-log-gallery');
+    else await renderGalleryInto('photo-gallery');
+}
 async function openPhotoLog(){
     document.getElementById('photo-log-modal').classList.remove('hidden');
     await renderGalleryInto('photo-log-gallery');
@@ -2167,9 +2206,9 @@ async function renderGalleryInto(elId){
             const {data:u}=await sb.storage.from('progress-photos').createSignedUrl(`${currentUser.id}/${f.name}`,3600);
             const ts=parseInt(f.name);
             const date=isNaN(ts)?f.name:new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
-            return{url:u?.signedUrl||'',date};
+            return{url:u?.signedUrl||'',date,path:`${currentUser.id}/${f.name}`};
         }));
-        el.innerHTML=urls.map(p=>`<div class="cursor-pointer" onclick="openPhotoViewer('${p.url}','${p.date}')"><img src="${p.url}" class="w-full aspect-square object-cover rounded-xl bg-slate-800 active:opacity-70 transition-opacity"><p class="text-[9px] text-slate-500 text-center mt-1 truncate">${p.date}</p></div>`).join('');
+        el.innerHTML=urls.map(p=>`<div class="cursor-pointer" onclick="openPhotoViewer('${p.url}','${p.date}','${p.path}')"><img src="${p.url}" class="w-full aspect-square object-cover rounded-xl bg-slate-800 active:opacity-70 transition-opacity"><p class="text-[9px] text-slate-500 text-center mt-1 truncate">${p.date}</p></div>`).join('');
     }catch(e){el.innerHTML='<p class="col-span-3 text-slate-600 text-[11px] italic text-center py-4">Could not load photos.</p>';}
 }
 async function handlePhotoLogUpload(file){
@@ -3644,6 +3683,7 @@ function init(){
     // Chart + Milestone
     document.getElementById('chart-close-btn').addEventListener('click',closeProgressChart);
     document.getElementById('photo-viewer-close').addEventListener('click',closePhotoViewer);
+    document.getElementById('photo-delete-btn').addEventListener('click',handlePhotoDelete);
     document.getElementById('photo-capture-btn').addEventListener('click',()=>document.getElementById('photo-file-input').click());
     document.getElementById('photo-file-input').addEventListener('change',e=>{if(e.target.files[0])handlePhotoSelect(e.target.files[0]);e.target.value='';});
     document.getElementById('photos-btn').addEventListener('click',openPhotoLog);
