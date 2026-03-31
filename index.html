@@ -675,7 +675,6 @@
     <button id="mission-abort-btn" class="text-slate-600 font-black uppercase text-[10px] pt-4">Abort Session</button>
     <div class="scroll-buffer"></div>
 </div>
-```
 
 </div>
 
@@ -727,10 +726,10 @@
 <div id="step-4" class="step-content hidden-step" style="z-index:11">
     <div class="inner-step-wrapper min-h-screen py-6 text-center relative justify-center" style="gap:0;">
 
-```
     <!-- Top bar -->
     <div class="flex justify-between items-center pb-3 px-2 mt-4" style="position:relative;z-index:15">
         <div class="flex items-center gap-3">
+            <button id="ex-home-btn" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-800/50 text-slate-400 active:scale-95" title="Back to Dashboard"><i class="fas fa-house text-sm"></i></button>
             <button id="ex-back-btn" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-800/50 text-slate-400 active:scale-95"><i class="fas fa-arrow-left text-sm"></i></button>
             <button id="ex-abort-btn" class="hidden"></button>
             <span id="ex-tag" class="text-[10px] font-black uppercase px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20">Phase 01</span>
@@ -3421,6 +3420,13 @@ function init(){
     });
     // Pilot Engine
     document.getElementById('ex-abort-btn').addEventListener('click',()=>goToStep(0));
+    document.getElementById('ex-home-btn').addEventListener('click',()=>{
+        if(session.timer){session.timer.cancel();session.timer=null;}
+        stopBoxBreathing();
+        document.getElementById('rest-overlay').classList.add('hidden');
+        setFocusedMode(false);
+        goToStep(0);
+    });
     document.getElementById('ex-back-btn').addEventListener('click',()=>{
         // Stop any running timer first
         if(session.timer){session.timer.cancel();session.timer=null;}
