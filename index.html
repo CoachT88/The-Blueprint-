@@ -398,8 +398,20 @@
         </div>
         <div id="chart-stats" class="grid grid-cols-2 gap-3 px-2"></div>
         <p class="text-center text-slate-600 text-[10px] italic px-2">Measurements logged at session end.</p>
+        <!-- Photo gallery -->
+        <div class="px-2 space-y-3">
+            <p class="text-[11px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2"><i class="fas fa-images"></i> Progress Photos</p>
+            <div id="photo-gallery" class="grid grid-cols-3 gap-2"></div>
+        </div>
         <div class="scroll-buffer"></div>
     </div>
+</div>
+
+<!-- PHOTO VIEWER OVERLAY -->
+<div id="photo-viewer-overlay" class="hidden fixed inset-0 z-[99999] flex items-center justify-center p-4" style="background:rgba(2,6,23,.98)">
+    <button id="photo-viewer-close" class="absolute top-4 right-4 w-11 h-11 flex items-center justify-center rounded-full bg-slate-800/80 text-white z-10"><i class="fas fa-xmark text-lg"></i></button>
+    <div class="absolute top-4 left-4 z-10" id="photo-viewer-date"></div>
+    <img id="photo-viewer-img" src="" class="max-w-full max-h-full rounded-2xl object-contain">
 </div>
 
 <!-- APP -->
@@ -838,6 +850,26 @@
             <div class="measure-field"><label class="text-blue-400">BPEL (inches)</label><input type="number" id="input-bpel" step="0.01" min="3" max="12" placeholder="e.g. 6.25"></div>
             <div class="measure-field"><label class="text-emerald-400">MSEG (inches)</label><input type="number" id="input-mseg" step="0.01" min="3" max="10" placeholder="e.g. 4.75"></div>
         </div>
+    </div>
+
+    <!-- Progress Photo -->
+    <div class="instruction-card border-purple-500/20 mx-2 text-left">
+        <p class="text-[11px] font-black text-purple-400 uppercase tracking-widest mb-3 flex items-center gap-2"><i class="fas fa-camera"></i> Progress Photo <span class="text-slate-600 font-medium normal-case tracking-normal ml-1">(optional)</span></p>
+        <div id="photo-preview" class="hidden mb-3 relative">
+            <img id="photo-preview-img" class="w-full max-h-48 object-cover rounded-xl bg-slate-800">
+            <p class="text-[10px] text-emerald-400 mt-2 text-center"><i class="fas fa-check mr-1"></i>Photo saved to your log</p>
+        </div>
+        <div id="photo-uploading" class="hidden mb-3 text-center">
+            <i class="fas fa-spinner fa-spin text-purple-400 mr-2"></i><span class="text-[11px] text-slate-400">Uploading...</span>
+        </div>
+        <div id="photo-error" class="hidden mb-3 text-center">
+            <p class="text-[11px] text-red-400"><i class="fas fa-triangle-exclamation mr-1"></i>Upload failed — try again</p>
+        </div>
+        <button id="photo-capture-btn" class="btn-outline w-full py-3 text-[11px] flex items-center justify-center gap-2" style="border-color:rgba(168,85,247,.3);color:#c4b5fd;">
+            <i class="fas fa-camera" style="color:#a855f7"></i> Take / Upload Photo
+        </button>
+        <input type="file" id="photo-file-input" accept="image/*" class="hidden">
+        <p class="text-[9px] text-slate-700 italic mt-2 text-center">Stored privately — only you can see this.</p>
     </div>
 
     <!-- Session note -->
@@ -2010,9 +2042,73 @@ function processNextMilestone(){
 function closeMilestone(){document.getElementById('milestone-modal').classList.remove('show');setTimeout(processNextMilestone,300)}
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PHOTO LOG
+// ═══════════════════════════════════════════════════════════════════════════
+async function compressImage(file,maxPx=1080,quality=0.78){
+    return new Promise(resolve=>{
+        const img=new Image();
+        img.onload=()=>{
+            const scale=Math.min(1,maxPx/Math.max(img.width,img.height));
+            const c=document.createElement('canvas');
+            c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);
+            c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+            c.toBlob(resolve,'image/jpeg',quality);
+            URL.revokeObjectURL(img.src);
+        };
+        img.src=URL.createObjectURL(file);
+    });
+}
+async function handlePhotoSelect(file){
+    if(!file||!currentUser)return;
+    document.getElementById('photo-uploading').classList.remove('hidden');
+    document.getElementById('photo-error').classList.add('hidden');
+    document.getElementById('photo-capture-btn').disabled=true;
+    try{
+        const blob=await compressImage(file);
+        const path=`${currentUser.id}/${Date.now()}.jpg`;
+        const {error}=await sb.storage.from('progress-photos').upload(path,blob,{contentType:'image/jpeg',upsert:false});
+        if(error)throw error;
+        // Show preview
+        const previewUrl=URL.createObjectURL(blob);
+        document.getElementById('photo-preview-img').src=previewUrl;
+        document.getElementById('photo-preview').classList.remove('hidden');
+        document.getElementById('photo-capture-btn').innerText='Replace Photo';
+    }catch(e){
+        console.error('Photo upload:',e);
+        document.getElementById('photo-error').classList.remove('hidden');
+        document.getElementById('photo-capture-btn').disabled=false;
+    }finally{
+        document.getElementById('photo-uploading').classList.add('hidden');
+        document.getElementById('photo-capture-btn').disabled=false;
+    }
+}
+async function renderPhotoGallery(){
+    const el=document.getElementById('photo-gallery');
+    if(!el||!currentUser)return;
+    el.innerHTML='<p class="col-span-3 text-slate-600 text-[11px] italic text-center py-4"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</p>';
+    try{
+        const {data,error}=await sb.storage.from('progress-photos').list(currentUser.id,{sortBy:{column:'name',order:'desc'},limit:60});
+        if(error||!data?.length){el.innerHTML='<p class="col-span-3 text-slate-600 text-[11px] italic text-center py-4">No photos logged yet.</p>';return;}
+        const urls=await Promise.all(data.map(async f=>{
+            const {data:u}=await sb.storage.from('progress-photos').createSignedUrl(`${currentUser.id}/${f.name}`,3600);
+            const ts=parseInt(f.name);
+            const date=isNaN(ts)?f.name:new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
+            return{url:u?.signedUrl||'',date};
+        }));
+        el.innerHTML=urls.map(p=>`<div class="cursor-pointer" onclick="openPhotoViewer('${p.url}','${p.date}')"><img src="${p.url}" class="w-full aspect-square object-cover rounded-xl bg-slate-800 active:opacity-70 transition-opacity"><p class="text-[9px] text-slate-500 text-center mt-1 truncate">${p.date}</p></div>`).join('');
+    }catch(e){el.innerHTML='<p class="col-span-3 text-slate-600 text-[11px] italic text-center py-4">Could not load photos.</p>';}
+}
+function openPhotoViewer(url,date){
+    document.getElementById('photo-viewer-img').src=url;
+    document.getElementById('photo-viewer-date').innerHTML=`<span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${date}</span>`;
+    document.getElementById('photo-viewer-overlay').classList.remove('hidden');
+}
+function closePhotoViewer(){document.getElementById('photo-viewer-overlay').classList.add('hidden');document.getElementById('photo-viewer-img').src='';}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PROGRESS CHART
 // ═══════════════════════════════════════════════════════════════════════════
-function openProgressChart(){document.getElementById('chart-modal').classList.remove('hidden');renderProgressChart()}
+function openProgressChart(){document.getElementById('chart-modal').classList.remove('hidden');renderProgressChart();renderPhotoGallery();}
 function closeProgressChart(){document.getElementById('chart-modal').classList.add('hidden')}
 function renderProgressChart(){
     const meas=(persisted.measurements||[]).slice(-30);
@@ -2171,7 +2267,7 @@ function goToStep(step){
         unlockTierIfEligible('intermediate');
     }
     if(step===4){if(!session._resuming){resetSession();_sessionStartTime=Date.now();}updateExUI()}
-    if(step===5){if(currentUser)localStorage.removeItem('bp_session_draft_'+currentUser.id);selectedEQ=null;selectedRPE=null;['ai-recovery-response','session-note-input','input-bpel','input-mseg','ai-recovery-input'].forEach(id=>{const el=document.getElementById(id);if(el.tagName==='INPUT'||el.tagName==='TEXTAREA')el.value='';else el.style.display='none'})}
+    if(step===5){if(currentUser)localStorage.removeItem('bp_session_draft_'+currentUser.id);selectedEQ=null;selectedRPE=null;['ai-recovery-response','session-note-input','input-bpel','input-mseg','ai-recovery-input'].forEach(id=>{const el=document.getElementById(id);if(el.tagName==='INPUT'||el.tagName==='TEXTAREA')el.value='';else el.style.display='none'});document.getElementById('photo-preview').classList.add('hidden');document.getElementById('photo-error').classList.add('hidden');document.getElementById('photo-capture-btn').innerText='Take / Upload Photo';document.getElementById('photo-capture-btn').disabled=false;}
 }
 function nextStep(){if(session.step===2)goToStep(3);else goToStep(session.step+1)}
 
@@ -3464,6 +3560,9 @@ function init(){
     document.getElementById('modal-dismiss-btn').addEventListener('click',closeModal);
     // Chart + Milestone
     document.getElementById('chart-close-btn').addEventListener('click',closeProgressChart);
+    document.getElementById('photo-viewer-close').addEventListener('click',closePhotoViewer);
+    document.getElementById('photo-capture-btn').addEventListener('click',()=>document.getElementById('photo-file-input').click());
+    document.getElementById('photo-file-input').addEventListener('change',e=>{if(e.target.files[0])handlePhotoSelect(e.target.files[0]);e.target.value='';});
     document.getElementById('manual-btn').addEventListener('click',()=>document.getElementById('manual-modal').classList.add('show'));
     document.getElementById('manual-close-btn').addEventListener('click',()=>document.getElementById('manual-modal').classList.remove('show'));
     document.getElementById('history-close-btn').addEventListener('click',()=>document.getElementById('history-modal').style.display='none');
