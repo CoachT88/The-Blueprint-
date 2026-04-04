@@ -60,7 +60,7 @@ aug:{iv:[0,4,8],q:'augmented'},dom7:{iv:[0,4,7,10],q:'dominant'},maj7:{iv:[0,4,7
 min7:{iv:[0,3,7,10],q:'minor'},sus2:{iv:[0,2,7],q:'suspended'},sus4:{iv:[0,5,7],q:'suspended'},add9:{iv:[0,4,7,14],q:'major'},
 };
 function cn(root,type,oct=4){const ri=NN.indexOf(root)!==-1?NN.indexOf(root):FN.indexOf(root);if(ri===-1)return[];const d=CT[type];if(!d)return[];return d.iv.map(v=>{const ni=(ri+v)%12;return NN[ni]+(oct+Math.floor((ri+v)/12));});}
-function pc(sym){const m=sym.match(/^([A-G][#b]?)(m7|maj7|add9|sus2|sus4|°|+|m|7)?$/);if(!m)return{r:'C',t:'major'};const M={'':'major',m:'minor','°':'dim','+':'aug','7':'dom7',maj7:'maj7',m7:'min7',sus2:'sus2',sus4:'sus4',add9:'add9'};return{r:m[1],t:M[m[2]||'']||'major'};}
+function pc(sym){const m=sym.match(/^([A-G][#b]?)(m7|maj7|add9|sus2|sus4|°|\+|m|7)?$/);if(!m)return{r:'C',t:'major'};const M={'':'major',m:'minor','°':'dim','+':'aug','7':'dom7',maj7:'maj7',m7:'min7',sus2:'sus2',sus4:'sus4',add9:'add9'};return{r:m[1],t:M[m[2]||'']||'major'};}
 function cc(s){const q=CT[pc(s).t]?.q;return{major:'#FF6B6B',minor:'#4ECDC4',diminished:'#C77DFF',augmented:'#B5FF3D',dominant:'#FFB347',suspended:'#87CEEB'}[q]||'#fff';}
 function ql(s){const q=CT[pc(s).t]?.q;return{major:'Major',minor:'Minor',diminished:'Diminished',augmented:'Augmented',dominant:'Dominant 7th',suspended:'Suspended'}[q]||'Chord';}
 
