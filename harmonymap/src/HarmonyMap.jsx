@@ -73,18 +73,22 @@ ns.connect(nf); nf.connect(ng); ng.connect(env);
 fl.connect(env); env.connect(this.mg); env.connect(this.rv); if(this.rv2)env.connect(this.rv2);
 ns.start(t); ns.stop(t+0.02);
 }
-playChord(notes,dur=1.5,stg=0.018) { this.init(); const t=this.ctx.currentTime; notes.forEach((n,i)=>this.playNote(n,dur,0.35,t+i*stg)); }
+playChord(notes,dur=1.5,stg=0.018) { this.init(); if(!notes||!notes.length)return; const t=this.ctx.currentTime; notes.forEach((n,i)=>this.playNote(n,dur,0.35,t+i*stg)); }
+setVolume(v){this.init();this.mg.gain.setTargetAtTime(Math.max(0,Math.min(1,v)),this.ctx.currentTime,0.02);}
+playClick(hi,st){this.init();const t=st||this.ctx.currentTime;const o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type='sine';o.frequency.value=hi?1400:900;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.25,t+0.002);g.gain.exponentialRampToValueAtTime(0.0001,t+0.08);o.connect(g);g.connect(this.mg);o.start(t);o.stop(t+0.1);}
+countIn(bpm,beats,cb){this.init();const d=60/bpm;const t0=this.ctx.currentTime;for(let i=0;i<beats;i++)this.playClick(i===0,t0+i*d);const id=setTimeout(cb,beats*d*1000);this.tids.push(id);}
+play808Pattern(grid,notes,bpm,cb,loop){this.init();this.stop();this.isPlaying=true;const stepD=(60/bpm)/4;const steps=grid[0]?.length||16;const tot=steps*stepD*1000;const go=()=>{if(!this.isPlaying)return;for(let s=0;s<steps;s++){const tms=s*stepD*1000;this.tids.push(setTimeout(()=>{if(!this.isPlaying)return;for(let r=0;r<grid.length;r++)if(grid[r][s])this.play808(notes[r],stepD*4,0.85);if(cb)cb(s);},tms));}if(loop)this.tids.push(setTimeout(()=>{if(this.isPlaying)go();},tot));else this.tids.push(setTimeout(()=>{this.isPlaying=false;if(cb)cb(-1);},tot));};go();}
 playInterval(a,b,dur=1.8) { this.init(); const t=this.ctx.currentTime; this.playNote(a,dur,0.4,t); this.playNote(b,dur,0.4,t+0.01); }
 playMelodicInterval(a,b,dur=0.8) { this.init(); const t=this.ctx.currentTime; this.playNote(a,dur,0.45,t); this.playNote(b,dur,0.45,t+dur*0.7); }
 playProgression(cl,bpm=72,cb,beats=4,stg=0.018) {
 this.init(); this.stop(); this.isPlaying=true; const d=(60/bpm)*beats;
-cl.forEach((n,i)=>{ const t=setTimeout(()=>{if(!this.isPlaying)return; this.playChord(n,d*0.88,stg); if(cb)cb(i);},i*d*1000); this.tids.push(t); });
+cl.forEach((n,i)=>{ const t=setTimeout(()=>{if(!this.isPlaying)return; if(n)this.playChord(n,d*0.88,stg); if(cb)cb(i);},i*d*1000); this.tids.push(t); });
 this.tids.push(setTimeout(()=>{this.isPlaying=false; if(cb)cb(-1);},cl.length*d*1000));
 }
 playLoop(cl,bpm=72,cb,beats=4,stg=0.018) {
 this.init(); this.stop(); this.isPlaying=true; const d=(60/bpm)*beats; const tot=cl.length*d*1000;
 const go=()=>{ if(!this.isPlaying) return;
-cl.forEach((n,i)=>{ this.tids.push(setTimeout(()=>{if(!this.isPlaying)return; this.playChord(n,d*0.88,stg); if(cb)cb(i);},i*d*1000)); });
+cl.forEach((n,i)=>{ this.tids.push(setTimeout(()=>{if(!this.isPlaying)return; if(n)this.playChord(n,d*0.88,stg); if(cb)cb(i);},i*d*1000)); });
 this.tids.push(setTimeout(()=>{if(this.isPlaying)go();},tot));
 }; go();
 }
@@ -100,12 +104,12 @@ o.start(t); o.stop(t+dur+0.1);
 }
 playMelody(notes,bpm=100,cb){
 this.init(); this.stop(); this.isPlaying=true; const d=(60/bpm)*0.5;
-notes.forEach((n,i)=>{ const t=setTimeout(()=>{if(!this.isPlaying)return; this.playNote(n+'4',d*0.75,0.5); if(cb)cb(i);},i*d*1000); this.tids.push(t); });
+notes.forEach((n,i)=>{ const t=setTimeout(()=>{if(!this.isPlaying)return; if(n&&n!=='REST')this.playNote(n+'4',d*0.75,0.5); if(cb)cb(i);},i*d*1000); this.tids.push(t); });
 this.tids.push(setTimeout(()=>{this.isPlaying=false; if(cb)cb(-1);},notes.length*d*1000));
 }
 loopMelody(notes,bpm=100,cb){
 this.init(); this.stop(); this.isPlaying=true; const d=(60/bpm)*0.5; const tot=notes.length*d*1000;
-const go=()=>{if(!this.isPlaying)return; notes.forEach((n,i)=>{this.tids.push(setTimeout(()=>{if(!this.isPlaying)return; this.playNote(n+'4',d*0.75,0.5); if(cb)cb(i);},i*d*1000));});this.tids.push(setTimeout(()=>{if(this.isPlaying)go();},tot));};go();
+const go=()=>{if(!this.isPlaying)return; notes.forEach((n,i)=>{this.tids.push(setTimeout(()=>{if(!this.isPlaying)return; if(n&&n!=='REST')this.playNote(n+'4',d*0.75,0.5); if(cb)cb(i);},i*d*1000));});this.tids.push(setTimeout(()=>{if(this.isPlaying)go();},tot));};go();
 }
 loop808(notes,bpm=90,cb){
 this.init(); this.stop(); this.isPlaying=true; const d=(60/bpm)*2; const tot=notes.length*d*1000;
@@ -426,20 +430,32 @@ const[genre,setGenre]=useState(null);
 const[mloop,setMloop]=useState(false);const[b8l,setB8l]=useState(false);const[b8notes,setB8notes]=useState([]);const[arpDir,setArpDir]=useState('up');
 const[mp,setMp]=useState(false);
 const[bpm,setBpm]=useState(90);const[beats,setBeats]=useState(4);const[stg,setStg]=useState(0.018);
+const[vol,setVol]=useState(0.26);
+const[b8grid,setB8grid]=useState(()=>Array.from({length:7},()=>Array(16).fill(false)));
+const[b8step,setB8step]=useState(-1);const[b8playing,setB8playing]=useState(false);const[b8loop,setB8loop]=useState(false);
+useEffect(()=>{audio.setVolume(vol);},[vol]);
+useEffect(()=>{try{const s=localStorage.getItem('harmonymap_saved');if(s)setSaved(JSON.parse(s));const st=localStorage.getItem('harmonymap_settings');if(st){const o=JSON.parse(st);if(o.bpm)setBpm(o.bpm);if(o.beats)setBeats(o.beats);if(o.stg!=null)setStg(o.stg);if(o.sk)setSk(o.sk);if(o.vol!=null)setVol(o.vol);}const g=localStorage.getItem('harmonymap_b8grid');if(g){const arr=JSON.parse(g);if(Array.isArray(arr)&&arr.length===7)setB8grid(arr);}}catch(e){}},[]);
+useEffect(()=>{try{localStorage.setItem('harmonymap_saved',JSON.stringify(saved));}catch(e){}},[saved]);
+useEffect(()=>{try{localStorage.setItem('harmonymap_settings',JSON.stringify({bpm,beats,stg,sk,vol}));}catch(e){}},[bpm,beats,stg,sk,vol]);
+useEffect(()=>{try{localStorage.setItem('harmonymap_b8grid',JSON.stringify(b8grid));}catch(e){}},[b8grid]);
 const dr=useRef([]);dr.current=disc;
 const k=KEYS[sk],em=emo?EMO[emo]:null;
 const ps=useMemo(()=>presets(sk),[sk]);
 
-const playC=useCallback(s=>{audio.playChord(cn(pc(s).r,pc(s).t,3));setSch(s);const t=ctip('sel',{ch:s});if(t)setTip(t);},[]);
+const playC=useCallback(s=>{if(s==='REST')return;audio.playChord(cn(pc(s).r,pc(s).t,3));setSch(s);const t=ctip('sel',{ch:s});if(t)setTip(t);},[]);
 const addC=useCallback(s=>{setProg(p=>{const n=[...p,s];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});},[]);
 const remC=useCallback(i=>{setProg(p=>p.filter((_,j)=>j!==i));},[]);
-const playP=useCallback((bpm=72,beats=4,stg=0.018)=>{const n=prog.map(s=>cn(pc(s).r,pc(s).t,3));audio.playProgression(n,bpm,i=>setPi(i),beats,stg);const t=ctip('play',{prog});if(t)setTimeout(()=>setTip(t),2000);},[prog]);
+const playP=useCallback((bpm=72,beats=4,stg=0.018)=>{const n=prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3));audio.playProgression(n,bpm,i=>setPi(i),beats,stg);const t=ctip('play',{prog});if(t)setTimeout(()=>setTip(t),2000);},[prog]);
+const loopP=useCallback((bpm=72,beats=4,stg=0.018)=>{const n=prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3));setPa(true);audio.playLoop(n,bpm,i=>{setPi(i);if(i<0)setPa(false);},beats,stg);},[prog]);
 const saveI=useCallback(()=>{if(!prog.length)return;setSaved(p=>[...p,{id:Date.now(),emo,k:sk,prog:[...prog],date:new Date().toLocaleDateString()}]);if(!dr.current.includes('fs'))setDisc(d=>[...d,'fs']);},[prog,emo,sk]);
 const playM=useCallback(n=>{audio.playNote(n+'4',0.8,0.5);setMn(n);setNh(p=>[...p.slice(-31),{n,t:Date.now()}]);setTimeout(()=>setMn(null),500);},[]);
 const selEmo=useCallback(e=>{setEmo(e);if(EMO[e].ks[0])setSk(EMO[e].ks[0]);setScreen('emotion');},[]);
 const playMelodyBack=useCallback(()=>{if(!nh.length)return;audio.playMelody(nh.map(e=>e.n),100,i=>setMp(i>=0));},[nh]);
 const loopMelodyBack=useCallback(()=>{if(!nh.length)return;setMloop(true);audio.loopMelody(nh.map(e=>e.n),100,i=>{if(i<0)setMloop(false);});},[nh]);
-const stopAll=useCallback(()=>{audio.stop();setPa(false);setPi(-1);setPRow(-1);setMloop(false);setB8l(false);setMp(false);},[]);
+const stopAll=useCallback(()=>{audio.stop();setPa(false);setPi(-1);setPRow(-1);setMloop(false);setB8l(false);setMp(false);setB8playing(false);setB8loop(false);setB8step(-1);},[]);
+const playB8Pattern=useCallback((loop=false)=>{const scale=k?.sc||['C','D','E','F','G','A','B'];const notes=scale.slice(0,7).map(n=>n+'2');setB8playing(!loop);setB8loop(loop);audio.play808Pattern(b8grid,notes,bpm,s=>{setB8step(s);if(s<0){setB8playing(false);setB8loop(false);}},loop);},[b8grid,bpm,k]);
+const toggleB8=useCallback((r,s)=>{setB8grid(g=>{const n=g.map(row=>[...row]);n[r][s]=!n[r][s];return n;});},[]);
+const clearB8=useCallback(()=>{setB8grid(Array.from({length:7},()=>Array(16).fill(false)));},[]);
 const loop808fn=useCallback((bpm=90)=>{const roots=prog.map(c=>pc(c).r);if(!roots.length)return;setB8l(true);audio.loop808(roots,bpm,i=>{if(i<0)setB8l(false);});},[prog]);
 const arpChord=useCallback((sym,dir)=>{audio.arpChord(cn(pc(sym).r,pc(sym).t,3),dir||arpDir);},[arpDir]);
 const newEar=useCallback(()=>{setEa(null);const c=earGen(et);setEc(c);if(c)setTimeout(()=>{if(c.pt==='chord')audio.playChord(c.pd);else if(c.pt==='melodic')audio.playMelodicInterval(c.pd[0],c.pd[1]);else if(c.pt==='two'){audio.playChord(c.pd[0],1.3);setTimeout(()=>audio.playChord(c.pd[1],1.3),1500);}},300);},[et]);
@@ -461,8 +477,15 @@ return(
     <div style={{display:'flex',gap:1,overflowX:'auto',flexShrink:1}}>
       {tabs.map(t=><button key={t.k} onClick={()=>setScreen(t.k)} style={{background:screen===t.k?'rgba(255,255,255,0.12)':'transparent',border:'none',color:screen===t.k?'#fff':'rgba(255,255,255,0.4)',borderRadius:6,padding:'3px 6px',cursor:'pointer',fontSize:9,fontWeight:600,display:'flex',flexDirection:'column',alignItems:'center',whiteSpace:'nowrap'}}><span style={{fontSize:12}}>{t.i}</span><span>{t.l}</span></button>)}
     </div>
-    {(pa||mloop||b8l||mp||pi>=0||pRow>=0)&&<button onClick={stopAll} style={{background:'linear-gradient(135deg,#FF6B6B,#FF4444)',border:'1px solid rgba(255,107,107,0.6)',borderRadius:8,padding:'6px 12px',color:'#fff',cursor:'pointer',fontSize:11,fontWeight:800,flexShrink:0,marginLeft:6,boxShadow:'0 0 12px rgba(255,107,107,0.5)',animation:'pulse 1.4s ease-in-out infinite'}}>■ Stop All</button>}
+    {(pa||mloop||b8l||mp||b8playing||b8loop||pi>=0||pRow>=0)&&<button onClick={stopAll} style={{background:'linear-gradient(135deg,#FF6B6B,#FF4444)',border:'1px solid rgba(255,107,107,0.6)',borderRadius:8,padding:'6px 12px',color:'#fff',cursor:'pointer',fontSize:11,fontWeight:800,flexShrink:0,marginLeft:6,boxShadow:'0 0 12px rgba(255,107,107,0.5)',animation:'pulse 1.4s ease-in-out infinite'}}>■ Stop All</button>}
   </nav>
+
+  {/* VOLUME */}
+  <div style={{position:'sticky',top:44,zIndex:99,display:'flex',alignItems:'center',gap:8,padding:'4px 12px',background:'rgba(10,10,26,0.78)',backdropFilter:'blur(16px)',borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+    <span style={{fontSize:11,color:'rgba(255,255,255,0.4)',flexShrink:0}}>🔊</span>
+    <input type="range" min="0" max="1" step="0.01" value={vol} onChange={e=>setVol(parseFloat(e.target.value))} style={{flex:1,maxWidth:180,height:4}} aria-label="Master volume"/>
+    <span style={{fontSize:9,color:'rgba(255,255,255,0.35)',minWidth:26,textAlign:'right'}}>{Math.round(vol*100)}%</span>
+  </div>
 
   {/* CONTEXT TIP */}
   {tip&&<div style={{position:'relative',zIndex:50,margin:'8px 12px 0',background:'rgba(78,205,196,0.1)',border:'1px solid rgba(78,205,196,0.25)',borderRadius:12,padding:'12px 14px',display:'flex',gap:10,alignItems:'flex-start',animation:'fadeIn 0.3s'}}>
@@ -619,21 +642,23 @@ return(
         <div>
           <div style={{display:'flex',gap:7,flexWrap:'wrap',alignItems:'center'}}>
             {prog.map((c,i)=><div key={i} style={{position:'relative'}}>
-              <div style={{...S.pill(cc(c),pi===i),padding:'10px 16px',fontSize:16}} onClick={()=>playC(c)}>{c}</div>
+              {c==='REST'?<div style={{display:'inline-flex',alignItems:'center',justifyContent:'center',background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.35)',border:`1.5px dashed rgba(255,255,255,${pi===i?0.5:0.2})`,borderRadius:10,padding:'10px 16px',fontSize:16,fontWeight:700,transform:pi===i?'scale(1.08)':'scale(1)',transition:'all 0.2s'}}>𝄽 rest</div>:<div style={{...S.pill(cc(c),pi===i),padding:'10px 16px',fontSize:16}} onClick={()=>playC(c)}>{c}</div>}
               <button onClick={()=>remC(i)} style={{position:'absolute',top:-5,right:-5,background:'rgba(255,60,60,0.8)',border:'none',borderRadius:'50%',width:16,height:16,color:'#fff',fontSize:9,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
             </div>)}
+            <button onClick={()=>addC('REST')} style={{background:'rgba(255,255,255,0.04)',border:'1.5px dashed rgba(255,255,255,0.2)',borderRadius:10,padding:'10px 14px',cursor:'pointer',color:'rgba(255,255,255,0.45)',fontSize:13,fontWeight:700}}>+ 𝄽 rest</button>
           </div>
-          {prog.length>=2&&<div style={{marginTop:12,background:'rgba(255,255,255,0.03)',borderRadius:10,padding:10}}>
+          {prog.filter(c=>c!=='REST').length>=2&&<div style={{marginTop:12,background:'rgba(255,255,255,0.03)',borderRadius:10,padding:10}}>
             <div style={{...S.lbl,marginBottom:6}}>Movement analysis</div>
-            {prog.slice(1).map((c,i)=>{const m=mf(prog[i],c),v=vl(prog[i],c);return<div key={i} style={{marginBottom:4}}>
+            {prog.slice(1).map((c,i)=>{if(c==='REST'||prog[i]==='REST')return null;const m=mf(prog[i],c),v=vl(prog[i],c);return<div key={i} style={{marginBottom:4}}>
               <span style={{fontSize:11,color:'rgba(255,255,255,0.6)'}}><span style={{color:cc(prog[i])}}>{prog[i]}</span><span style={{color:'rgba(255,255,255,0.2)',margin:'0 4px'}}>→</span><span style={{color:cc(c)}}>{c}</span><span style={{marginLeft:6,fontSize:10,color:'rgba(255,255,255,0.35)'}}>{m.e} {m.l} · {v.sm}</span></span>
               <div style={{display:'flex',gap:6,marginTop:2}}>{v.mv.map((m,j)=><span key={j} style={{fontSize:9,color:m.s?'#4ECDC480':'#FFB34780'}}>{m.f}{m.s?'=':'→'}{m.t}</span>)}</div>
             </div>;})}
-            {prog.length>=3&&idProg(prog)&&<div style={{marginTop:6,fontSize:10,color:'#FFB347',background:'rgba(255,183,71,0.08)',borderRadius:8,padding:'6px 10px'}}>✦ {idProg(prog)}</div>}
+            {prog.filter(c=>c!=='REST').length>=3&&idProg(prog.filter(c=>c!=='REST'))&&<div style={{marginTop:6,fontSize:10,color:'#FFB347',background:'rgba(255,183,71,0.08)',borderRadius:8,padding:'6px 10px'}}>✦ {idProg(prog.filter(c=>c!=='REST'))}</div>}
           </div>}
           <div style={{display:'flex',gap:7,marginTop:12,flexWrap:'wrap'}}>
             <button onClick={()=>playP(bpm,beats,stg)} style={{...S.btn('linear-gradient(135deg,#4ECDC4,#44B09E)','#fff','transparent'),border:'none'}}>▶ Play</button>
-<button onClick={()=>prog.forEach((c,i)=>setTimeout(()=>arpChord(c,'up'),i*600))} style={S.btn('rgba(255,183,71,0.15)','#FFB347','rgba(255,183,71,0.3)')}>↑ Arp All</button>
+<button onClick={pa?stopAll:()=>loopP(bpm,beats,stg)} style={{...S.btn(pa?'rgba(255,107,107,0.18)':'rgba(199,125,255,0.15)',pa?'#FF6B6B':'#C77DFF',pa?'rgba(255,107,107,0.4)':'rgba(199,125,255,0.3)')}}>{pa?'■ Stop':'↺ Loop'}</button>
+<button onClick={()=>prog.filter(c=>c!=='REST').forEach((c,i)=>setTimeout(()=>arpChord(c,'up'),i*600))} style={S.btn('rgba(255,183,71,0.15)','#FFB347','rgba(255,183,71,0.3)')}>↑ Arp All</button>
             <button onClick={saveI} style={S.btn('rgba(255,215,0,0.15)','#FFD700','rgba(255,215,0,0.3)')}>♡ Save</button>
             <button onClick={()=>{stopAll();setProg([]);}} style={S.btn()}>Clear</button>
           </div>
@@ -792,6 +817,31 @@ return(
         <div style={S.lbl}>808 Scale Notes</div>
         <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:10}}>
           {(k?.sc||['C','D','E','F','G','A','B']).map(n=><button key={n} onClick={()=>audio.play808(n,1.8)} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:10,width:44,height:44,cursor:'pointer',color:'rgba(255,255,255,0.7)',fontSize:14,fontWeight:700,padding:0}}>{n}</button>)}
+        </div>
+        <div style={{background:'rgba(0,0,0,0.25)',borderRadius:12,padding:10,marginBottom:10,border:'1px solid rgba(255,255,255,0.06)'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+            <div><div style={{fontSize:11,fontWeight:800,color:'#FFD700'}}>808 Step Sequencer</div><div style={{fontSize:9,color:'rgba(255,255,255,0.35)',marginTop:2}}>16 steps · 1 bar of 16ths · Tap cells to build a pattern</div></div>
+            <div style={{display:'flex',gap:4}}>
+              <button onClick={()=>playB8Pattern(false)} disabled={b8playing||b8loop} style={{...S.btn('rgba(78,205,196,0.15)','#4ECDC4','rgba(78,205,196,0.35)'),fontSize:10,padding:'5px 10px',opacity:(b8playing||b8loop)?0.4:1}}>▶ Play</button>
+              <button onClick={b8loop?stopAll:()=>playB8Pattern(true)} style={{...S.btn(b8loop?'rgba(255,107,107,0.2)':'rgba(199,125,255,0.15)',b8loop?'#FF6B6B':'#C77DFF',b8loop?'rgba(255,107,107,0.4)':'rgba(199,125,255,0.35)'),fontSize:10,padding:'5px 10px'}}>{b8loop?'■ Stop':'↺ Loop'}</button>
+              <button onClick={clearB8} style={{...S.btn(),fontSize:10,padding:'5px 10px'}}>Clear</button>
+            </div>
+          </div>
+          <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+            <div style={{display:'inline-block',minWidth:'100%'}}>
+              {(k?.sc||['C','D','E','F','G','A','B']).slice(0,7).map((n,r)=>(
+                <div key={r} style={{display:'flex',gap:2,marginBottom:2,alignItems:'center'}}>
+                  <div style={{width:22,fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.5)',flexShrink:0,textAlign:'right',paddingRight:4}}>{n}</div>
+                  {b8grid[r].map((on,s)=>{const beat=Math.floor(s/4);const isDown=s%4===0;const active=b8step===s&&(b8playing||b8loop);return(
+                    <button key={s} onClick={()=>toggleB8(r,s)} style={{width:22,height:22,borderRadius:4,border:`1px solid ${on?'#FFD70070':active?'rgba(78,205,196,0.5)':isDown?'rgba(255,255,255,0.15)':'rgba(255,255,255,0.08)'}`,background:on?'#FFD700'+(active?'ff':'cc'):active?'rgba(78,205,196,0.25)':isDown?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.02)',cursor:'pointer',padding:0,flexShrink:0,transition:'all 0.1s',boxShadow:on&&active?'0 0 8px #FFD700aa':'none'}}/>
+                  );})}
+                </div>
+              ))}
+              <div style={{display:'flex',gap:2,marginTop:4,paddingLeft:26}}>
+                {[0,1,2,3].map(b=><div key={b} style={{width:22*4+2*3,fontSize:8,color:'rgba(255,255,255,0.3)',textAlign:'left',paddingLeft:2}}>{b+1}</div>)}
+              </div>
+            </div>
+          </div>
         </div>
         {prog.length>0&&<div style={{marginBottom:10}}>
           <div style={S.lbl}>808 Your Progression Roots</div>
