@@ -9,7 +9,7 @@ Complete emotion-driven music theory app for beginners
 class AudioEngine {
 constructor() { this.ctx=null; this.mg=null; this.rv=null; this.isPlaying=false; this.tids=[]; }
 init() {
-if(this.ctx) return;
+if(this.ctx){if(this.ctx.state==='suspended')this.ctx.resume();return;}
 this.ctx=new(window.AudioContext||window.webkitAudioContext)();
 this.mg=this.ctx.createGain(); this.mg.gain.value=0.26;
 const comp=this.ctx.createDynamicsCompressor();
@@ -427,13 +427,13 @@ const[pa,setPa]=useState(false);
 const[nh,setNh]=useState([]);
 const[sv,setSv]=useState(false);
 const[genre,setGenre]=useState(null);
-const[mloop,setMloop]=useState(false);const[b8l,setB8l]=useState(false);const[b8notes,setB8notes]=useState([]);const[arpDir,setArpDir]=useState('up');
+const[mloop,setMloop]=useState(false);const[b8l,setB8l]=useState(false);const[arpDir,setArpDir]=useState('up');const[progLooping,setProgLooping]=useState(false);
 const[mp,setMp]=useState(false);
 const[bpm,setBpm]=useState(90);const[beats,setBeats]=useState(4);const[stg,setStg]=useState(0.018);
 const[vol,setVol]=useState(0.26);
 const[b8grid,setB8grid]=useState(()=>Array.from({length:7},()=>Array(16).fill(false)));
 const[b8step,setB8step]=useState(-1);const[b8playing,setB8playing]=useState(false);const[b8loop,setB8loop]=useState(false);
-useEffect(()=>{audio.setVolume(vol);},[vol]);
+useEffect(()=>{if(audio.ctx)audio.setVolume(vol);},[vol]);
 useEffect(()=>{try{const s=localStorage.getItem('harmonymap_saved');if(s)setSaved(JSON.parse(s));const st=localStorage.getItem('harmonymap_settings');if(st){const o=JSON.parse(st);if(o.bpm)setBpm(o.bpm);if(o.beats)setBeats(o.beats);if(o.stg!=null)setStg(o.stg);if(o.sk)setSk(o.sk);if(o.vol!=null)setVol(o.vol);}const g=localStorage.getItem('harmonymap_b8grid');if(g){const arr=JSON.parse(g);if(Array.isArray(arr)&&arr.length===7)setB8grid(arr);}}catch(e){}},[]);
 useEffect(()=>{try{localStorage.setItem('harmonymap_saved',JSON.stringify(saved));}catch(e){}},[saved]);
 useEffect(()=>{try{localStorage.setItem('harmonymap_settings',JSON.stringify({bpm,beats,stg,sk,vol}));}catch(e){}},[bpm,beats,stg,sk,vol]);
@@ -446,13 +446,13 @@ const playC=useCallback(s=>{if(s==='REST')return;audio.playChord(cn(pc(s).r,pc(s
 const addC=useCallback(s=>{setProg(p=>{const n=[...p,s];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});},[]);
 const remC=useCallback(i=>{setProg(p=>p.filter((_,j)=>j!==i));},[]);
 const playP=useCallback((bpm=72,beats=4,stg=0.018)=>{const n=prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3));audio.playProgression(n,bpm,i=>setPi(i),beats,stg);const t=ctip('play',{prog});if(t)setTimeout(()=>setTip(t),2000);},[prog]);
-const loopP=useCallback((bpm=72,beats=4,stg=0.018)=>{const n=prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3));setPa(true);audio.playLoop(n,bpm,i=>{setPi(i);if(i<0)setPa(false);},beats,stg);},[prog]);
+const loopP=useCallback((bpm=72,beats=4,stg=0.018)=>{const n=prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3));setProgLooping(true);audio.playLoop(n,bpm,i=>{setPi(i);},beats,stg);},[prog]);
 const saveI=useCallback(()=>{if(!prog.length)return;setSaved(p=>[...p,{id:Date.now(),emo,k:sk,prog:[...prog],date:new Date().toLocaleDateString()}]);if(!dr.current.includes('fs'))setDisc(d=>[...d,'fs']);},[prog,emo,sk]);
 const playM=useCallback(n=>{audio.playNote(n+'4',0.8,0.5);setMn(n);setNh(p=>[...p.slice(-31),{n,t:Date.now()}]);setTimeout(()=>setMn(null),500);},[]);
 const selEmo=useCallback(e=>{setEmo(e);if(EMO[e].ks[0])setSk(EMO[e].ks[0]);setScreen('emotion');},[]);
 const playMelodyBack=useCallback(()=>{if(!nh.length)return;audio.playMelody(nh.map(e=>e.n),100,i=>setMp(i>=0));},[nh]);
 const loopMelodyBack=useCallback(()=>{if(!nh.length)return;setMloop(true);audio.loopMelody(nh.map(e=>e.n),100,i=>{if(i<0)setMloop(false);});},[nh]);
-const stopAll=useCallback(()=>{audio.stop();setPa(false);setPi(-1);setPRow(-1);setMloop(false);setB8l(false);setMp(false);setB8playing(false);setB8loop(false);setB8step(-1);},[]);
+const stopAll=useCallback(()=>{audio.stop();setPa(false);setPi(-1);setPRow(-1);setMloop(false);setB8l(false);setMp(false);setB8playing(false);setB8loop(false);setB8step(-1);setProgLooping(false);},[]);
 const playB8Pattern=useCallback((loop=false)=>{const scale=k?.sc||['C','D','E','F','G','A','B'];const notes=scale.slice(0,7).map(n=>n+'2');setB8playing(!loop);setB8loop(loop);audio.play808Pattern(b8grid,notes,bpm,s=>{setB8step(s);if(s<0){setB8playing(false);setB8loop(false);}},loop);},[b8grid,bpm,k]);
 const toggleB8=useCallback((r,s)=>{setB8grid(g=>{const n=g.map(row=>[...row]);n[r][s]=!n[r][s];return n;});},[]);
 const clearB8=useCallback(()=>{setB8grid(Array.from({length:7},()=>Array(16).fill(false)));},[]);
@@ -475,9 +475,9 @@ return(
       <span style={{fontWeight:700,fontSize:13}}>HarmonyMap</span>
     </div>
     <div style={{display:'flex',gap:1,overflowX:'auto',flexShrink:1}}>
-      {tabs.map(t=><button key={t.k} onClick={()=>setScreen(t.k)} style={{background:screen===t.k?'rgba(255,255,255,0.12)':'transparent',border:'none',color:screen===t.k?'#fff':'rgba(255,255,255,0.4)',borderRadius:6,padding:'3px 6px',cursor:'pointer',fontSize:9,fontWeight:600,display:'flex',flexDirection:'column',alignItems:'center',whiteSpace:'nowrap'}}><span style={{fontSize:12}}>{t.i}</span><span>{t.l}</span></button>)}
+      {tabs.map(t=><button key={t.k} onClick={()=>setScreen(t.k)} style={{background:screen===t.k?'rgba(255,255,255,0.12)':'transparent',border:'none',color:screen===t.k?'#fff':'rgba(255,255,255,0.4)',borderRadius:6,padding:'5px 7px',cursor:'pointer',fontSize:9,fontWeight:600,display:'flex',flexDirection:'column',alignItems:'center',whiteSpace:'nowrap',minHeight:44,justifyContent:'center'}}><span style={{fontSize:13}}>{t.i}</span><span>{t.l}</span></button>)}
     </div>
-    {(pa||mloop||b8l||mp||b8playing||b8loop||pi>=0||pRow>=0)&&<button onClick={stopAll} style={{background:'linear-gradient(135deg,#FF6B6B,#FF4444)',border:'1px solid rgba(255,107,107,0.6)',borderRadius:8,padding:'6px 12px',color:'#fff',cursor:'pointer',fontSize:11,fontWeight:800,flexShrink:0,marginLeft:6,boxShadow:'0 0 12px rgba(255,107,107,0.5)',animation:'pulse 1.4s ease-in-out infinite'}}>■ Stop All</button>}
+    {(pa||progLooping||mloop||b8l||mp||b8playing||b8loop||pi>=0||pRow>=0)&&<button onClick={stopAll} style={{background:'linear-gradient(135deg,#FF6B6B,#FF4444)',border:'1px solid rgba(255,107,107,0.6)',borderRadius:8,padding:'6px 12px',color:'#fff',cursor:'pointer',fontSize:11,fontWeight:800,flexShrink:0,marginLeft:6,boxShadow:'0 0 12px rgba(255,107,107,0.5)',animation:'pulse 1.4s ease-in-out infinite'}}>■ Stop All</button>}
   </nav>
 
   {/* VOLUME */}
@@ -536,12 +536,12 @@ return(
           {[{l:'Keys',v:em.ks.join(', ')},{l:'Tempo',v:em.tp+' BPM'},{l:'Feel',v:em.fl},{l:'Textures',v:em.tx}].map(i=><div key={i.l} style={{background:'rgba(0,0,0,0.2)',borderRadius:10,padding:'9px 11px'}}><div style={{...S.lbl,fontSize:9,marginBottom:3}}>{i.l}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.75)',lineHeight:1.4}}>{i.v}</div></div>)}
         </div>
       </div>
-      {em.pr.map((p,ri)=><div key={ri} style={{...S.card(),cursor:'pointer'}} onClick={()=>{audio.playProgression(p.ch.map(s=>cn(pc(s).r,pc(s).t,3)),72,idx=>{setPi(idx);setPRow(idx===-1?-1:ri);});}}>
+      {em.pr.map((p,ri)=><div key={ri} style={{...S.card(),cursor:'pointer'}} onClick={()=>{audio.playProgression(p.ch.map(s=>cn(pc(s).r,pc(s).t,3)),em.tp||72,idx=>{setPi(idx);setPRow(idx===-1?-1:ri);});}}>
         <div style={{display:'flex',gap:6,marginBottom:6,flexWrap:'wrap'}}>{p.ch.map((c,j)=><span key={j} style={S.pill(cc(c),pRow===ri&&pi===j)}>{c}{j<p.ch.length-1&&<span style={{marginLeft:6,color:'rgba(255,255,255,0.25)'}}>→</span>}</span>)}</div>
         <p style={{fontSize:11,color:'rgba(255,255,255,0.5)',margin:'0 0 6px',lineHeight:1.4}}>{p.d}</p>
         <div style={{display:'flex',gap:6}}>
           <button onClick={e=>{e.stopPropagation();setProg(p.ch);setScreen('builder');}} style={S.btn(em.co[0]+'25',em.co[0],em.co[0]+'40')}>Use this →</button>
-          <button onClick={e=>{e.stopPropagation();audio.playProgression(p.ch.map(s=>cn(pc(s).r,pc(s).t,3)),72,idx=>{setPi(idx);setPRow(idx===-1?-1:ri);});}} style={S.btn()}>▶ Listen</button>
+          <button onClick={e=>{e.stopPropagation();audio.playProgression(p.ch.map(s=>cn(pc(s).r,pc(s).t,3)),em.tp||72,idx=>{setPi(idx);setPRow(idx===-1?-1:ri);});}} style={S.btn()}>▶ Listen</button>
         </div>
       </div>)}
       <div style={S.card()}>
@@ -657,7 +657,7 @@ return(
           </div>}
           <div style={{display:'flex',gap:7,marginTop:12,flexWrap:'wrap'}}>
             <button onClick={()=>playP(bpm,beats,stg)} style={{...S.btn('linear-gradient(135deg,#4ECDC4,#44B09E)','#fff','transparent'),border:'none'}}>▶ Play</button>
-<button onClick={pa?stopAll:()=>loopP(bpm,beats,stg)} style={{...S.btn(pa?'rgba(255,107,107,0.18)':'rgba(199,125,255,0.15)',pa?'#FF6B6B':'#C77DFF',pa?'rgba(255,107,107,0.4)':'rgba(199,125,255,0.3)')}}>{pa?'■ Stop':'↺ Loop'}</button>
+<button onClick={progLooping?stopAll:()=>loopP(bpm,beats,stg)} style={{...S.btn(progLooping?'rgba(255,107,107,0.18)':'rgba(199,125,255,0.15)',progLooping?'#FF6B6B':'#C77DFF',progLooping?'rgba(255,107,107,0.4)':'rgba(199,125,255,0.3)')}}>{progLooping?'■ Stop':'↺ Loop'}</button>
 <button onClick={()=>prog.filter(c=>c!=='REST').forEach((c,i)=>setTimeout(()=>arpChord(c,'up'),i*600))} style={S.btn('rgba(255,183,71,0.15)','#FFB347','rgba(255,183,71,0.3)')}>↑ Arp All</button>
             <button onClick={saveI} style={S.btn('rgba(255,215,0,0.15)','#FFD700','rgba(255,215,0,0.3)')}>♡ Save</button>
             <button onClick={()=>{stopAll();setProg([]);}} style={S.btn()}>Clear</button>
@@ -727,7 +727,7 @@ return(
             {GENRES[genre].progs.map((p,pi)=>{
               const ch=k?p.g(k.ch):[];
               return(
-                <div key={pi} style={{...S.card(),cursor:'pointer'}} onClick={()=>{if(ch.length){setProg(ch);audio.playProgression(ch.map(s=>genreNotes(s,genre)),p.bpm,i=>setPi(i));}}}>
+                <div key={pi} style={{...S.card(),cursor:'pointer'}} onClick={()=>{if(ch.length){setProg(ch);audio.playProgression(ch.map(s=>genreNotes(s,genre)),p.bpm,i=>setPi(i),beats,stg);}}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
                     <div><span style={{fontSize:14,fontWeight:700,color:GENRES[genre].color}}>{p.n}</span><span style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginLeft:8}}>{p.d}</span></div>
                     <span style={{fontSize:9,color:'rgba(255,255,255,0.25)',background:'rgba(255,255,255,0.05)',borderRadius:4,padding:'2px 6px'}}>{p.bpm} BPM</span>
@@ -738,7 +738,7 @@ return(
                   <div style={{fontSize:10,color:'rgba(255,255,255,0.5)',lineHeight:1.5}}>{p.w}</div>
                   <div style={{display:'flex',gap:6,marginTop:8}}>
                     <button onClick={e=>{e.stopPropagation();if(ch.length){setProg(ch);setSr(null);}}} style={S.btn(GENRES[genre].color+'20',GENRES[genre].color,GENRES[genre].color+'40')}>Use this</button>
-                    <button onClick={e=>{e.stopPropagation();if(ch.length)audio.playProgression(ch.map(s=>genreNotes(s,genre)),p.bpm,i=>setPi(i));}} style={S.btn()}>▶ Play at {p.bpm}</button>
+                    <button onClick={e=>{e.stopPropagation();if(ch.length)audio.playProgression(ch.map(s=>genreNotes(s,genre)),p.bpm,i=>setPi(i),beats,stg);}} style={S.btn()}>▶ Play at {p.bpm}</button>
                   </div>
                 </div>
               );
@@ -768,9 +768,10 @@ return(
           <div style={S.lbl}>{sk}</div>
           <button onClick={()=>setSd(!sd)} style={{...S.btn(),fontSize:10,padding:'4px 10px'}}>{sd?'Hide degrees':'Show degrees'}</button>
         </div>
-        <div style={{display:'flex',gap:4,justifyContent:'center'}}>
+        <div style={{display:'flex',gap:4,justifyContent:'center',flexWrap:'wrap'}}>
           {(k?.sc||['C','D','E','F','G','A','B']).map((n,ni)=>{const ed=em||EMO.hopeful;const iS=ed.sf.includes(n),iT=ed.tn.includes(n),iC=ed.cl.includes(n);const bg=iS?'#4ECDC435':iT?'#FF6B6B35':iC?'#FFB34735':'rgba(255,255,255,0.06)';const bc=iS?'#4ECDC4':iT?'#FF6B6B':iC?'#FFB347':'rgba(255,255,255,0.15)';const tc=iS?'#4ECDC4':iT?'#FF6B6B':iC?'#FFB347':'rgba(255,255,255,0.5)';const dg=(k?.m==='minor'?Dm:DM)[ni];
-            return<button key={n} onClick={()=>playM(n)} style={{width:42,height:62,background:bg,border:`1.5px solid ${bc}50`,borderRadius:10,cursor:'pointer',color:tc,fontSize:15,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,boxShadow:mn===n?`0 0 16px ${bc}50`:'none',transform:mn===n?'scale(1.06)':'scale(1)',transition:'all 0.15s'}}>{n}<span style={{fontSize:7,opacity:0.6}}>{sd?(dg?.d||''):(iS?'safe':iT?'tension':iC?'color':'')}</span></button>;})}
+            return<button key={n} onClick={()=>playM(n)} style={{width:44,height:64,background:bg,border:`1.5px solid ${bc}50`,borderRadius:10,cursor:'pointer',color:tc,fontSize:15,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,boxShadow:mn===n?`0 0 16px ${bc}50`:'none',transform:mn===n?'scale(1.06)':'scale(1)',transition:'all 0.15s'}}>{n}<span style={{fontSize:7,opacity:0.6}}>{sd?(dg?.d||''):(iS?'safe':iT?'tension':iC?'color':'')}</span></button>;})}
+          <button onClick={()=>setNh(p=>[...p.slice(-31),{n:'REST',t:Date.now()}])} style={{width:44,height:64,background:'rgba(255,255,255,0.03)',border:'1.5px dashed rgba(255,255,255,0.2)',borderRadius:10,cursor:'pointer',color:'rgba(255,255,255,0.35)',fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2}}>𝄽<span style={{fontSize:7}}>rest</span></button>
         </div>
         {sd&&<div style={{marginTop:10,background:'rgba(0,0,0,0.2)',borderRadius:10,padding:10}}><div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.5)',marginBottom:6}}>Scale Degree Character</div>
           {(k?.m==='minor'?Dm:DM).map((d,i)=><div key={i} style={{display:'flex',gap:8,alignItems:'baseline',marginBottom:4}}><span style={{color:dc(d.st),fontWeight:800,fontSize:14,minWidth:16}}>{d.d}</span><span style={{fontSize:10,color:dc(d.st),fontWeight:600}}>{d.n} </span><span style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>{d.f}</span></div>)}
@@ -782,7 +783,7 @@ return(
 <button onClick={mloop?stopAll:loopMelodyBack} style={{...S.btn(mloop?'rgba(255,107,107,0.15)':'rgba(78,205,196,0.06)',mloop?'#FF6B6B':'rgba(78,205,196,0.7)',mloop?'rgba(255,107,107,0.3)':'rgba(78,205,196,0.2)'),fontSize:9,padding:'3px 8px'}}>{mloop?'■ Stop':'↺ Loop'}</button>
 <button onClick={()=>setNh([])} style={{...S.btn(),fontSize:9,padding:'3px 8px'}}>Clear</button></div></div>
         <div style={{display:'flex',gap:2,flexWrap:'wrap',alignItems:'flex-end',minHeight:44}}>
-          {nh.map((e,i)=>{const ed=em||EMO.hopeful;const sn=k?.sc||['C','D','E','F','G','A','B'];const ni=sn.indexOf(e.n);const h=ni>=0?14+ni*5:24;const iS=ed.sf.includes(e.n),iT=ed.tn.includes(e.n),iC=ed.cl.includes(e.n);const col=iS?'#4ECDC4':iT?'#FF6B6B':iC?'#FFB347':'rgba(255,255,255,0.4)';
+          {nh.map((e,i)=>{if(e.n==='REST')return<div key={i} style={{width:8,height:14,background:'rgba(255,255,255,0.1)',borderRadius:3,border:'1px dashed rgba(255,255,255,0.2)'}} title="rest"/>;const ed=em||EMO.hopeful;const sn=k?.sc||['C','D','E','F','G','A','B'];const ni=sn.indexOf(e.n);const h=ni>=0?14+ni*5:24;const iS=ed.sf.includes(e.n),iT=ed.tn.includes(e.n),iC=ed.cl.includes(e.n);const col=iS?'#4ECDC4':iT?'#FF6B6B':iC?'#FFB347':'rgba(255,255,255,0.4)';
             return<div key={i} style={{width:8,height:h,background:col+'80',borderRadius:3,boxShadow:i===nh.length-1?`0 0 6px ${col}`:'none'}} title={e.n}/>;
           })}
         </div>
@@ -830,15 +831,15 @@ return(
           <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
             <div style={{display:'inline-block',minWidth:'100%'}}>
               {(k?.sc||['C','D','E','F','G','A','B']).slice(0,7).map((n,r)=>(
-                <div key={r} style={{display:'flex',gap:2,marginBottom:2,alignItems:'center'}}>
-                  <div style={{width:22,fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.5)',flexShrink:0,textAlign:'right',paddingRight:4}}>{n}</div>
-                  {b8grid[r].map((on,s)=>{const beat=Math.floor(s/4);const isDown=s%4===0;const active=b8step===s&&(b8playing||b8loop);return(
-                    <button key={s} onClick={()=>toggleB8(r,s)} style={{width:22,height:22,borderRadius:4,border:`1px solid ${on?'#FFD70070':active?'rgba(78,205,196,0.5)':isDown?'rgba(255,255,255,0.15)':'rgba(255,255,255,0.08)'}`,background:on?'#FFD700'+(active?'ff':'cc'):active?'rgba(78,205,196,0.25)':isDown?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.02)',cursor:'pointer',padding:0,flexShrink:0,transition:'all 0.1s',boxShadow:on&&active?'0 0 8px #FFD700aa':'none'}}/>
+                <div key={r} style={{display:'flex',gap:3,marginBottom:3,alignItems:'center'}}>
+                  <div style={{width:24,fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.5)',flexShrink:0,textAlign:'right',paddingRight:4}}>{n}</div>
+                  {b8grid[r].map((on,s)=>{const isDown=s%4===0;const active=b8step===s&&(b8playing||b8loop);return(
+                    <button key={s} onClick={()=>toggleB8(r,s)} style={{width:32,height:32,borderRadius:5,border:`1px solid ${on?'#FFD70070':active?'rgba(78,205,196,0.5)':isDown?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.08)'}`,background:on?'#FFD700'+(active?'ff':'cc'):active?'rgba(78,205,196,0.25)':isDown?'rgba(255,255,255,0.06)':'rgba(255,255,255,0.02)',cursor:'pointer',padding:0,flexShrink:0,transition:'all 0.1s',boxShadow:on&&active?'0 0 8px #FFD700aa':'none'}}/>
                   );})}
                 </div>
               ))}
-              <div style={{display:'flex',gap:2,marginTop:4,paddingLeft:26}}>
-                {[0,1,2,3].map(b=><div key={b} style={{width:22*4+2*3,fontSize:8,color:'rgba(255,255,255,0.3)',textAlign:'left',paddingLeft:2}}>{b+1}</div>)}
+              <div style={{display:'flex',gap:3,marginTop:4,paddingLeft:28}}>
+                {[0,1,2,3].map(b=><div key={b} style={{width:32*4+3*3,fontSize:8,color:'rgba(255,255,255,0.3)',textAlign:'left',paddingLeft:2}}>{b+1}</div>)}
               </div>
             </div>
           </div>
@@ -943,9 +944,9 @@ return(
           <button onClick={()=>setSaved(p=>p.filter((_,i)=>i!==idx))} style={{background:'none',border:'none',color:'rgba(255,255,255,0.25)',cursor:'pointer',fontSize:13}}>×</button>
         </div>
         <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:6}}>{idea.prog.map((c,i)=><span key={i} style={{background:cc(c)+'18',color:cc(c),border:`1px solid ${cc(c)}35`,borderRadius:7,padding:'4px 10px',fontSize:13,fontWeight:700}}>{c}</span>)}</div>
-        <div style={{display:'flex',gap:3,flexWrap:'wrap',marginBottom:6}}>{idea.prog.slice(1).map((c,i)=>{const m=mf(idea.prog[i],c);return<span key={i} style={{fontSize:8,color:'rgba(255,255,255,0.3)',background:'rgba(255,255,255,0.04)',borderRadius:3,padding:'1px 5px'}}>{m.e} {m.l}</span>;})}</div>
+        <div style={{display:'flex',gap:3,flexWrap:'wrap',marginBottom:6}}>{idea.prog.slice(1).map((c,i)=>{if(c==='REST'||idea.prog[i]==='REST')return null;const m=mf(idea.prog[i],c);return<span key={i} style={{fontSize:8,color:'rgba(255,255,255,0.3)',background:'rgba(255,255,255,0.04)',borderRadius:3,padding:'1px 5px'}}>{m.e} {m.l}</span>;})}</div>
         <div style={{display:'flex',gap:6}}>
-          <button onClick={()=>{audio.playProgression(idea.prog.map(s=>cn(pc(s).r,pc(s).t,3)),72,i=>{setPi(i);setPRow(-1);});}} style={S.btn()}>▶ Play</button>
+          <button onClick={()=>{audio.playProgression(idea.prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3)),bpm,i=>{setPi(i);setPRow(-1);});}} style={S.btn()}>▶ Play</button>
           <button onClick={()=>{setProg(idea.prog);setSk(idea.k||sk);setScreen('builder');}} style={S.btn()}>Edit →</button>
           <button onClick={()=>{const e=idea.emo?EMO[idea.emo]:null;const t=[`🎵 HarmonyMap Sketch`,`${e?e.l+' — '+e.p:'Free exploration'}`,`Key: ${idea.k}`,`${idea.prog.join(' → ')}`,idea.date].join('\n');try{navigator.clipboard.writeText(t);setTip('Copied to clipboard!');}catch(e){}}} style={S.btn()}>📋 Copy</button>
         </div>
