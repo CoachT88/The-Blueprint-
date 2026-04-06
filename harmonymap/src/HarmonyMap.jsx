@@ -422,6 +422,7 @@ const[al,setAl]=useState(null);
 const[tip,setTip]=useState(null);
 const[sd,setSd]=useState(false);
 const[sr,setSr]=useState(null);
+const[sv,setSv]=useState(false);
 const[ec,setEc]=useState(null);
 const[ea,setEa]=useState(null);
 const[es,setEs]=useState({c:0,t:0});
@@ -549,7 +550,7 @@ return(
         </div>
         <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
           {em.sn.map((n,ni)=>{const iS=em.sf.includes(n),iT=em.tn.includes(n),iC=em.cl.includes(n);const bg=iS?'#4ECDC430':iT?'#FF6B6B30':iC?'#FFB34730':'rgba(255,255,255,0.06)';const bc=iS?'#4ECDC4':iT?'#FF6B6B':iC?'#FFB347':'rgba(255,255,255,0.2)';const tc=iS?'#4ECDC4':iT?'#FF6B6B':iC?'#FFB347':'#fff';const dg=(k?.m==='minor'?Dm:DM)[ni];
-            return <button key={n} onClick={()=>playM(n)} style={{background:bg,border:`1.5px solid ${bc}60`,borderRadius:10,padding:'8px 12px',color:tc,cursor:'pointer',fontSize:14,fontWeight:700,textAlign:'center',minWidth:42,boxShadow:mn===n?`0 0 15px ${bc}50`:'none',transform:mn===n?'scale(1.08)':'scale(1)',transition:'all 0.15s'}}><div>{n}</div><div style={{fontSize:7,opacity:0.65,marginTop:2}}>{sd?(dg?.d||''):(iS?'safe':iT?'tension':iC?'color':'')}</div></button>;})}
+            return <button key={n} onClick={()=>{audio.playNote(n+'4',0.8,0.5);setMn(n);setTimeout(()=>setMn(null),500);}} style={{background:bg,border:`1.5px solid ${bc}60`,borderRadius:10,padding:'8px 12px',color:tc,cursor:'pointer',fontSize:14,fontWeight:700,textAlign:'center',minWidth:42,boxShadow:mn===n?`0 0 15px ${bc}50`:'none',transform:mn===n?'scale(1.08)':'scale(1)',transition:'all 0.15s'}}><div>{n}</div><div style={{fontSize:7,opacity:0.65,marginTop:2}}>{sd?(dg?.d||''):(iS?'safe':iT?'tension':iC?'color':'')}</div></button>;})}
         </div>
         <div style={{display:'flex',gap:10,marginTop:8}}><span style={{fontSize:9,color:'#4ECDC4'}}>● Safe</span><span style={{fontSize:9,color:'#FFB347'}}>● Color</span><span style={{fontSize:9,color:'#FF6B6B'}}>● Tension</span></div>
       </div>
@@ -767,18 +768,16 @@ return(
       {/* Melody Sauce */}
       <div style={{...S.card('rgba(199,125,255,0.2)'),marginBottom:14}}>
         <h3 style={{fontSize:15,fontWeight:800,margin:'0 0 4px',color:'#C77DFF'}}>Melody Sauce</h3>
-        <p style={{fontSize:10,color:'rgba(255,255,255,0.4)',margin:'0 0 12px',lineHeight:1.5}}>The formulas behind every melody you can't get out of your head.</p>
+        <p style={{fontSize:10,color:'rgba(255,255,255,0.4)',margin:'0 0 12px',lineHeight:1.5}}>Simple rules that make melodies stick in people's heads.</p>
         {[
-          {i:'🎣',t:'The Hook = 2 bars',d:'Short phrase, 4–8 notes, repeated. Repetition creates familiarity — familiarity creates the earworm.'},
-          {i:'🎯',t:'Pentatonic shortcut',d:'Drop scale degrees 4 and 7 from your scale. The 5 remaining notes are instant melody. You can\'t play a wrong note.'},
-          {i:'💬',t:'Call & Response',d:'2-bar question followed by a 2-bar answer. Phrase A rises, phrase B falls. Natural conversation that pulls the listener forward.'},
-          {i:'🔄',t:'Repeat, then vary',d:'Say the same phrase twice. Change the third time. That single deviation is where the hook lives.'},
-          {i:'〰️',t:'Steps feel emotional, leaps feel dramatic',d:'Moving one note at a time = intimacy and longing. Jumping 4+ semitones = power and surprise. Alternate between both.'},
-          {i:'🎯',t:'Land on beat 1',d:'Strong melody notes anchor to the downbeat. Passing notes fill the space between. Hooks that land on "1" feel inevitable.'},
-          {i:'🤫',t:'Rest is a note',d:'Silence gives your melody room to breathe. The note after a rest hits twice as hard. Leave space intentionally.'},
-          {i:'👑',t:'The money note',d:'Every great melody has one peak — the highest, most emotional note. Build toward it. Let it land. Resolve down after it.'},
-          {i:'🔗',t:'Mirror the chord root',d:'Start each phrase on the root note of the chord underneath. The melody and harmony lock together instantly.'},
-          {i:'🔥',t:'Syncopation = groove',d:'Anticipate the beat by one 8th note — land "before the 1" instead of on it. That forward lean is what makes melodies feel alive.'},
+          {i:'🎣',t:'Keep it short and repeat it',d:'A great melody is usually just 2–4 seconds long. Play the same short idea twice before changing anything. The more you hear it, the more you like it — that\'s how hooks work.'},
+          {i:'🎯',t:'Use only 5 notes',d:'Pick any key and remove the 4th and 7th notes from the scale. The 5 notes left (called the pentatonic scale) all sound good together no matter what order you play them. You literally can\'t play a wrong note.'},
+          {i:'💬',t:'Ask and answer',d:'Play a short phrase that feels like a question (ends going up). Then play a phrase that feels like the answer (ends going down). This back-and-forth is in almost every hit song.'},
+          {i:'🔄',t:'Say it twice, then change the ending',d:'Play your melody idea. Play it again exactly the same. On the third time, change just the last note or two. That small change is what makes people feel something.'},
+          {i:'🤫',t:'Leave gaps — silence is powerful',d:'Don\'t fill every second with notes. Leave empty space in your melody. The note you play right after the silence will hit harder because of it.'},
+          {i:'👑',t:'Build to your best note',d:'Every great melody has one moment that\'s the most exciting — usually the highest note. Don\'t open with it. Build up to it, let it land, then bring the melody back down.'},
+          {i:'🔗',t:'Start each phrase on the chord\'s main note',d:'When a new chord starts, begin your melody phrase on that chord\'s root note (the note the chord is named after). Example: when a C chord plays, start your phrase on C. It makes everything lock together.'},
+          {i:'🔥',t:'Play slightly before the beat',d:'Instead of playing notes exactly on beat 1, try playing just a tiny bit early — right before the beat drops. This is called playing "on top of" the beat and it makes melodies feel more energetic and alive.'},
         ].map((s,i)=><div key={i} style={{background:'rgba(0,0,0,0.2)',borderRadius:10,padding:'10px 12px',marginBottom:6,display:'flex',gap:10,alignItems:'flex-start'}}>
           <span style={{fontSize:16,flexShrink:0,marginTop:1}}>{s.i}</span>
           <div><div style={{fontSize:12,fontWeight:700,color:'#C77DFF',marginBottom:2}}>{s.t}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.55)',lineHeight:1.5}}>{s.d}</div></div>
@@ -788,7 +787,13 @@ return(
       {/* How melody creates emotion */}
       <div style={{...S.card(),marginBottom:14}}>
         <h3 style={{fontSize:13,fontWeight:700,margin:'0 0 8px'}}>How melody creates emotion</h3>
-        {[{t:'Safe notes (1, 3, 5) feel like home. Start and end phrases on them.',i:'🏠'},{t:'The 7th creates maximum pull. Use it to build anticipation before landing.',i:'🧲'},{t:'Small steps = emotional intimacy. Big leaps = dramatic impact.',i:'🎭'},{t:'Repeat, then change one note. That tiny variation carries all the emotional weight.',i:'🔄'},{t:'Let tension notes linger before resolving — that delay is what creates ache.',i:'✨'}].map((m,i)=>
+        {[
+          {t:'Notes 1, 3, and 5 of your scale always feel safe and settled. Start and end your phrases on these.',i:'🏠'},
+          {t:'Moving one note at a time sounds emotional and intimate. Jumping several notes at once sounds dramatic and bold.',i:'〰️'},
+          {t:'Play your melody idea twice exactly the same, then change one note on the third time. That small change is where the feeling lives.',i:'🔄'},
+          {t:'Hold a tense note for longer before moving to the next one. The longer you wait, the more emotional the release feels.',i:'✨'},
+          {t:'The highest note in your melody is usually the most emotional moment. Everything before it is the build-up.',i:'👑'},
+        ].map((m,i)=>
           <div key={i} style={{background:'rgba(0,0,0,0.15)',borderRadius:8,padding:'8px 10px',marginBottom:4,display:'flex',gap:8,alignItems:'flex-start'}}>
             <span style={{fontSize:14,flexShrink:0}}>{m.i}</span><span style={{fontSize:11,color:'rgba(255,255,255,0.6)',lineHeight:1.5}}>{m.t}</span>
           </div>)}
@@ -797,25 +802,30 @@ return(
       {/* Where to start */}
       <div style={{...S.card(),marginBottom:14}}>
         <h3 style={{fontSize:13,fontWeight:700,margin:'0 0 6px'}}>Where to start your melody</h3>
-        <p style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginBottom:8}}>You don't have to start on the root. Each starting note signals something different.</p>
-        {[{n:'Root (1)',t:'Grounded, declarative — states exactly where you are. Classic opener.',c:'#4ECDC4'},{n:'3rd',t:'Emotional entry — immediately into the feeling, no setup needed.',c:'#FFB347'},{n:'5th',t:'Confident and open — strong hook note that feels both resolved and interesting.',c:'#87CEEB'},{n:'6th',t:'Nostalgic, questioning — often used in melodies that feel like memories.',c:'#C77DFF'},{n:'7th',t:'Maximum tension as an opener — creates immediate pull toward resolution.',c:'#FF6B6B'}].map((s,i)=><div key={i} style={{background:'rgba(0,0,0,0.15)',borderRadius:8,padding:'8px 10px',marginBottom:4,display:'flex',gap:8,alignItems:'baseline'}}><span style={{fontSize:12,fontWeight:800,color:s.c,minWidth:32,flexShrink:0}}>{s.n}</span><span style={{fontSize:11,color:'rgba(255,255,255,0.55)',lineHeight:1.5}}>{s.t}</span></div>)}
+        <p style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginBottom:8}}>The first note you sing or play sets the entire mood. Each starting note feels different.</p>
+        {[
+          {n:'Note 1 (Root)',t:'Sounds grounded and confident. Like you\'re making a statement. The safest and most common starting point.',c:'#4ECDC4'},
+          {n:'Note 3',t:'Immediately emotional. Starting here puts you right in the feeling of the chord — happy if major, sad if minor.',c:'#FFB347'},
+          {n:'Note 5',t:'Sounds open and strong. Not as settled as note 1 but still feels good. Great for choruses that need to sound big.',c:'#87CEEB'},
+          {n:'Note 6',t:'Sounds nostalgic and a little searching — like you\'re remembering something. Common in R&B and emotional pop.',c:'#C77DFF'},
+          {n:'Note 7',t:'Creates instant tension. Starting here makes the listener feel like something needs to happen next. Very powerful but advanced.',c:'#FF6B6B'},
+        ].map((s,i)=><div key={i} style={{background:'rgba(0,0,0,0.15)',borderRadius:8,padding:'8px 10px',marginBottom:4,display:'flex',gap:8,alignItems:'flex-start'}}><div style={{fontSize:11,fontWeight:800,color:s.c,minWidth:56,flexShrink:0,paddingTop:1}}>{s.n}</div><span style={{fontSize:11,color:'rgba(255,255,255,0.55)',lineHeight:1.5}}>{s.t}</span></div>)}
       </div>
 
       {/* 808 Sauce */}
       <div style={{...S.card('rgba(255,215,0,0.2)')}}>
         <h3 style={{fontSize:15,fontWeight:800,margin:'0 0 4px',color:'#FFD700'}}>808 Sauce</h3>
-        <p style={{fontSize:10,color:'rgba(255,255,255,0.4)',margin:'0 0 12px',lineHeight:1.5}}>How to make 808s that shake the room and sit perfectly in your mix.</p>
+        <p style={{fontSize:10,color:'rgba(255,255,255,0.4)',margin:'0 0 12px',lineHeight:1.5}}>How to make 808s that hit hard and sound professional.</p>
         {[
-          {i:'🎵',t:'Tune to your key',d:'Every 808 must be tuned to the root note of your track. An off-key 808 makes the entire beat sound wrong — no amount of mixing fixes it.'},
-          {i:'🔗',t:'808 note = chord root',d:'Follow your chord progression note for note. C chord → C 808. Am → A 808. The 808 is the bass voice of your progression.'},
-          {i:'📉',t:'The slide',d:'Program a pitch glide from a higher note down into your target note. 50–150ms glide time. This is the defining sound of trap and modern hip-hop.'},
-          {i:'⏱️',t:'Note length = energy',d:'Long 808 notes = heavy, dark, ominous. Short 808 notes = punchy and bouncy. Match the note duration to the emotional weight of that moment.'},
-          {i:'🥁',t:'Kick and 808 breathe together',d:'Shorten the 808 attack so the kick punch cuts through. They live in the same frequency space — the kick should hit first, then the 808 sustains behind it.'},
-          {i:'📊',t:'Velocity variation',d:'Down-beat 808s louder, off-beats and passing notes quieter. Dynamic variation makes 808 patterns feel performed, not programmed.'},
-          {i:'🎚️',t:'Keep it mono',d:'Sum your 808 to mono below 100Hz. Stereo bass causes phase cancellation on club systems and earbuds. Focused mono bass hits harder everywhere.'},
-          {i:'🔥',t:'Light saturation adds presence',d:'A touch of tube or tape saturation creates upper harmonics. This makes your 808 audible on phone speakers and laptop speakers that can\'t reproduce sub frequencies.'},
-          {i:'🎼',t:'Classic trap pattern',d:'Root on beat 1 → short note on the "and" of 2 → root again on beat 3 → slide into beat 4 ahead of the next chord. That\'s the blueprint.'},
-          {i:'⚡',t:'Sidechain the kick',d:'Route your kick to sidechain-compress the 808. The 808 ducks 2–4dB each time the kick hits. Creates separation, punch, and that signature pumping feel.'},
+          {i:'🎵',t:'Tune your 808 to match your song\'s key',d:'An 808 that\'s out of tune with your chords makes the whole beat sound wrong — even if everything else is perfect. In your DAW, pitch your 808 to the root note of your key. This is the most important 808 rule.'},
+          {i:'🔗',t:'Match the 808 note to the chord that\'s playing',d:'When your chord progression changes, your 808 note changes too. C chord is playing → use a C 808. Am chord → use an A 808. Think of the 808 as the bass voice that follows your chords.'},
+          {i:'📉',t:'Use pitch slides between notes',d:'Instead of jumping straight from one 808 note to the next, program the pitch to glide smoothly between them. This sliding sound is the signature of trap music. Try a 50–100ms slide time in your DAW.'},
+          {i:'⏱️',t:'Long notes feel heavy, short notes feel bouncy',d:'Hold an 808 note for the full beat length and it sounds dark and heavy. Cut it short (half a beat or less) and it sounds punchy and bouncy. Change the lengths to match the energy you want.'},
+          {i:'🥁',t:'Let the kick hit first, then the 808 comes in',d:'The kick drum and 808 compete for the same low-end space. Fix this by slightly shortening the start of your 808 so the kick\'s punch is heard first, then the 808 sustains underneath it.'},
+          {i:'🔊',t:'Hit the downbeats harder',d:'Beat 1 of every bar should be your loudest 808 hit. The "between beats" notes should be quieter. This makes your pattern feel like a real performance instead of something a robot programmed.'},
+          {i:'🔥',t:'Add a tiny amount of distortion',d:'A very small amount of distortion or saturation on your 808 adds grit that makes it audible on phone speakers and earbuds — which can\'t play deep bass. Without it, your 808 might disappear on smaller speakers.'},
+          {i:'🎼',t:'Simple classic pattern to start with',d:'Beat 1: your root note (long) → Beat 2: same note (shorter) → Beat 3: same or 5th (medium) → Beat 4: slide into the next chord\'s root note. This pattern works in almost every hip-hop and trap beat.'},
+          {i:'⚡',t:'Make the kick duck the 808 slightly',d:'Look for a "sidechain" setting on your 808 channel and link it to your kick. This makes the 808 go slightly quieter every time the kick hits, then come back up. The result is a pumping, rhythmic feel and both sounds stay clean and clear.'},
         ].map((s,i)=><div key={i} style={{background:'rgba(0,0,0,0.2)',borderRadius:10,padding:'10px 12px',marginBottom:6,display:'flex',gap:10,alignItems:'flex-start'}}>
           <span style={{fontSize:16,flexShrink:0,marginTop:1}}>{s.i}</span>
           <div><div style={{fontSize:12,fontWeight:700,color:'#FFD700',marginBottom:2}}>{s.t}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.55)',lineHeight:1.5}}>{s.d}</div></div>
@@ -904,33 +914,33 @@ return(
       <p style={{fontSize:11,color:'rgba(255,255,255,0.4)',marginBottom:16}}>How to get a loud, punchy, professional-sounding mix.</p>
       {[
         {title:'Levels & Structure',color:'#4ECDC4',items:[
-          {i:'🏗️',t:'The mix pyramid',d:'808 & kick loudest at the base. Then snare/clap. Then chords and pads. Melody and vocals at the top. Nothing fights louder than the layer above it.'},
-          {i:'📏',t:'-6dBFS headroom rule',d:'Keep your loudest peak at -6dBFS before mastering. That headroom becomes loudness when you limit at the end. Crowded mixes that hit 0dBFS everywhere can\'t get loud.'},
-          {i:'🔺',t:'3-layer framework',d:'Foundation: drums + 808. Midground: chords, pads, rhythm guitar. Foreground: melody, lead, vocals. Every element belongs to exactly one layer.'},
-          {i:'🎚️',t:'Gain staging first',d:'Set every track so it averages around -18dBFS. Then balance levels relatively. This gives your compressors and effects the right input level to work properly.'},
+          {i:'🏗️',t:'Build your mix like a pyramid',d:'Your kick and 808 should be the loudest things. Then your snare or clap. Then your chords and pads. Then your melody on top. Think of it like layers — the bottom holds everything up.'},
+          {i:'📏',t:'Leave breathing room at the top',d:'Keep your mix from maxing out the volume meter. If everything is already at full volume before you\'re done, you have no room to make it louder at the end. Aim for a mix that still has space above it.'},
+          {i:'🔺',t:'Group your sounds into 3 layers',d:'Bottom layer: drums and 808. Middle layer: chords, pads, and rhythm sounds. Top layer: melody, lead, and vocals. Every sound belongs to one of these three layers. This keeps things organized and avoids clutter.'},
+          {i:'🎚️',t:'Start every track quieter than you think',d:'Turn all your tracks down low when you first start mixing. Then bring each one up until the mix sounds balanced. Starting quiet gives you control. Starting loud means everything fights each other.'},
         ]},
-        {title:'EQ',color:'#FFB347',items:[
-          {i:'✂️',t:'Cut before you boost',d:'Remove the frequencies you don\'t want before adding what you need. Cutting is surgical and transparent. Boosting without cutting creates mud.'},
-          {i:'🎯',t:'The cut creates space',d:'Piano competing with your pad in the 300Hz–3kHz range? Cut 300Hz–3kHz on the pad. Every element needs its own frequency space to breathe.'},
-          {i:'🔉',t:'High-pass everything',d:'High-pass every non-bass element at 80Hz. Only kick and 808 should exist below 80Hz. Clean low end = louder, punchier master.'},
-          {i:'💡',t:'Presence = 2kHz–5kHz',d:'Boosting 2–5kHz makes elements cut through. Cutting this range pushes elements back. Use it to control what sits in front vs. behind.'},
+        {title:'Tone Shaping (EQ)',color:'#FFB347',items:[
+          {i:'✂️',t:'Take away before you add',d:'If something sounds muddy or cluttered, try removing some of the sound first instead of adding more. Taking frequencies away makes room for everything else to breathe.'},
+          {i:'🎯',t:'Give every sound its own space',d:'If two sounds are clashing — like a piano and a pad — cut some of the overlapping tone from one of them. Every sound needs its own lane. When they stop fighting, everything sounds clearer.'},
+          {i:'🔉',t:'Remove the low rumble from everything except bass',d:'On every track that isn\'t your kick, 808, or bass — cut out all the very low, rumbling frequencies. Those low sounds pile up and make your mix sound muddy and weak. Cleaning them out makes the whole mix punchier.'},
+          {i:'💡',t:'Boosting the upper-mids makes things cut through',d:'Sounds in the middle-to-upper range of the EQ are what your ears hear most clearly. Boosting that range on a sound makes it feel closer and more present. Cutting it makes a sound sit further back in the mix.'},
         ]},
-        {title:'Compression',color:'#C77DFF',items:[
-          {i:'🎛️',t:'Compression controls, not loudness',d:'Set ratio 3:1, attack 10ms, release 50ms. You\'re catching peaks and adding consistency — not adding volume. Gain makeup comes after.'},
-          {i:'⚡',t:'Sidechain kick → 808',d:'Kick triggers a compressor on the 808 channel. 808 ducks 2–4dB on each kick hit. Creates punch, separation, and that pumping feel that\'s in every modern record.'},
-          {i:'🔗',t:'Glue compression on the master',d:'Light compression on your master bus (2:1, slow attack 30ms, slow release) ties all elements together. Makes the mix feel like one cohesive thing.'},
+        {title:'Volume Control (Compression)',color:'#C77DFF',items:[
+          {i:'🎛️',t:'Compression keeps loud moments from spiking',d:'When a sound suddenly gets too loud for a split second, a compressor automatically turns it down just a tiny bit, then lets it back up. This makes the sound feel more even and controlled without changing the vibe.'},
+          {i:'⚡',t:'Make the kick and 808 work together',d:'Set up your 808 so that every time the kick hits, the 808 briefly gets a tiny bit quieter. This stops them from crashing into each other. The result is a clean, hard-hitting low end where both sounds punch through clearly.'},
+          {i:'🔗',t:'Glue your whole mix together at the end',d:'Add a very light compressor to your master channel — the final channel that controls the entire mix. Use gentle settings. This makes all your sounds feel like they belong together instead of sitting separately.'},
         ]},
         {title:'Width & Space',color:'#87CEEB',items:[
-          {i:'↔️',t:'Stereo width rules',d:'Bass below 200Hz: always mono. Mids 200Hz–5kHz: centered or slightly wide. Highs 5kHz+: wide. Wide bass causes phase issues on mono playback systems.'},
-          {i:'🌊',t:'Reverb is space, not effect',d:'Short reverb on snare (20–40ms room). Medium reverb on chords and pads. Long reverb on atmospheric elements. Keep kicks and 808s reverb-free for punch.'},
-          {i:'📍',t:'Panning creates width',d:'Hard pan hi-hats slightly left and right. Pan rhythm elements opposite each other. Center: kick, snare, 808, lead vocal. Wide: everything else.'},
+          {i:'↔️',t:'Keep bass sounds in the center',d:'Your 808 and bass should always play from the center of the stereo field. If you spread them too wide, they disappear when the track plays on a phone or mono speaker. Everything else can be spread out wide.'},
+          {i:'🌊',t:'Use reverb to put sounds in a room',d:'Add a little reverb to your snare to give it a sense of space. Add medium reverb to chords and pads to make them feel big. Keep your kick and 808 dry with no reverb — they need to hit hard without washing out.'},
+          {i:'📍',t:'Pan sounds left and right to create width',d:'Your kick, snare, 808, and main melody should sit in the center. Everything else — hi-hats, extra layers, background chords — can be spread to the left and right. This makes the mix feel wide and cinematic.'},
         ]},
-        {title:'Loudness & Mastering',color:'#FF6B6B',items:[
-          {i:'📊',t:'LUFS targets',d:'Spotify normalizes to -14 LUFS. Apple Music -16 LUFS. YouTube -14 LUFS. Mix to -8 integrated LUFS, then limit to -6 to -7 LUFS for streaming. Let the platform normalize — don\'t over-limit.'},
-          {i:'🔒',t:'True peak limiting',d:'True peak limiter as the absolute last plugin on your master. Set ceiling to -1dBTP. Push threshold until you gain 4–6dB. More than 6dB of limiting = distortion and pumping.'},
-          {i:'🎧',t:'The reference track method',d:'Import a commercial track into your DAW at the same loudness as your mix. A/B constantly while mixing. Match the tonal balance and perceived energy — not just the volume.'},
-          {i:'📱',t:'The translation test',d:'Check your mix on: studio monitors, laptop speakers, phone speaker, earbuds, car. If it sounds balanced on all five, it translates everywhere. Phone speaker is the hardest test.'},
-          {i:'🔵',t:'The mono check',d:'Collapse everything to mono and listen. All elements should remain clear and present. If something disappears, you have phase cancellation — widen carefully or cut conflicting frequencies.'},
+        {title:'Making It Loud',color:'#FF6B6B',items:[
+          {i:'📊',t:'Streaming platforms turn your music down automatically',d:'Spotify, Apple Music, and YouTube all automatically lower loud tracks to match the volume of quieter tracks. So making your mix extremely loud before uploading doesn\'t help. Focus on making it sound good, not just loud.'},
+          {i:'🔒',t:'Add a limiter as your very last step',d:'A limiter is a plugin you put at the very end of your master channel. It stops your mix from ever going above a set volume. This is what makes your track sound loud without distorting. Push it until you gain a good amount of volume but stop before it starts sounding crushed.'},
+          {i:'🎧',t:'Use a reference track to check yourself',d:'Take a song you love that sounds similar to what you\'re making. Put it in your project and listen to it next to your mix. Switch back and forth. Try to match the energy and tone of the reference. This is the fastest way to hear what\'s wrong with your mix.'},
+          {i:'📱',t:'Test your mix on multiple speakers',d:'Before you call a mix done, listen to it on your studio headphones, your laptop speakers, your phone speaker, and in your car. If it sounds good on all of them, it\'s ready. Phone speakers are the toughest test — they can\'t play much bass, so if your mix sounds hollow there, check your low end.'},
+          {i:'🔵',t:'Check your mix in mono',d:'Most DAWs have a button to collapse your mix into mono (one speaker instead of two). Listen like this. If something disappears or sounds weird, two sounds are canceling each other out. Try moving them apart in the stereo field or lowering one slightly.'},
         ]},
       ].map((section,si)=>(
         <div key={si} style={{marginBottom:18}}>
