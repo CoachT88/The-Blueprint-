@@ -14,6 +14,7 @@ if(this.ctx){if(this.ctx.state==='suspended')this.ctx.resume();return;}
 // switches the session from SoloAmbient (earpiece) to Playback (speaker).
 if(!this.iosUnlocked){this.iosUnlocked=true;try{const a=document.createElement('audio');a.setAttribute('playsinline','');a.setAttribute('preload','auto');a.src='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';a.play().catch(()=>{});}catch(e){}}
 this.ctx=new(window.AudioContext||window.webkitAudioContext)();
+this.ctx.resume();
 this.mg=this.ctx.createGain(); this.mg.gain.value=0.26;
 const comp=this.ctx.createDynamicsCompressor();
 comp.threshold.value=-20;comp.knee.value=10;comp.ratio.value=3;comp.attack.value=0.005;comp.release.value=0.15;
