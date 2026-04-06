@@ -428,15 +428,10 @@ const[es,setEs]=useState({c:0,t:0});
 const[et,setEt]=useState('chord-quality');
 const[disc,setDisc]=useState([]);
 const[pa,setPa]=useState(false);
-const[nh,setNh]=useState([]);
-const[sv,setSv]=useState(false);
 const[genre,setGenre]=useState(null);
-const[mloop,setMloop]=useState(false);const[b8l,setB8l]=useState(false);const[arpDir,setArpDir]=useState('up');const[progLooping,setProgLooping]=useState(false);
-const[mp,setMp]=useState(false);
+const[mloop,setMloop]=useState(false);const[arpDir,setArpDir]=useState('up');const[progLooping,setProgLooping]=useState(false);
 const[bpm,setBpm]=useState(90);const[beats,setBeats]=useState(4);const[stg,setStg]=useState(0.018);
 const[vol,setVol]=useState(0.26);
-const[b8grid,setB8grid]=useState(()=>Array.from({length:7},()=>Array(16).fill(false)));
-const[b8step,setB8step]=useState(-1);const[b8playing,setB8playing]=useState(false);const[b8loop,setB8loop]=useState(false);
 useEffect(()=>{if(audio.ctx)audio.setVolume(vol);},[vol]);
 // Pre-warm AudioContext on first touch anywhere — before any button handler fires.
 // This separates context creation+resume from note scheduling, solving iOS first-tap silence.
@@ -448,7 +443,6 @@ return()=>document.removeEventListener('touchstart',warmup,{capture:true});
 useEffect(()=>{try{const s=localStorage.getItem('harmonymap_saved');if(s)setSaved(JSON.parse(s));const st=localStorage.getItem('harmonymap_settings');if(st){const o=JSON.parse(st);if(o.bpm)setBpm(o.bpm);if(o.beats)setBeats(o.beats);if(o.stg!=null)setStg(o.stg);if(o.sk)setSk(o.sk);if(o.vol!=null)setVol(o.vol);}const g=localStorage.getItem('harmonymap_b8grid');if(g){const arr=JSON.parse(g);if(Array.isArray(arr)&&arr.length===7)setB8grid(arr);}}catch(e){}},[]);
 useEffect(()=>{try{localStorage.setItem('harmonymap_saved',JSON.stringify(saved));}catch(e){}},[saved]);
 useEffect(()=>{try{localStorage.setItem('harmonymap_settings',JSON.stringify({bpm,beats,stg,sk,vol}));}catch(e){}},[bpm,beats,stg,sk,vol]);
-useEffect(()=>{try{localStorage.setItem('harmonymap_b8grid',JSON.stringify(b8grid));}catch(e){}},[b8grid]);
 const dr=useRef([]);dr.current=disc;
 const k=KEYS[sk],em=emo?EMO[emo]:null;
 const ps=useMemo(()=>presets(sk),[sk]);
@@ -459,21 +453,14 @@ const remC=useCallback(i=>{setProg(p=>p.filter((_,j)=>j!==i));},[]);
 const playP=useCallback((bpm=72,beats=4,stg=0.018)=>{const n=prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3));audio.playProgression(n,bpm,i=>setPi(i),beats,stg);const t=ctip('play',{prog});if(t)setTimeout(()=>setTip(t),2000);},[prog]);
 const loopP=useCallback((bpm=72,beats=4,stg=0.018)=>{const n=prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3));setProgLooping(true);audio.playLoop(n,bpm,i=>{setPi(i);},beats,stg);},[prog]);
 const saveI=useCallback(()=>{if(!prog.length)return;setSaved(p=>[...p,{id:Date.now(),emo,k:sk,prog:[...prog],date:new Date().toLocaleDateString()}]);if(!dr.current.includes('fs'))setDisc(d=>[...d,'fs']);},[prog,emo,sk]);
-const playM=useCallback(n=>{audio.playNote(n+'4',0.8,0.5);setMn(n);setNh(p=>[...p.slice(-31),{n,t:Date.now()}]);setTimeout(()=>setMn(null),500);},[]);
 const selEmo=useCallback(e=>{setEmo(e);if(EMO[e].ks[0])setSk(EMO[e].ks[0]);setScreen('emotion');},[]);
-const playMelodyBack=useCallback(()=>{if(!nh.length)return;audio.playMelody(nh.map(e=>e.n),100,i=>setMp(i>=0));},[nh]);
-const loopMelodyBack=useCallback(()=>{if(!nh.length)return;setMloop(true);audio.loopMelody(nh.map(e=>e.n),100,i=>{if(i<0)setMloop(false);});},[nh]);
-const stopAll=useCallback(()=>{audio.stop();setPa(false);setPi(-1);setPRow(-1);setMloop(false);setB8l(false);setMp(false);setB8playing(false);setB8loop(false);setB8step(-1);setProgLooping(false);},[]);
-const playB8Pattern=useCallback((loop=false)=>{const scale=k?.sc||['C','D','E','F','G','A','B'];const notes=scale.slice(0,7).map(n=>n+'2');setB8playing(!loop);setB8loop(loop);audio.play808Pattern(b8grid,notes,bpm,s=>{setB8step(s);if(s<0){setB8playing(false);setB8loop(false);}},loop);},[b8grid,bpm,k]);
-const toggleB8=useCallback((r,s)=>{setB8grid(g=>{const n=g.map(row=>[...row]);n[r][s]=!n[r][s];return n;});},[]);
-const clearB8=useCallback(()=>{setB8grid(Array.from({length:7},()=>Array(16).fill(false)));},[]);
-const loop808fn=useCallback((bpm=90)=>{const roots=prog.map(c=>pc(c).r);if(!roots.length)return;setB8l(true);audio.loop808(roots,bpm,i=>{if(i<0)setB8l(false);});},[prog]);
+const stopAll=useCallback(()=>{audio.stop();setPa(false);setPi(-1);setPRow(-1);setMloop(false);setProgLooping(false);},[]);
 const arpChord=useCallback((sym,dir)=>{audio.arpChord(cn(pc(sym).r,pc(sym).t,3),dir||arpDir);},[arpDir]);
 const newEar=useCallback(()=>{setEa(null);const c=earGen(et);setEc(c);if(c)setTimeout(()=>{if(c.pt==='chord')audio.playChord(c.pd);else if(c.pt==='melodic')audio.playMelodicInterval(c.pd[0],c.pd[1]);else if(c.pt==='two'){audio.playChord(c.pd[0],1.3);setTimeout(()=>audio.playChord(c.pd[1],1.3),1500);}},300);},[et]);
 const replayEar=useCallback(()=>{if(!ec)return;if(ec.pt==='chord')audio.playChord(ec.pd);else if(ec.pt==='melodic')audio.playMelodicInterval(ec.pd[0],ec.pd[1]);else if(ec.pt==='two'){audio.playChord(ec.pd[0],1.3);setTimeout(()=>audio.playChord(ec.pd[1],1.3),1500);}},[ec]);
 const ansEar=useCallback(a=>{if(ea)return;setEa(a);setEs(s=>({c:s.c+(a===ec?.ans?1:0),t:s.t+1}));if(a===ec?.ans&&!dr.current.includes('fe'))setDisc(d=>[...d,'fe']);},[ec,ea]);
 
-const tabs=[{k:'home',i:'⌂',l:'Home'},{k:'chordmap',i:'◉',l:'Map'},{k:'builder',i:'♫',l:'Build'},{k:'melody',i:'♪',l:'Melody'},{k:'ear',i:'👂',l:'Ear'},{k:'intervals',i:'↕',l:'Intervals'},{k:'learn',i:'✦',l:'Learn'},{k:'saved',i:'♡',l:'Saved'}];
+const tabs=[{k:'home',i:'⌂',l:'Home'},{k:'chordmap',i:'◉',l:'Map'},{k:'builder',i:'♫',l:'Build'},{k:'melody',i:'♪',l:'Melody'},{k:'ear',i:'👂',l:'Ear'},{k:'intervals',i:'↕',l:'Intervals'},{k:'learn',i:'✦',l:'Learn'},{k:'mix',i:'🎚',l:'Mix'},{k:'saved',i:'♡',l:'Saved'}];
 
 return(
 <div style={{width:'100%',minHeight:'100vh',background:em?em.gr:'linear-gradient(135deg,#0a0a1a,#1a0a2e,#0a1a2d)',color:'#F0F0F0',fontFamily:"'Segoe UI','SF Pro Display',-apple-system,sans-serif",position:'relative',overflow:'hidden',transition:'background 0.8s'}}>
@@ -488,7 +475,7 @@ return(
     <div style={{display:'flex',gap:1,overflowX:'auto',flexShrink:1}}>
       {tabs.map(t=><button key={t.k} onClick={()=>setScreen(t.k)} style={{background:screen===t.k?'rgba(255,255,255,0.12)':'transparent',border:'none',color:screen===t.k?'#fff':'rgba(255,255,255,0.4)',borderRadius:6,padding:'5px 7px',cursor:'pointer',fontSize:9,fontWeight:600,display:'flex',flexDirection:'column',alignItems:'center',whiteSpace:'nowrap',minHeight:44,justifyContent:'center'}}><span style={{fontSize:13}}>{t.i}</span><span>{t.l}</span></button>)}
     </div>
-    {(pa||progLooping||mloop||b8l||mp||b8playing||b8loop||pi>=0||pRow>=0)&&<button onClick={stopAll} style={{background:'linear-gradient(135deg,#FF6B6B,#FF4444)',border:'1px solid rgba(255,107,107,0.6)',borderRadius:8,padding:'6px 12px',color:'#fff',cursor:'pointer',fontSize:11,fontWeight:800,flexShrink:0,marginLeft:6,boxShadow:'0 0 12px rgba(255,107,107,0.5)',animation:'pulse 1.4s ease-in-out infinite'}}>■ Stop All</button>}
+    {(pa||progLooping||mloop||pi>=0||pRow>=0)&&<button onClick={stopAll} style={{background:'linear-gradient(135deg,#FF6B6B,#FF4444)',border:'1px solid rgba(255,107,107,0.6)',borderRadius:8,padding:'6px 12px',color:'#fff',cursor:'pointer',fontSize:11,fontWeight:800,flexShrink:0,marginLeft:6,boxShadow:'0 0 12px rgba(255,107,107,0.5)',animation:'pulse 1.4s ease-in-out infinite'}}>■ Stop All</button>}
   </nav>
 
   {/* VOLUME */}
@@ -763,109 +750,76 @@ return(
     {/* ═══ MELODY LAB ═══ */}
     {screen==='melody'&&<div style={{padding:'16px',maxWidth:600,margin:'0 auto'}}>
       <h2 style={{fontSize:20,fontWeight:800,marginBottom:3}}>Melody Lab</h2>
-      <p style={{fontSize:11,color:'rgba(255,255,255,0.4)',marginBottom:16}}>Tap notes to hear. Play Along loops your progression underneath.</p>
+      <p style={{fontSize:11,color:'rgba(255,255,255,0.4)',marginBottom:16}}>Everything you need to write melodies that stick and 808s that hit.</p>
+
+      {/* Play Along */}
       {prog.length>=2?<div style={{...S.card(pa?'#4ECDC440':'rgba(255,255,255,0.06)'),marginBottom:14}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div>
             <h3 style={{fontSize:14,fontWeight:700,margin:'0 0 2px',color:pa?'#4ECDC4':'#fff'}}>{pa?'● Playing Along':'Play Along'}</h3>
-            <div style={{fontSize:10,color:'rgba(255,255,255,0.4)'}}>{pa?'Progression looping — tap notes to improvise!':'Loop your chords and play melody on top.'}</div>
+            <div style={{fontSize:10,color:'rgba(255,255,255,0.4)'}}>{pa?'Progression looping underneath you.':'Loop your chords and improvise a melody on top.'}</div>
           </div>
-          <button onClick={()=>{if(pa){audio.stop();setPa(false);setPi(-1);setPRow(-1);}else{setPa(true);audio.playLoop(prog.map(s=>cn(pc(s).r,pc(s).t,3)),bpm,idx=>{setPi(idx);setPRow(-1);},beats,stg);}}} style={{...S.btn(pa?'#FF6B6B25':'#4ECDC425',pa?'#FF6B6B':'#4ECDC4',pa?'#FF6B6B50':'#4ECDC450'),fontSize:13,fontWeight:700,padding:'10px 20px'}}>{pa?'■ Stop':'▶ Start Loop'}</button>
+          <button onClick={()=>{if(pa){audio.stop();setPa(false);setPi(-1);setPRow(-1);}else{setPa(true);audio.playLoop(prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3)),bpm,idx=>{setPi(idx);setPRow(-1);},beats,stg);}}} style={{...S.btn(pa?'#FF6B6B25':'#4ECDC425',pa?'#FF6B6B':'#4ECDC4',pa?'#FF6B6B50':'#4ECDC450'),fontSize:13,fontWeight:700,padding:'10px 20px'}}>{pa?'■ Stop':'▶ Start Loop'}</button>
         </div>
         {pa&&<div style={{display:'flex',gap:5,marginTop:10,flexWrap:'wrap'}}>{prog.map((c,i)=><span key={i} style={{...S.pill(cc(c),pi===i),fontSize:13,padding:'5px 12px'}}>{c}</span>)}</div>}
       </div>:<div style={{...S.card(),marginBottom:14,textAlign:'center'}}><div style={{fontSize:11,color:'rgba(255,255,255,0.35)'}}>Build 2+ chords in Builder to unlock Play Along.</div></div>}
+
+      {/* Melody Sauce */}
+      <div style={{...S.card('rgba(199,125,255,0.2)'),marginBottom:14}}>
+        <h3 style={{fontSize:15,fontWeight:800,margin:'0 0 4px',color:'#C77DFF'}}>Melody Sauce</h3>
+        <p style={{fontSize:10,color:'rgba(255,255,255,0.4)',margin:'0 0 12px',lineHeight:1.5}}>The formulas behind every melody you can't get out of your head.</p>
+        {[
+          {i:'🎣',t:'The Hook = 2 bars',d:'Short phrase, 4–8 notes, repeated. Repetition creates familiarity — familiarity creates the earworm.'},
+          {i:'🎯',t:'Pentatonic shortcut',d:'Drop scale degrees 4 and 7 from your scale. The 5 remaining notes are instant melody. You can\'t play a wrong note.'},
+          {i:'💬',t:'Call & Response',d:'2-bar question followed by a 2-bar answer. Phrase A rises, phrase B falls. Natural conversation that pulls the listener forward.'},
+          {i:'🔄',t:'Repeat, then vary',d:'Say the same phrase twice. Change the third time. That single deviation is where the hook lives.'},
+          {i:'〰️',t:'Steps feel emotional, leaps feel dramatic',d:'Moving one note at a time = intimacy and longing. Jumping 4+ semitones = power and surprise. Alternate between both.'},
+          {i:'🎯',t:'Land on beat 1',d:'Strong melody notes anchor to the downbeat. Passing notes fill the space between. Hooks that land on "1" feel inevitable.'},
+          {i:'🤫',t:'Rest is a note',d:'Silence gives your melody room to breathe. The note after a rest hits twice as hard. Leave space intentionally.'},
+          {i:'👑',t:'The money note',d:'Every great melody has one peak — the highest, most emotional note. Build toward it. Let it land. Resolve down after it.'},
+          {i:'🔗',t:'Mirror the chord root',d:'Start each phrase on the root note of the chord underneath. The melody and harmony lock together instantly.'},
+          {i:'🔥',t:'Syncopation = groove',d:'Anticipate the beat by one 8th note — land "before the 1" instead of on it. That forward lean is what makes melodies feel alive.'},
+        ].map((s,i)=><div key={i} style={{background:'rgba(0,0,0,0.2)',borderRadius:10,padding:'10px 12px',marginBottom:6,display:'flex',gap:10,alignItems:'flex-start'}}>
+          <span style={{fontSize:16,flexShrink:0,marginTop:1}}>{s.i}</span>
+          <div><div style={{fontSize:12,fontWeight:700,color:'#C77DFF',marginBottom:2}}>{s.t}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.55)',lineHeight:1.5}}>{s.d}</div></div>
+        </div>)}
+      </div>
+
+      {/* How melody creates emotion */}
       <div style={{...S.card(),marginBottom:14}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-          <div style={S.lbl}>{sk}</div>
-          <button onClick={()=>setSd(!sd)} style={{...S.btn(),fontSize:10,padding:'4px 10px'}}>{sd?'Hide degrees':'Show degrees'}</button>
-        </div>
-        <div style={{display:'flex',gap:4,justifyContent:'center',flexWrap:'wrap'}}>
-          {(k?.sc||['C','D','E','F','G','A','B']).map((n,ni)=>{const ed=em||EMO.hopeful;const iS=ed.sf.includes(n),iT=ed.tn.includes(n),iC=ed.cl.includes(n);const bg=iS?'#4ECDC435':iT?'#FF6B6B35':iC?'#FFB34735':'rgba(255,255,255,0.06)';const bc=iS?'#4ECDC4':iT?'#FF6B6B':iC?'#FFB347':'rgba(255,255,255,0.15)';const tc=iS?'#4ECDC4':iT?'#FF6B6B':iC?'#FFB347':'rgba(255,255,255,0.5)';const dg=(k?.m==='minor'?Dm:DM)[ni];
-            return<button key={n} onClick={()=>playM(n)} style={{width:44,height:64,background:bg,border:`1.5px solid ${bc}50`,borderRadius:10,cursor:'pointer',color:tc,fontSize:15,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,boxShadow:mn===n?`0 0 16px ${bc}50`:'none',transform:mn===n?'scale(1.06)':'scale(1)',transition:'all 0.15s'}}>{n}<span style={{fontSize:7,opacity:0.6}}>{sd?(dg?.d||''):(iS?'safe':iT?'tension':iC?'color':'')}</span></button>;})}
-          <button onClick={()=>setNh(p=>[...p.slice(-31),{n:'REST',t:Date.now()}])} style={{width:44,height:64,background:'rgba(255,255,255,0.03)',border:'1.5px dashed rgba(255,255,255,0.2)',borderRadius:10,cursor:'pointer',color:'rgba(255,255,255,0.35)',fontSize:11,fontWeight:700,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2}}>𝄽<span style={{fontSize:7}}>rest</span></button>
-        </div>
-        {sd&&<div style={{marginTop:10,background:'rgba(0,0,0,0.2)',borderRadius:10,padding:10}}><div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.5)',marginBottom:6}}>Scale Degree Character</div>
-          {(k?.m==='minor'?Dm:DM).map((d,i)=><div key={i} style={{display:'flex',gap:8,alignItems:'baseline',marginBottom:4}}><span style={{color:dc(d.st),fontWeight:800,fontSize:14,minWidth:16}}>{d.d}</span><span style={{fontSize:10,color:dc(d.st),fontWeight:600}}>{d.n} </span><span style={{fontSize:10,color:'rgba(255,255,255,0.35)'}}>{d.f}</span></div>)}
-        </div>}
-        <div style={{display:'flex',gap:10,marginTop:8}}><span style={{fontSize:9,color:'#4ECDC4'}}>● Safe</span><span style={{fontSize:9,color:'#FFB347'}}>● Color</span><span style={{fontSize:9,color:'#FF6B6B'}}>● Tension</span></div>
-      </div>
-      {nh.length>0&&<div style={{...S.card(),marginBottom:14}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><div style={S.lbl}>Your melody so far</div><div style={{display:'flex',gap:4}}><button onClick={playMelodyBack} style={{...S.btn('rgba(78,205,196,0.12)','#4ECDC4','rgba(78,205,196,0.3)'),fontSize:9,padding:'3px 8px'}}>▶ Play</button>
-<button onClick={mloop?stopAll:loopMelodyBack} style={{...S.btn(mloop?'rgba(255,107,107,0.15)':'rgba(78,205,196,0.06)',mloop?'#FF6B6B':'rgba(78,205,196,0.7)',mloop?'rgba(255,107,107,0.3)':'rgba(78,205,196,0.2)'),fontSize:9,padding:'3px 8px'}}>{mloop?'■ Stop':'↺ Loop'}</button>
-<button onClick={()=>setNh([])} style={{...S.btn(),fontSize:9,padding:'3px 8px'}}>Clear</button></div></div>
-        <div style={{display:'flex',gap:2,flexWrap:'wrap',alignItems:'flex-end',minHeight:44}}>
-          {nh.map((e,i)=>{if(e.n==='REST')return<div key={i} style={{width:8,height:14,background:'rgba(255,255,255,0.1)',borderRadius:3,border:'1px dashed rgba(255,255,255,0.2)'}} title="rest"/>;const ed=em||EMO.hopeful;const sn=k?.sc||['C','D','E','F','G','A','B'];const ni=sn.indexOf(e.n);const h=ni>=0?14+ni*5:24;const iS=ed.sf.includes(e.n),iT=ed.tn.includes(e.n),iC=ed.cl.includes(e.n);const col=iS?'#4ECDC4':iT?'#FF6B6B':iC?'#FFB347':'rgba(255,255,255,0.4)';
-            return<div key={i} style={{width:8,height:h,background:col+'80',borderRadius:3,boxShadow:i===nh.length-1?`0 0 6px ${col}`:'none'}} title={e.n}/>;
-          })}
-        </div>
-        <div style={{fontSize:9,color:'rgba(255,255,255,0.3)',marginTop:6}}>{nh.length} notes · {nh.length>=8?'Look for repeating shapes — that\'s melody forming.':'Keep tapping to see patterns.'}</div>
-      </div>}
-      <div style={S.card()}>
-        <h3 style={{fontSize:13,fontWeight:700,margin:'0 0 8px'}}>Compare: how one note changes everything</h3>
-        {[{a:{n:'C major',no:['C4','E4','G4']},b:{n:'C minor',no:['C4','D#4','G4']},d:'The 3rd flips the emotional identity'},{a:{n:'Am',no:['A3','C4','E4']},b:{n:'A major',no:['A3','C#4','E4']},d:'Minor to major — introspection to clarity'},{a:{n:'G',no:['G3','B3','D4']},b:{n:'G7',no:['G3','B3','D4','F4']},d:'Dominant 7th adds tension demanding resolution'}].map((c,i)=>
-          <div key={i} style={{background:'rgba(0,0,0,0.2)',borderRadius:12,padding:12,marginBottom:8}}>
-            <div style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginBottom:6,lineHeight:1.4}}>{c.d}</div>
-            <div style={{display:'flex',gap:6}}>
-              <button onClick={()=>audio.playChord(c.a.no)} style={{flex:1,...S.btn('#4ECDC418','#4ECDC4','#4ECDC440'),fontSize:13,fontWeight:700}}>▶ {c.a.n}</button>
-              <button onClick={()=>audio.playChord(c.b.no)} style={{flex:1,...S.btn('#FF6B6B18','#FF6B6B','#FF6B6B40'),fontSize:13,fontWeight:700}}>▶ {c.b.n}</button>
-            </div>
-          </div>)}
-      </div>
-      <div style={S.card()}>
         <h3 style={{fontSize:13,fontWeight:700,margin:'0 0 8px'}}>How melody creates emotion</h3>
-        {[{t:'Safe notes (1, 3, 5) feel like home. Start and end phrases on them.',i:'🏠'},{t:'The 7th creates maximum pull. Use it to build anticipation.',i:'🧲'},{t:'Small steps = emotional. Big leaps = dramatic.',i:'🎭'},{t:'Repeat, then change one note. Tiny variation = huge weight.',i:'🔄'},{t:'Let tension notes linger before resolving — that delay creates ache.',i:'✨'}].map((m,i)=>
+        {[{t:'Safe notes (1, 3, 5) feel like home. Start and end phrases on them.',i:'🏠'},{t:'The 7th creates maximum pull. Use it to build anticipation before landing.',i:'🧲'},{t:'Small steps = emotional intimacy. Big leaps = dramatic impact.',i:'🎭'},{t:'Repeat, then change one note. That tiny variation carries all the emotional weight.',i:'🔄'},{t:'Let tension notes linger before resolving — that delay is what creates ache.',i:'✨'}].map((m,i)=>
           <div key={i} style={{background:'rgba(0,0,0,0.15)',borderRadius:8,padding:'8px 10px',marginBottom:4,display:'flex',gap:8,alignItems:'flex-start'}}>
             <span style={{fontSize:14,flexShrink:0}}>{m.i}</span><span style={{fontSize:11,color:'rgba(255,255,255,0.6)',lineHeight:1.5}}>{m.t}</span>
           </div>)}
       </div>
-      <div style={S.card()}>
+
+      {/* Where to start */}
+      <div style={{...S.card(),marginBottom:14}}>
         <h3 style={{fontSize:13,fontWeight:700,margin:'0 0 6px'}}>Where to start your melody</h3>
         <p style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginBottom:8}}>You don't have to start on the root. Each starting note signals something different.</p>
         {[{n:'Root (1)',t:'Grounded, declarative — states exactly where you are. Classic opener.',c:'#4ECDC4'},{n:'3rd',t:'Emotional entry — immediately into the feeling, no setup needed.',c:'#FFB347'},{n:'5th',t:'Confident and open — strong hook note that feels both resolved and interesting.',c:'#87CEEB'},{n:'6th',t:'Nostalgic, questioning — often used in melodies that feel like memories.',c:'#C77DFF'},{n:'7th',t:'Maximum tension as an opener — creates immediate pull toward resolution.',c:'#FF6B6B'}].map((s,i)=><div key={i} style={{background:'rgba(0,0,0,0.15)',borderRadius:8,padding:'8px 10px',marginBottom:4,display:'flex',gap:8,alignItems:'baseline'}}><span style={{fontSize:12,fontWeight:800,color:s.c,minWidth:32,flexShrink:0}}>{s.n}</span><span style={{fontSize:11,color:'rgba(255,255,255,0.55)',lineHeight:1.5}}>{s.t}</span></div>)}
       </div>
-      <div style={S.card()}>
-        <h3 style={{fontSize:13,fontWeight:700,margin:'0 0 4px'}}>Bass & 808</h3>
-        <p style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginBottom:10}}>Low-end is the foundation. Tap to hear 808-style bass notes.</p>
-        <div style={S.lbl}>808 Scale Notes</div>
-        <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:10}}>
-          {(k?.sc||['C','D','E','F','G','A','B']).map(n=><button key={n} onClick={()=>audio.play808(n,1.8)} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:10,width:44,height:44,cursor:'pointer',color:'rgba(255,255,255,0.7)',fontSize:14,fontWeight:700,padding:0}}>{n}</button>)}
-        </div>
-        <div style={{background:'rgba(0,0,0,0.25)',borderRadius:12,padding:10,marginBottom:10,border:'1px solid rgba(255,255,255,0.06)'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-            <div><div style={{fontSize:11,fontWeight:800,color:'#FFD700'}}>808 Step Sequencer</div><div style={{fontSize:9,color:'rgba(255,255,255,0.35)',marginTop:2}}>16 steps · 1 bar of 16ths · Tap cells to build a pattern</div></div>
-            <div style={{display:'flex',gap:4}}>
-              <button onClick={()=>playB8Pattern(false)} disabled={b8playing||b8loop} style={{...S.btn('rgba(78,205,196,0.15)','#4ECDC4','rgba(78,205,196,0.35)'),fontSize:10,padding:'5px 10px',opacity:(b8playing||b8loop)?0.4:1}}>▶ Play</button>
-              <button onClick={b8loop?stopAll:()=>playB8Pattern(true)} style={{...S.btn(b8loop?'rgba(255,107,107,0.2)':'rgba(199,125,255,0.15)',b8loop?'#FF6B6B':'#C77DFF',b8loop?'rgba(255,107,107,0.4)':'rgba(199,125,255,0.35)'),fontSize:10,padding:'5px 10px'}}>{b8loop?'■ Stop':'↺ Loop'}</button>
-              <button onClick={clearB8} style={{...S.btn(),fontSize:10,padding:'5px 10px'}}>Clear</button>
-            </div>
-          </div>
-          <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
-            <div style={{display:'inline-block',minWidth:'100%'}}>
-              {(k?.sc||['C','D','E','F','G','A','B']).slice(0,7).map((n,r)=>(
-                <div key={r} style={{display:'flex',gap:3,marginBottom:3,alignItems:'center'}}>
-                  <div style={{width:24,fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.5)',flexShrink:0,textAlign:'right',paddingRight:4}}>{n}</div>
-                  {b8grid[r].map((on,s)=>{const isDown=s%4===0;const active=b8step===s&&(b8playing||b8loop);return(
-                    <button key={s} onClick={()=>toggleB8(r,s)} style={{width:32,height:32,borderRadius:5,border:`1px solid ${on?'#FFD70070':active?'rgba(78,205,196,0.5)':isDown?'rgba(255,255,255,0.18)':'rgba(255,255,255,0.08)'}`,background:on?'#FFD700'+(active?'ff':'cc'):active?'rgba(78,205,196,0.25)':isDown?'rgba(255,255,255,0.06)':'rgba(255,255,255,0.02)',cursor:'pointer',padding:0,flexShrink:0,transition:'all 0.1s',boxShadow:on&&active?'0 0 8px #FFD700aa':'none'}}/>
-                  );})}
-                </div>
-              ))}
-              <div style={{display:'flex',gap:3,marginTop:4,paddingLeft:28}}>
-                {[0,1,2,3].map(b=><div key={b} style={{width:32*4+3*3,fontSize:8,color:'rgba(255,255,255,0.3)',textAlign:'left',paddingLeft:2}}>{b+1}</div>)}
-              </div>
-            </div>
-          </div>
-        </div>
-        {prog.length>0&&<div style={{marginBottom:10}}>
-          <div style={S.lbl}>808 Your Progression Roots</div>
-          <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
-            {prog.map((c,i)=>{const r=pc(c).r;return<button key={i} onClick={()=>audio.play808(r,2.2)} style={{background:cc(c)+'12',border:`1.5px solid ${cc(c)}45`,borderRadius:10,padding:'8px 14px',cursor:'pointer',color:cc(c),fontWeight:700,fontSize:13}}>{r}</button>;})}
-          </div>
-          <button onClick={b8l?stopAll:()=>loop808fn(bpm)} style={{...S.btn(b8l?'rgba(255,107,107,0.15)':'rgba(255,255,255,0.06)',b8l?'#FF6B6B':'rgba(255,255,255,0.5)'),fontSize:10,marginTop:6}}>{b8l?'■ Stop 808 Loop':'↺ Loop 808 Roots'}</button>
-        </div>}
-        <div style={{background:'rgba(0,0,0,0.2)',borderRadius:10,padding:10}}>
-          <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.5)',marginBottom:6}}>Bass strategies</div>
-          {[{t:'Root only',d:'Hit the root of each chord on the downbeat. Most solid approach.'},{t:'Root + 5th',d:'Root on beat 1, 5th on beat 3. Adds motion without losing stability.'},{t:'Octave jump',d:'Play root low, jump to octave above. Creates energy and bounce.'},{t:'808 slide',d:'Start higher, glide down to root. Trap and modern R&B signature.'}].map((s,i)=><div key={i} style={{marginBottom:5,fontSize:10,color:'rgba(255,255,255,0.45)',lineHeight:1.5}}><span style={{color:'rgba(255,255,255,0.65)',fontWeight:600}}>{s.t}: </span>{s.d}</div>)}
-        </div>
+
+      {/* 808 Sauce */}
+      <div style={{...S.card('rgba(255,215,0,0.2)')}}>
+        <h3 style={{fontSize:15,fontWeight:800,margin:'0 0 4px',color:'#FFD700'}}>808 Sauce</h3>
+        <p style={{fontSize:10,color:'rgba(255,255,255,0.4)',margin:'0 0 12px',lineHeight:1.5}}>How to make 808s that shake the room and sit perfectly in your mix.</p>
+        {[
+          {i:'🎵',t:'Tune to your key',d:'Every 808 must be tuned to the root note of your track. An off-key 808 makes the entire beat sound wrong — no amount of mixing fixes it.'},
+          {i:'🔗',t:'808 note = chord root',d:'Follow your chord progression note for note. C chord → C 808. Am → A 808. The 808 is the bass voice of your progression.'},
+          {i:'📉',t:'The slide',d:'Program a pitch glide from a higher note down into your target note. 50–150ms glide time. This is the defining sound of trap and modern hip-hop.'},
+          {i:'⏱️',t:'Note length = energy',d:'Long 808 notes = heavy, dark, ominous. Short 808 notes = punchy and bouncy. Match the note duration to the emotional weight of that moment.'},
+          {i:'🥁',t:'Kick and 808 breathe together',d:'Shorten the 808 attack so the kick punch cuts through. They live in the same frequency space — the kick should hit first, then the 808 sustains behind it.'},
+          {i:'📊',t:'Velocity variation',d:'Down-beat 808s louder, off-beats and passing notes quieter. Dynamic variation makes 808 patterns feel performed, not programmed.'},
+          {i:'🎚️',t:'Keep it mono',d:'Sum your 808 to mono below 100Hz. Stereo bass causes phase cancellation on club systems and earbuds. Focused mono bass hits harder everywhere.'},
+          {i:'🔥',t:'Light saturation adds presence',d:'A touch of tube or tape saturation creates upper harmonics. This makes your 808 audible on phone speakers and laptop speakers that can\'t reproduce sub frequencies.'},
+          {i:'🎼',t:'Classic trap pattern',d:'Root on beat 1 → short note on the "and" of 2 → root again on beat 3 → slide into beat 4 ahead of the next chord. That\'s the blueprint.'},
+          {i:'⚡',t:'Sidechain the kick',d:'Route your kick to sidechain-compress the 808. The 808 ducks 2–4dB each time the kick hits. Creates separation, punch, and that signature pumping feel.'},
+        ].map((s,i)=><div key={i} style={{background:'rgba(0,0,0,0.2)',borderRadius:10,padding:'10px 12px',marginBottom:6,display:'flex',gap:10,alignItems:'flex-start'}}>
+          <span style={{fontSize:16,flexShrink:0,marginTop:1}}>{s.i}</span>
+          <div><div style={{fontSize:12,fontWeight:700,color:'#FFD700',marginBottom:2}}>{s.t}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.55)',lineHeight:1.5}}>{s.d}</div></div>
+        </div>)}
       </div>
     </div>}
 
@@ -942,6 +896,51 @@ return(
           {[{t:'Tonic',p:'Home chord'},{t:'Dominant',p:'Tension chord'},{t:'Resolution',p:'Landing after tension'},{t:'Dissonance',p:'Notes pulling apart'},{t:'Cadence',p:'How phrases rest'},{t:'Voice Leading',p:'Smooth note movement'},{t:'Scale Degree',p:'Note\'s emotional role'},{t:'Tritone',p:'Max tension interval'}].map(i=><div key={i.t} style={{background:'rgba(255,255,255,0.03)',borderRadius:9,padding:'8px 10px',border:'1px solid rgba(255,255,255,0.04)'}}><div style={{fontSize:12,fontWeight:700,color:'#C77DFF',marginBottom:2}}>{i.t}</div><div style={{fontSize:10,color:'rgba(255,255,255,0.45)',lineHeight:1.4}}>{i.p}</div></div>)}
         </div>
       </div>
+    </div>}
+
+    {/* ═══ MIX LAB ═══ */}
+    {screen==='mix'&&<div style={{padding:'16px',maxWidth:600,margin:'0 auto'}}>
+      <h2 style={{fontSize:20,fontWeight:800,marginBottom:3}}>Mix Lab</h2>
+      <p style={{fontSize:11,color:'rgba(255,255,255,0.4)',marginBottom:16}}>How to get a loud, punchy, professional-sounding mix.</p>
+      {[
+        {title:'Levels & Structure',color:'#4ECDC4',items:[
+          {i:'🏗️',t:'The mix pyramid',d:'808 & kick loudest at the base. Then snare/clap. Then chords and pads. Melody and vocals at the top. Nothing fights louder than the layer above it.'},
+          {i:'📏',t:'-6dBFS headroom rule',d:'Keep your loudest peak at -6dBFS before mastering. That headroom becomes loudness when you limit at the end. Crowded mixes that hit 0dBFS everywhere can\'t get loud.'},
+          {i:'🔺',t:'3-layer framework',d:'Foundation: drums + 808. Midground: chords, pads, rhythm guitar. Foreground: melody, lead, vocals. Every element belongs to exactly one layer.'},
+          {i:'🎚️',t:'Gain staging first',d:'Set every track so it averages around -18dBFS. Then balance levels relatively. This gives your compressors and effects the right input level to work properly.'},
+        ]},
+        {title:'EQ',color:'#FFB347',items:[
+          {i:'✂️',t:'Cut before you boost',d:'Remove the frequencies you don\'t want before adding what you need. Cutting is surgical and transparent. Boosting without cutting creates mud.'},
+          {i:'🎯',t:'The cut creates space',d:'Piano competing with your pad in the 300Hz–3kHz range? Cut 300Hz–3kHz on the pad. Every element needs its own frequency space to breathe.'},
+          {i:'🔉',t:'High-pass everything',d:'High-pass every non-bass element at 80Hz. Only kick and 808 should exist below 80Hz. Clean low end = louder, punchier master.'},
+          {i:'💡',t:'Presence = 2kHz–5kHz',d:'Boosting 2–5kHz makes elements cut through. Cutting this range pushes elements back. Use it to control what sits in front vs. behind.'},
+        ]},
+        {title:'Compression',color:'#C77DFF',items:[
+          {i:'🎛️',t:'Compression controls, not loudness',d:'Set ratio 3:1, attack 10ms, release 50ms. You\'re catching peaks and adding consistency — not adding volume. Gain makeup comes after.'},
+          {i:'⚡',t:'Sidechain kick → 808',d:'Kick triggers a compressor on the 808 channel. 808 ducks 2–4dB on each kick hit. Creates punch, separation, and that pumping feel that\'s in every modern record.'},
+          {i:'🔗',t:'Glue compression on the master',d:'Light compression on your master bus (2:1, slow attack 30ms, slow release) ties all elements together. Makes the mix feel like one cohesive thing.'},
+        ]},
+        {title:'Width & Space',color:'#87CEEB',items:[
+          {i:'↔️',t:'Stereo width rules',d:'Bass below 200Hz: always mono. Mids 200Hz–5kHz: centered or slightly wide. Highs 5kHz+: wide. Wide bass causes phase issues on mono playback systems.'},
+          {i:'🌊',t:'Reverb is space, not effect',d:'Short reverb on snare (20–40ms room). Medium reverb on chords and pads. Long reverb on atmospheric elements. Keep kicks and 808s reverb-free for punch.'},
+          {i:'📍',t:'Panning creates width',d:'Hard pan hi-hats slightly left and right. Pan rhythm elements opposite each other. Center: kick, snare, 808, lead vocal. Wide: everything else.'},
+        ]},
+        {title:'Loudness & Mastering',color:'#FF6B6B',items:[
+          {i:'📊',t:'LUFS targets',d:'Spotify normalizes to -14 LUFS. Apple Music -16 LUFS. YouTube -14 LUFS. Mix to -8 integrated LUFS, then limit to -6 to -7 LUFS for streaming. Let the platform normalize — don\'t over-limit.'},
+          {i:'🔒',t:'True peak limiting',d:'True peak limiter as the absolute last plugin on your master. Set ceiling to -1dBTP. Push threshold until you gain 4–6dB. More than 6dB of limiting = distortion and pumping.'},
+          {i:'🎧',t:'The reference track method',d:'Import a commercial track into your DAW at the same loudness as your mix. A/B constantly while mixing. Match the tonal balance and perceived energy — not just the volume.'},
+          {i:'📱',t:'The translation test',d:'Check your mix on: studio monitors, laptop speakers, phone speaker, earbuds, car. If it sounds balanced on all five, it translates everywhere. Phone speaker is the hardest test.'},
+          {i:'🔵',t:'The mono check',d:'Collapse everything to mono and listen. All elements should remain clear and present. If something disappears, you have phase cancellation — widen carefully or cut conflicting frequencies.'},
+        ]},
+      ].map((section,si)=>(
+        <div key={si} style={{marginBottom:18}}>
+          <div style={{fontSize:10,fontWeight:800,color:section.color,textTransform:'uppercase',letterSpacing:1.5,marginBottom:8,paddingLeft:2}}>{section.title}</div>
+          {section.items.map((s,i)=><div key={i} style={{background:'rgba(0,0,0,0.2)',borderRadius:10,padding:'10px 12px',marginBottom:6,display:'flex',gap:10,alignItems:'flex-start',border:`1px solid ${section.color}15`}}>
+            <span style={{fontSize:16,flexShrink:0,marginTop:1}}>{s.i}</span>
+            <div><div style={{fontSize:12,fontWeight:700,color:section.color,marginBottom:2}}>{s.t}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.55)',lineHeight:1.5}}>{s.d}</div></div>
+          </div>)}
+        </div>
+      ))}
     </div>}
 
     {/* ═══ SAVED ═══ */}
