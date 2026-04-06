@@ -11,7 +11,6 @@ constructor() { this.ctx=null; this.mg=null; this.rv=null; this.isPlaying=false;
 init() {
 if(this.ctx){if(this.ctx.state==='suspended')this.ctx.resume();return;}
 this.ctx=new(window.AudioContext||window.webkitAudioContext)();
-if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&!this.iosInited){this.iosInited=true;try{const o=this.ctx.createOscillator(),g=this.ctx.createGain();o.frequency.value=20000;g.gain.setValueAtTime(0.001,this.ctx.currentTime);g.gain.linearRampToValueAtTime(0,this.ctx.currentTime+0.01);o.connect(g);g.connect(this.ctx.destination);o.start(this.ctx.currentTime);o.stop(this.ctx.currentTime+0.01);}catch(e){}}
 this.mg=this.ctx.createGain(); this.mg.gain.value=0.26;
 const comp=this.ctx.createDynamicsCompressor();
 comp.threshold.value=-20;comp.knee.value=10;comp.ratio.value=3;comp.attack.value=0.005;comp.release.value=0.15;
@@ -434,6 +433,13 @@ const[bpm,setBpm]=useState(90);const[beats,setBeats]=useState(4);const[stg,setSt
 const[vol,setVol]=useState(0.26);
 const[b8grid,setB8grid]=useState(()=>Array.from({length:7},()=>Array(16).fill(false)));
 const[b8step,setB8step]=useState(-1);const[b8playing,setB8playing]=useState(false);const[b8loop,setB8loop]=useState(false);
+useEffect(()=>{
+// iOS Safari routes Web Audio to earpiece by default (SoloAmbient session).
+// Playing an <audio> element on first touch switches iOS to Playback session → speaker.
+if(/iPhone|iPad|iPod/.test(navigator.userAgent)){
+const unlock=()=>{const a=document.createElement('audio');a.setAttribute('playsinline','');a.src='data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';a.play().catch(()=>{});document.removeEventListener('touchstart',unlock);};
+document.addEventListener('touchstart',unlock,{once:true,passive:true});}
+},[]);
 useEffect(()=>{if(audio.ctx)audio.setVolume(vol);},[vol]);
 useEffect(()=>{try{const s=localStorage.getItem('harmonymap_saved');if(s)setSaved(JSON.parse(s));const st=localStorage.getItem('harmonymap_settings');if(st){const o=JSON.parse(st);if(o.bpm)setBpm(o.bpm);if(o.beats)setBeats(o.beats);if(o.stg!=null)setStg(o.stg);if(o.sk)setSk(o.sk);if(o.vol!=null)setVol(o.vol);}const g=localStorage.getItem('harmonymap_b8grid');if(g){const arr=JSON.parse(g);if(Array.isArray(arr)&&arr.length===7)setB8grid(arr);}}catch(e){}},[]);
 useEffect(()=>{try{localStorage.setItem('harmonymap_saved',JSON.stringify(saved));}catch(e){}},[saved]);
