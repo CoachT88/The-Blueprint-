@@ -193,10 +193,17 @@ const KEYS={
 'G major':{r:'G',m:'major',ch:['G','Am','Bm','C','D','Em','F#°'],sc:['G','A','B','C','D','E','F#']},
 'D major':{r:'D',m:'major',ch:['D','Em','F#m','G','A','Bm','C#°'],sc:['D','E','F#','G','A','B','C#']},
 'A major':{r:'A',m:'major',ch:['A','Bm','C#m','D','E','F#m','G#°'],sc:['A','B','C#','D','E','F#','G#']},
+'E major':{r:'E',m:'major',ch:['E','F#m','G#m','A','B','C#m','D#°'],sc:['E','F#','G#','A','B','C#','D#']},
 'F major':{r:'F',m:'major',ch:['F','Gm','Am','Bb','C','Dm','E°'],sc:['F','G','A','Bb','C','D','E']},
+'Bb major':{r:'Bb',m:'major',ch:['Bb','Cm','Dm','Eb','F','Gm','A°'],sc:['Bb','C','D','Eb','F','G','A']},
+'Eb major':{r:'Eb',m:'major',ch:['Eb','Fm','Gm','Ab','Bb','Cm','D°'],sc:['Eb','F','G','Ab','Bb','C','D']},
 'A minor':{r:'A',m:'minor',ch:['Am','B°','C','Dm','Em','F','G'],sc:['A','B','C','D','E','F','G']},
 'E minor':{r:'E',m:'minor',ch:['Em','F#°','G','Am','Bm','C','D'],sc:['E','F#','G','A','B','C','D']},
 'D minor':{r:'D',m:'minor',ch:['Dm','E°','F','Gm','Am','Bb','C'],sc:['D','E','F','G','A','Bb','C']},
+'G minor':{r:'G',m:'minor',ch:['Gm','A°','Bb','Cm','Dm','Eb','F'],sc:['G','A','Bb','C','D','Eb','F']},
+'F minor':{r:'F',m:'minor',ch:['Fm','G°','Ab','Bbm','Cm','Db','Eb'],sc:['F','G','Ab','Bb','C','Db','Eb']},
+'C minor':{r:'C',m:'minor',ch:['Cm','D°','Eb','Fm','Gm','Ab','Bb'],sc:['C','D','Eb','F','G','Ab','Bb']},
+'B minor':{r:'B',m:'minor',ch:['Bm','C#°','D','Em','F#m','G','A'],sc:['B','C#','D','E','F#','G','A']},
 };
 const FNM=['Home (I)','Step (ii)','Color (iii)','Open (IV)','Tension (V)','Emotional (vi)','Edge (vii°)'];
 const FNm=['Home (i)','Edge (ii°)','Relative (III)','Shadow (iv)','Pull (v)','Warmth (VI)','Gateway (VII)'];
@@ -319,7 +326,7 @@ return[
 }
 
 // ─── CHORD EMOTIONS ─────────────────────────────────────────
-const CE={'C':{f:'Bright, pure',r:'Home base'},'Dm':{f:'Melancholy',r:'Pulls inward'},'Em':{f:'Cool, quiet',r:'Contemplation'},'F':{f:'Open, warm',r:'Expands sound'},'G':{f:'Bright, driving',r:'Pushes forward'},'Am':{f:'Sad, deep',r:'Emotional heart'},'Bm':{f:'Dark, serious',r:'Adds weight'},'D':{f:'Warm, confident',r:'Lifts clearly'},'E':{f:'Tense, powerful',r:'Strong pull'},'A':{f:'Bright, joyful',r:'Open confidence'},'Bb':{f:'Dramatic',r:'Cinematic color'},'B°':{f:'Tense, unstable',r:'Creates urgency'},'F#°':{f:'Sharp tension',r:'Drives forward'},'Gm':{f:'Moody',r:'Shadow depth'},'F#m':{f:'Somber',r:'Deeper sadness'},'C#m':{f:'Haunting',r:'Cold beauty'}};
+const CE={'C':{f:'Bright, pure',r:'Home base'},'Dm':{f:'Melancholy',r:'Pulls inward'},'Em':{f:'Cool, quiet',r:'Contemplation'},'F':{f:'Open, warm',r:'Expands sound'},'G':{f:'Bright, driving',r:'Pushes forward'},'Am':{f:'Sad, deep',r:'Emotional heart'},'Bm':{f:'Dark, serious',r:'Adds weight'},'D':{f:'Warm, confident',r:'Lifts clearly'},'E':{f:'Tense, powerful',r:'Strong pull'},'A':{f:'Bright, joyful',r:'Open confidence'},'Bb':{f:'Dramatic, full',r:'Cinematic color'},'Eb':{f:'Rich, soulful',r:'Gospel warmth'},'Ab':{f:'Lush, floating',r:'Dreamy lift'},'Cm':{f:'Dark, heavy',r:'Brooding weight'},'Fm':{f:'Aching, raw',r:'Deep sorrow'},'Gm':{f:'Moody, restless',r:'Shadow depth'},'G#m':{f:'Eerie, intense',r:'Unsettled beauty'},'C#m':{f:'Haunting',r:'Cold beauty'},'F#m':{f:'Somber',r:'Deeper sadness'},'B°':{f:'Tense, unstable',r:'Creates urgency'},'F#°':{f:'Sharp tension',r:'Drives forward'},'C#°':{f:'Uneasy, sharp',r:'Desperate pull'},'G#°':{f:'Piercing tension',r:'Wants to resolve'},'E°':{f:'Unstable, eerie',r:'Needs to move'},'A°':{f:'Tense, restless',r:'Pulls strongly'},'D°':{f:'Dark tension',r:'Resolves downward'},'G°':{f:'Murky tension',r:'Unsettled'}};
 
 // ─── EMOTION ENGINE ─────────────────────────────────────────
 const EMO={
