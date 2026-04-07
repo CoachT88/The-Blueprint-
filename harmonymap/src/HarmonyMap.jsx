@@ -621,16 +621,20 @@ return(
         </div>
         <div style={{marginBottom:10}}><div style={{...S.lbl,marginBottom:4}}>Notes</div><div style={{display:'flex',gap:5}}>{cn(pc(sch).r,pc(sch).t,4).map((n,i)=><span key={i} style={{background:cc(sch)+'12',border:`1px solid ${cc(sch)}25`,borderRadius:6,padding:'3px 9px',fontSize:12,fontWeight:600,color:cc(sch)}}>{n.replace(/\d/,'')}</span>)}</div></div>
         {CE[sch]&&<div style={{background:'rgba(255,255,255,0.03)',borderRadius:10,padding:10,marginBottom:10}}><div style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,0.75)',marginBottom:3}}>Feels: {CE[sch].f}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.4)',lineHeight:1.4}}>{CE[sch].r}</div></div>}
-        <div style={S.lbl}>Where it goes next</div>
+        <div style={S.lbl}>Where it goes next — tap to hear, + to add</div>
         <div style={{display:'flex',flexDirection:'column',gap:6}}>
-          {k&&gcon(k.ch).filter(c=>c.f===sch).map((c,i)=>{const m=mf(c.f,c.t),v=vl(c.f,c.t);return<button key={i} onClick={()=>playC(c.t)} style={{background:'rgba(255,255,255,0.04)',border:`1px solid ${cc(c.t)}25`,borderRadius:10,padding:'10px 12px',cursor:'pointer',textAlign:'left',width:'100%'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <div><span style={{fontSize:14,fontWeight:700,color:cc(c.t)}}>{c.t}</span><span style={{fontSize:10,color:'rgba(255,255,255,0.35)',marginLeft:8}}>{m.e} {m.l}</span></div>
-              <span style={{fontSize:9,color:'rgba(255,255,255,0.3)',background:'rgba(255,255,255,0.05)',borderRadius:4,padding:'2px 6px'}}>{v.sc} shared · {v.sm.toLowerCase()}</span>
-            </div>
-            <div style={{display:'flex',gap:4,marginTop:5}}>{v.mv.map((m,j)=><span key={j} style={{fontSize:9,color:m.s?'#4ECDC480':'#FFB34780'}}>{m.f}{m.s?'=':'→'}{m.t}</span>)}</div>
-          </button>;})}
+          {k&&gcon(k.ch).filter(c=>c.f===sch).map((c,i)=>{const m=mf(c.f,c.t),v=vl(c.f,c.t);return<div key={i} style={{background:'rgba(255,255,255,0.04)',border:`1px solid ${cc(c.t)}25`,borderRadius:10,padding:'10px 12px',display:'flex',gap:8,alignItems:'center'}}>
+            <button onClick={()=>playC(c.t)} style={{flex:1,background:'none',border:'none',cursor:'pointer',textAlign:'left',padding:0}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+                <div><span style={{fontSize:14,fontWeight:700,color:cc(c.t)}}>{c.t}</span><span style={{fontSize:10,color:'rgba(255,255,255,0.35)',marginLeft:8}}>{m.e} {m.l}</span></div>
+                <span style={{fontSize:9,color:'rgba(255,255,255,0.3)',background:'rgba(255,255,255,0.05)',borderRadius:4,padding:'2px 5px'}}>{v.sm.toLowerCase()}</span>
+              </div>
+              <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{v.mv.map((mv,j)=><span key={j} style={{fontSize:9,color:mv.s?'#4ECDC480':'#FFB34780',background:mv.s?'#4ECDC408':'#FFB34708',borderRadius:3,padding:'1px 5px'}}>{mv.s?`${mv.f} stays`:`${mv.f}→${mv.t}`}</span>)}</div>
+            </button>
+            <button onClick={()=>addC(c.t)} style={{...S.btn(cc(c.t)+'20',cc(c.t),cc(c.t)+'40'),flexShrink:0,padding:'6px 10px',fontSize:12,fontWeight:800}}>+ Add</button>
+          </div>;})}
         </div>
+        {prog.length>0&&<button onClick={()=>setScreen('builder')} style={{...S.btn('rgba(78,205,196,0.12)','#4ECDC4','rgba(78,205,196,0.3)'),width:'100%',marginTop:10,fontSize:12,fontWeight:700}}>▶ Go to Build — hear your progression →</button>}
         <div style={{marginTop:12}}>
           <button onClick={()=>setSv(!sv)} style={{...S.btn('rgba(255,255,255,0.05)','rgba(255,255,255,0.6)','rgba(255,255,255,0.1)'),width:'100%',fontSize:11,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <span>Different ways to play this chord</span>
