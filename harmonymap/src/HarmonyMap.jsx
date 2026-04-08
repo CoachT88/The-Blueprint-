@@ -467,7 +467,7 @@ const newEar=useCallback(()=>{setEa(null);const c=earGen(et);setEc(c);if(c)setTi
 const replayEar=useCallback(()=>{if(!ec)return;if(ec.pt==='chord')audio.playChord(ec.pd);else if(ec.pt==='melodic')audio.playMelodicInterval(ec.pd[0],ec.pd[1]);else if(ec.pt==='two'){audio.playChord(ec.pd[0],1.3);setTimeout(()=>audio.playChord(ec.pd[1],1.3),1500);}},[ec]);
 const ansEar=useCallback(a=>{if(ea)return;setEa(a);setEs(s=>({c:s.c+(a===ec?.ans?1:0),t:s.t+1}));if(a===ec?.ans&&!dr.current.includes('fe'))setDisc(d=>[...d,'fe']);},[ec,ea]);
 
-const tabs=[{k:'home',i:'⌂',l:'Home'},{k:'chordmap',i:'◉',l:'Map'},{k:'builder',i:'♫',l:'Build'},{k:'melody',i:'♪',l:'Melody'},{k:'ear',i:'👂',l:'Ear'},{k:'intervals',i:'↕',l:'Intervals'},{k:'learn',i:'✦',l:'Learn'},{k:'mix',i:'🎚',l:'Mix'},{k:'saved',i:'♡',l:'Saved'}];
+const tabs=[{k:'home',i:'⌂',l:'Home'},{k:'chordmap',i:'◉',l:'Map'},{k:'melody',i:'♪',l:'Melody'},{k:'ear',i:'👂',l:'Ear'},{k:'intervals',i:'↕',l:'Intervals'},{k:'learn',i:'✦',l:'Learn'},{k:'mix',i:'🎚',l:'Mix'},{k:'saved',i:'♡',l:'Saved'}];
 
 return(
 <div style={{width:'100%',minHeight:'100vh',background:em?em.gr:'linear-gradient(135deg,#0a0a1a,#1a0a2e,#0a1a2d)',color:'#F0F0F0',fontFamily:"'Segoe UI','SF Pro Display',-apple-system,sans-serif",position:'relative',overflow:'hidden',transition:'background 0.8s'}}>
@@ -509,7 +509,7 @@ return(
       </div>
       {/* How it works */}
       <div style={{display:'flex',gap:0,marginBottom:20,background:'rgba(255,255,255,0.03)',borderRadius:14,border:'1px solid rgba(255,255,255,0.06)',overflow:'hidden'}}>
-        {[{n:'1',l:'Pick a feeling',d:'below',c:'#FF6B6B'},{n:'2',l:'Choose a progression',d:'tap Listen then Use this →',c:'#4ECDC4'},{n:'3',l:'Build your beat',d:'in the Build tab',c:'#C77DFF'},{n:'4',l:'Add melody & mix',d:'Melody + Mix tabs',c:'#FFB347'}].map((s,i)=><div key={i} style={{flex:1,padding:'10px 6px',textAlign:'center',borderRight:i<3?'1px solid rgba(255,255,255,0.04)':'none'}}>
+        {[{n:'1',l:'Pick a feeling',d:'below',c:'#FF6B6B'},{n:'2',l:'Choose a progression',d:'tap Listen then Use this →',c:'#4ECDC4'},{n:'3',l:'Build your progression',d:'in the Chord Map',c:'#C77DFF'},{n:'4',l:'Add melody & mix',d:'Melody + Mix tabs',c:'#FFB347'}].map((s,i)=><div key={i} style={{flex:1,padding:'10px 6px',textAlign:'center',borderRight:i<3?'1px solid rgba(255,255,255,0.04)':'none'}}>
           <div style={{fontSize:14,fontWeight:800,color:s.c,marginBottom:2}}>{s.n}</div>
           <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.65)',lineHeight:1.3,marginBottom:1}}>{s.l}</div>
           <div style={{fontSize:8,color:'rgba(255,255,255,0.3)',lineHeight:1.3}}>{s.d}</div>
@@ -554,7 +554,7 @@ return(
         <p style={{fontSize:11,color:'rgba(255,255,255,0.5)',margin:'0 0 10px',lineHeight:1.4}}>{p.d}</p>
         <div style={{display:'flex',gap:8}}>
           <button onClick={()=>{audio.playProgression(p.ch.map(s=>cn(pc(s).r,pc(s).t,3)),parseInt(em.tp)||72,idx=>{setPi(idx);setPRow(idx===-1?-1:ri);});}} style={{...S.btn('rgba(255,255,255,0.1)','#fff','rgba(255,255,255,0.2)'),padding:'10px 18px',fontSize:13}}>▶ Listen</button>
-          <button onClick={()=>{setProg(p.ch);setScreen('builder');}} style={{...S.btn(em.co[0]+'30',em.co[0],em.co[0]+'50'),padding:'10px 18px',fontSize:13,fontWeight:800}}>Use this → Build</button>
+          <button onClick={()=>{setProg(p.ch);setScreen('chordmap');}} style={{...S.btn(em.co[0]+'30',em.co[0],em.co[0]+'50'),padding:'10px 18px',fontSize:13,fontWeight:800}}>Use this → Map</button>
         </div>
       </div>)}
       <div style={S.card()}>
@@ -573,11 +573,40 @@ return(
     {/* ═══ CHORD MAP ═══ */}
     {screen==='chordmap'&&<div style={{padding:'14px',maxWidth:600,margin:'0 auto'}}>
       <div style={{background:'rgba(78,205,196,0.08)',border:'1px solid rgba(78,205,196,0.2)',borderRadius:12,padding:'10px 12px',marginBottom:12,fontSize:11,color:'rgba(255,255,255,0.65)',lineHeight:1.5}}>
-        <strong style={{color:'#4ECDC4'}}>How to use:</strong> Tap any chord to hear it and see where it leads. <strong style={{color:'#FFD700'}}>Gold lines</strong> = the strongest, most emotional moves. <strong style={{color:'rgba(255,255,255,0.4)'}}>Dotted lines</strong> = other chords that also work well together.
+        <strong style={{color:'#4ECDC4'}}>How to use:</strong> Tap any chord on the map to hear it and add it to your progression. Build your sequence below, then play it back and save it.
       </div>
       <div style={{marginBottom:12}}>
         <div style={S.lbl}>Choose a Key</div>
         <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{Object.keys(KEYS).map(kk=><button key={kk} onClick={()=>{setSk(kk);setSch(null);}} style={{...S.btn(sk===kk?'rgba(255,255,255,0.15)':'rgba(255,255,255,0.04)',sk===kk?'#fff':'rgba(255,255,255,0.45)'),padding:'5px 10px',fontSize:11}}>{kk}</button>)}</div>
+      </div>
+      {/* ── Progression panel ── */}
+      <div style={{background:'rgba(0,0,0,0.3)',borderRadius:16,padding:14,marginBottom:12,minHeight:60,border:'1px solid rgba(255,255,255,0.06)'}}>
+        <div style={S.lbl}>Your Progression {prog.length>0&&`(${prog.length} chords)`}</div>
+        {prog.length===0
+          ?<div style={{color:'rgba(255,255,255,0.3)',fontSize:11,lineHeight:1.6,padding:'6px 0'}}>No chords yet — tap any chord on the map below to start building.</div>
+          :<div>
+            <div style={{display:'flex',gap:7,flexWrap:'wrap',alignItems:'center'}}>
+              {prog.map((c,i)=><div key={i} style={{position:'relative'}}>
+                {c==='REST'?<div style={{display:'inline-flex',alignItems:'center',justifyContent:'center',background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.35)',border:`1.5px dashed rgba(255,255,255,${pi===i?0.5:0.2})`,borderRadius:10,padding:'8px 12px',fontSize:14,fontWeight:700,transform:pi===i?'scale(1.08)':'scale(1)',transition:'all 0.2s'}}>𝄽 rest</div>:<div style={{...S.pill(cc(c),pi===i),padding:'8px 12px',fontSize:14}} onClick={()=>playC(c)}>{c}</div>}
+                <button onClick={()=>remC(i)} style={{position:'absolute',top:-5,right:-5,background:'rgba(255,60,60,0.8)',border:'none',borderRadius:'50%',width:16,height:16,color:'#fff',fontSize:9,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
+              </div>)}
+              <button onClick={()=>addC('REST')} style={{background:'rgba(255,255,255,0.04)',border:'1.5px dashed rgba(255,255,255,0.2)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'rgba(255,255,255,0.45)',fontSize:12,fontWeight:700}}>+ 𝄽 rest</button>
+            </div>
+            {prog.filter(c=>c!=='REST').length>=2&&<div style={{marginTop:10,background:'rgba(255,255,255,0.03)',borderRadius:10,padding:8}}>
+              <div style={{...S.lbl,marginBottom:4}}>How these chords connect</div>
+              {prog.slice(1).map((c,i)=>{if(c==='REST'||prog[i]==='REST')return null;const m=mf(prog[i],c),v=vl(prog[i],c);return<div key={i} style={{marginBottom:4,background:'rgba(255,255,255,0.02)',borderRadius:8,padding:'5px 7px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:4,marginBottom:2}}><span style={{fontSize:12,fontWeight:700,color:cc(prog[i])}}>{prog[i]}</span><span style={{color:'rgba(255,255,255,0.2)',fontSize:10}}>→</span><span style={{fontSize:12,fontWeight:700,color:cc(c)}}>{c}</span><span style={{marginLeft:6,fontSize:10,color:'rgba(255,255,255,0.4)'}}>{m.e} {m.l}</span><span style={{marginLeft:'auto',fontSize:9,color:'rgba(255,255,255,0.25)',background:'rgba(255,255,255,0.04)',borderRadius:4,padding:'1px 5px'}}>{v.sm}</span></div>
+                <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{v.mv.map((mv,j)=><span key={j} style={{fontSize:9,color:mv.s?'#4ECDC480':'#FFB34780',background:mv.s?'#4ECDC408':'#FFB34708',borderRadius:3,padding:'1px 5px'}}>{mv.s?`${mv.f} stays`:`${mv.f}→${mv.t}`}</span>)}</div>
+              </div>;})}
+              {prog.filter(c=>c!=='REST').length>=3&&idProg(prog.filter(c=>c!=='REST'))&&<div style={{marginTop:4,fontSize:10,color:'#FFB347',background:'rgba(255,183,71,0.08)',borderRadius:8,padding:'5px 8px'}}>✦ {idProg(prog.filter(c=>c!=='REST'))}</div>}
+            </div>}
+            <div style={{display:'flex',gap:7,marginTop:10,flexWrap:'wrap'}}>
+              <button onClick={()=>playP(bpm,beats,stg)} style={{...S.btn('linear-gradient(135deg,#4ECDC4,#44B09E)','#fff','transparent'),border:'none'}}>▶ Play</button>
+              <button onClick={progLooping?stopAll:()=>loopP(bpm,beats,stg)} style={{...S.btn(progLooping?'rgba(255,107,107,0.18)':'rgba(199,125,255,0.15)',progLooping?'#FF6B6B':'#C77DFF',progLooping?'rgba(255,107,107,0.4)':'rgba(199,125,255,0.3)')}}>{progLooping?'■ Stop':'↺ Loop'}</button>
+              <button onClick={saveI} style={S.btn('rgba(255,215,0,0.15)','#FFD700','rgba(255,215,0,0.3)')}>♡ Save</button>
+              <button onClick={()=>{stopAll();setProg([]);}} style={S.btn()}>Clear</button>
+            </div>
+          </div>}
       </div>
       <div style={{background:'rgba(0,0,0,0.4)',borderRadius:22,padding:14,border:'1px solid rgba(255,255,255,0.06)'}}>
         <svg viewBox="0 0 400 400" style={{width:'100%',height:'auto'}}>
@@ -634,7 +663,6 @@ return(
             <button onClick={()=>addC(c.t)} style={{...S.btn(cc(c.t)+'20',cc(c.t),cc(c.t)+'40'),flexShrink:0,padding:'6px 10px',fontSize:12,fontWeight:800}}>+ Add</button>
           </div>;})}
         </div>
-        {prog.length>0&&<button onClick={()=>setScreen('builder')} style={{...S.btn('rgba(78,205,196,0.12)','#4ECDC4','rgba(78,205,196,0.3)'),width:'100%',marginTop:10,fontSize:12,fontWeight:700}}>▶ Go to Build — hear your progression →</button>}
         <div style={{marginTop:12}}>
           <button onClick={()=>setSv(!sv)} style={{...S.btn('rgba(255,255,255,0.05)','rgba(255,255,255,0.6)','rgba(255,255,255,0.1)'),width:'100%',fontSize:11,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <span>Different ways to play this chord</span>
@@ -654,40 +682,8 @@ return(
           </div>}
         </div>
       </div>}
-    </div>}
-
-    {/* ═══ BUILDER ═══ */}
-    {screen==='builder'&&<div style={{padding:'16px',maxWidth:600,margin:'0 auto'}}>
-      <h2 style={{fontSize:20,fontWeight:800,marginBottom:3}}>Progression Builder</h2>
-      <p style={{fontSize:11,color:'rgba(255,255,255,0.4)',marginBottom:16}}>Tap chords to build your progression. Hear it play back in any style.</p>
-      <div style={{background:'rgba(0,0,0,0.3)',borderRadius:16,padding:14,marginBottom:16,minHeight:70,border:'1px solid rgba(255,255,255,0.06)'}}>
-        <div style={S.lbl}>Your Progression {prog.length>0&&`(${prog.length} chords)`}</div>
-        {prog.length===0?<div style={{color:'rgba(255,255,255,0.3)',fontSize:12,textAlign:'center',padding:'16px 0',lineHeight:1.7}}>No chords yet.<br/><span style={{fontSize:11}}>Pick a feeling on Home, or tap chords from the list below.</span></div>:
-        <div>
-          <div style={{display:'flex',gap:7,flexWrap:'wrap',alignItems:'center'}}>
-            {prog.map((c,i)=><div key={i} style={{position:'relative'}}>
-              {c==='REST'?<div style={{display:'inline-flex',alignItems:'center',justifyContent:'center',background:'rgba(255,255,255,0.04)',color:'rgba(255,255,255,0.35)',border:`1.5px dashed rgba(255,255,255,${pi===i?0.5:0.2})`,borderRadius:10,padding:'10px 16px',fontSize:16,fontWeight:700,transform:pi===i?'scale(1.08)':'scale(1)',transition:'all 0.2s'}}>𝄽 rest</div>:<div style={{...S.pill(cc(c),pi===i),padding:'10px 16px',fontSize:16}} onClick={()=>playC(c)}>{c}</div>}
-              <button onClick={()=>remC(i)} style={{position:'absolute',top:-5,right:-5,background:'rgba(255,60,60,0.8)',border:'none',borderRadius:'50%',width:16,height:16,color:'#fff',fontSize:9,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
-            </div>)}
-            <button onClick={()=>addC('REST')} style={{background:'rgba(255,255,255,0.04)',border:'1.5px dashed rgba(255,255,255,0.2)',borderRadius:10,padding:'10px 14px',cursor:'pointer',color:'rgba(255,255,255,0.45)',fontSize:13,fontWeight:700}}>+ 𝄽 rest</button>
-          </div>
-          {prog.filter(c=>c!=='REST').length>=2&&<div style={{marginTop:12,background:'rgba(255,255,255,0.03)',borderRadius:10,padding:10}}>
-            <div style={{...S.lbl,marginBottom:6}}>How these chords connect</div>
-            {prog.slice(1).map((c,i)=>{if(c==='REST'||prog[i]==='REST')return null;const m=mf(prog[i],c),v=vl(prog[i],c);return<div key={i} style={{marginBottom:6,background:'rgba(255,255,255,0.02)',borderRadius:8,padding:'6px 8px'}}>
-              <div style={{display:'flex',alignItems:'center',gap:4,marginBottom:3}}><span style={{fontSize:12,fontWeight:700,color:cc(prog[i])}}>{prog[i]}</span><span style={{color:'rgba(255,255,255,0.2)',fontSize:10}}>→</span><span style={{fontSize:12,fontWeight:700,color:cc(c)}}>{c}</span><span style={{marginLeft:6,fontSize:10,color:'rgba(255,255,255,0.4)'}}>{m.e} {m.l}</span><span style={{marginLeft:'auto',fontSize:9,color:'rgba(255,255,255,0.25)',background:'rgba(255,255,255,0.04)',borderRadius:4,padding:'1px 5px'}}>{v.sm}</span></div>
-              <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{v.mv.map((m,j)=><span key={j} style={{fontSize:9,color:m.s?'#4ECDC480':'#FFB34780',background:m.s?'#4ECDC408':'#FFB34708',borderRadius:3,padding:'1px 5px'}}>{m.s?`${m.f} stays`:`${m.f}→${m.t}`}</span>)}</div>
-            </div>;})}
-            {prog.filter(c=>c!=='REST').length>=3&&idProg(prog.filter(c=>c!=='REST'))&&<div style={{marginTop:6,fontSize:10,color:'#FFB347',background:'rgba(255,183,71,0.08)',borderRadius:8,padding:'6px 10px'}}>✦ {idProg(prog.filter(c=>c!=='REST'))}</div>}
-          </div>}
-          <div style={{display:'flex',gap:7,marginTop:12,flexWrap:'wrap'}}>
-            <button onClick={()=>playP(bpm,beats,stg)} style={{...S.btn('linear-gradient(135deg,#4ECDC4,#44B09E)','#fff','transparent'),border:'none'}}>▶ Play</button>
-<button onClick={progLooping?stopAll:()=>loopP(bpm,beats,stg)} style={{...S.btn(progLooping?'rgba(255,107,107,0.18)':'rgba(199,125,255,0.15)',progLooping?'#FF6B6B':'#C77DFF',progLooping?'rgba(255,107,107,0.4)':'rgba(199,125,255,0.3)')}}>{progLooping?'■ Stop':'↺ Loop'}</button>
-<button onClick={saveI} style={S.btn('rgba(255,215,0,0.15)','#FFD700','rgba(255,215,0,0.3)')}>♡ Save</button>
-            <button onClick={()=>{stopAll();setProg([]);}} style={S.btn()}>Clear</button>
-          </div>
-        </div>}
-      </div>
-      <div style={{...S.card(),marginBottom:14}}>
+      {/* ── Tempo + Rhythm ── */}
+      <div style={{...S.card(),marginTop:14,marginBottom:14}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
           <div style={{...S.lbl,marginBottom:0}}>Tempo</div>
           <div style={{fontSize:18,fontWeight:800,color:'#4ECDC4'}}>{bpm} <span style={{fontSize:10,color:'rgba(255,255,255,0.4)',fontWeight:600}}>BPM</span></div>
@@ -702,27 +698,16 @@ return(
           {[1,2,4,8].map(b=><button key={b} onClick={()=>setBeats(b)} style={{...S.btn(beats===b?'rgba(78,205,196,0.2)':'rgba(255,255,255,0.04)',beats===b?'#4ECDC4':'rgba(255,255,255,0.5)'),padding:'3px 9px',fontSize:10}}>{b}</button>)}
         </div>
       </div>
+      {/* ── Presets ── */}
       <div style={{marginBottom:14}}>
-        <div style={S.lbl}>Chords in {sk}</div>
-        <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>{k?.ch.map((c,i)=><button key={i} onClick={()=>addC(c)} style={{background:cc(c)+'12',border:`1.5px solid ${cc(c)}45`,borderRadius:11,padding:'10px 14px',cursor:'pointer',fontSize:15,fontWeight:700,color:cc(c)}}>{c}</button>)}</div>
-        <div style={{display:'flex',gap:8,marginTop:6,flexWrap:'wrap'}}>{[['#FF6B6B','Major','Bright'],['#4ECDC4','Minor','Emotional'],['#C77DFF','Dim','Tense'],['#FFB347','Dom7','Bluesy'],['#87CEEB','Sus','Open']].map(([c,n,d])=><span key={n} style={{fontSize:8,color:c}}>● {n} — {d}</span>)}</div>
-      </div>
-      <div style={{marginBottom:14}}><div style={S.lbl}>Transpose</div>
-<div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}}>
-{[-2,-1,1,2].map(n=><button key={n} onClick={()=>{const keys=Object.keys(KEYS);const idx=keys.indexOf(sk);const steps=n;const newIdx=(idx+steps+keys.length)%keys.length;setSk(keys[newIdx]);setProg([]);}} style={S.btn()}>{n>0?'+':''}{n} st</button>)}
-<span style={{fontSize:9,color:'rgba(255,255,255,0.3)',marginLeft:4}}>Shifts key up/down. Clears current chords.</span>
-</div>
-</div>
-      <div style={{marginBottom:14}}><div style={S.lbl}>Change Key</div>
-        <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{Object.keys(KEYS).map(kk=><button key={kk} onClick={()=>{setSk(kk);setProg([]);}} style={{...S.btn(sk===kk?'rgba(255,255,255,0.12)':'rgba(255,255,255,0.04)',sk===kk?'#fff':'rgba(255,255,255,0.4)'),padding:'4px 9px',fontSize:10}}>{kk}</button>)}</div>
-      </div>
-      <div style={{marginBottom:14}}><div style={S.lbl}>Presets for {sk}</div>
+        <div style={S.lbl}>Presets for {sk}</div>
         {ps.map((p,i)=><button key={i} onClick={()=>setProg(p.ch)} style={{...S.card(),display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',width:'100%',textAlign:'left'}}>
           <div><span style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,0.7)'}}>{p.n}</span><span style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginLeft:8}}>{p.f}</span></div>
           <span style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>{p.ch.join(' → ')}</span>
         </button>)}
       </div>
-      <div>
+      {/* ── Genre Progressions ── */}
+      <div style={{marginBottom:14}}>
         <div style={S.lbl}>Progressions by Genre</div>
         <p style={{fontSize:10,color:'rgba(255,255,255,0.35)',margin:'0 0 10px'}}>Pick a genre. Every progression plays at the right tempo and feel for that style.</p>
         <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:14}}>
@@ -991,7 +976,7 @@ return(
         <div style={{display:'flex',gap:3,flexWrap:'wrap',marginBottom:6}}>{idea.prog.slice(1).map((c,i)=>{if(c==='REST'||idea.prog[i]==='REST')return null;const m=mf(idea.prog[i],c);return<span key={i} style={{fontSize:8,color:'rgba(255,255,255,0.3)',background:'rgba(255,255,255,0.04)',borderRadius:3,padding:'1px 5px'}}>{m.e} {m.l}</span>;})}</div>
         <div style={{display:'flex',gap:6}}>
           <button onClick={()=>{audio.playProgression(idea.prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3)),bpm,i=>{setPi(i);setPRow(-1);});}} style={S.btn()}>▶ Play</button>
-          <button onClick={()=>{setProg(idea.prog);setSk(idea.k||sk);setScreen('builder');}} style={S.btn()}>Edit →</button>
+          <button onClick={()=>{setProg(idea.prog);setSk(idea.k||sk);setScreen('chordmap');}} style={S.btn()}>Edit →</button>
           <button onClick={()=>{const e=idea.emo?EMO[idea.emo]:null;const t=[`🎵 HarmonyMap Sketch`,`${e?e.l+' — '+e.p:'Free exploration'}`,`Key: ${idea.k}`,`${idea.prog.join(' → ')}`,idea.date].join('\n');try{navigator.clipboard.writeText(t);setTip('Copied to clipboard!');}catch(e){}}} style={S.btn()}>📋 Copy</button>
         </div>
       </div>;})}
