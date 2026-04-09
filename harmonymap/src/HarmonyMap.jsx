@@ -211,15 +211,15 @@ const KEYS={
 'F# minor':{r:'F#',m:'minor',ch:['F#m','G#°','A','Bm','C#m','D','E'],sc:['F#','G#','A','B','C#','D','E']},
 'C# minor':{r:'C#',m:'minor',ch:['C#m','D#°','E','F#m','G#m','A','B'],sc:['C#','D#','E','F#','G#','A','B']},
 'G# minor':{r:'G#',m:'minor',ch:['G#m','A#°','B','C#m','D#m','E','F#'],sc:['G#','A#','B','C#','D#','E','F#']},
-'D# minor':{r:'D#',m:'minor',ch:['D#m','F°','F#','G#m','A#m','B','C#'],sc:['D#','F','F#','G#','A#','B','C#']},
+'Eb minor':{r:'Eb',m:'minor',ch:['Ebm','F°','Gb','Abm','Bbm','B','Db'],sc:['Eb','F','Gb','Ab','Bb','B','Db']},
 'Bb minor':{r:'Bb',m:'minor',ch:['Bbm','C°','Db','Ebm','Fm','Gb','Ab'],sc:['Bb','C','Db','Eb','F','Gb','Ab']},
 };
 const MAJOR_COF=['C major','G major','D major','A major','E major','B major','Gb major','Db major','Ab major','Eb major','Bb major','F major'];
-const MINOR_COF=['A minor','E minor','B minor','F# minor','C# minor','G# minor','D# minor','Bb minor','F minor','C minor','G minor','D minor'];
-const RELATIVE={'C major':'A minor','A minor':'C major','G major':'E minor','E minor':'G major','D major':'B minor','B minor':'D major','A major':'F# minor','F# minor':'A major','E major':'C# minor','C# minor':'E major','B major':'G# minor','G# minor':'B major','Gb major':'D# minor','D# minor':'Gb major','Db major':'Bb minor','Bb minor':'Db major','Ab major':'F minor','F minor':'Ab major','Eb major':'C minor','C minor':'Eb major','Bb major':'G minor','G minor':'Bb major','F major':'D minor','D minor':'F major'};
-const FNM=['Home (I)','Step (ii)','Color (iii)','Open (IV)','Tension (V)','Emotional (vi)','Edge (vii°)'];
+const MINOR_COF=['A minor','E minor','B minor','F# minor','C# minor','G# minor','Eb minor','Bb minor','F minor','C minor','G minor','D minor'];
+const RELATIVE={'C major':'A minor','A minor':'C major','G major':'E minor','E minor':'G major','D major':'B minor','B minor':'D major','A major':'F# minor','F# minor':'A major','E major':'C# minor','C# minor':'E major','B major':'G# minor','G# minor':'B major','Gb major':'Eb minor','Eb minor':'Gb major','Db major':'Bb minor','Bb minor':'Db major','Ab major':'F minor','F minor':'Ab major','Eb major':'C minor','C minor':'Eb major','Bb major':'G minor','G minor':'Bb major','F major':'D minor','D minor':'F major'};
+const FNM=['Home (I)','Shadow (ii)','Edge (iii)','Warmth (IV)','Pull (V)','Relative (vi)','Gateway (vii°)'];
 const FNm=['Home (i)','Edge (ii°)','Relative (III)','Shadow (iv)','Pull (v)','Warmth (VI)','Gateway (VII)'];
-function gcon(ch,mode='major'){if(!ch||ch.length<7)return[];const p=mode==='minor'?[[0,3],[0,4],[0,5],[1,4],[1,6],[2,5],[2,3],[3,0],[3,4],[3,1],[4,0],[4,5],[5,3],[5,1],[5,2],[5,6],[6,0],[6,2],[6,4]]:[[0,3],[0,4],[0,5],[1,4],[1,6],[2,5],[2,3],[3,0],[3,4],[3,1],[4,0],[4,5],[5,3],[5,1],[5,2],[6,0],[6,4]];return p.map(([a,b])=>({f:ch[a],t:ch[b],st:((a===4&&b===0)||(a===3&&b===0)||(mode==='minor'&&a===6&&b===2))?'strong':'normal'}));}
+function gcon(ch,mode='major'){if(!ch||ch.length<7)return[];const p=mode==='minor'?[[0,3],[0,4],[0,5],[1,4],[1,6],[2,5],[2,3],[3,0],[3,4],[3,1],[4,0],[4,5],[5,3],[5,1],[5,2],[5,6],[6,0],[6,2],[6,4]]:[[0,3],[0,4],[0,5],[1,4],[1,6],[2,5],[2,3],[3,0],[3,4],[3,1],[4,0],[4,5],[5,3],[5,1],[5,2],[6,0],[6,4]];return p.map(([a,b])=>({f:ch[a],t:ch[b],st:((a===4&&b===0)||(a===3&&b===0))?'strong':'normal'}));}
 
 // ─── KEY-AWARE PRESETS ──────────────────────────────────────
 function presets(kn){const k=KEYS[kn];if(!k)return[];const c=k.ch;
@@ -644,6 +644,7 @@ return(
               {ip&&<circle cx={nd.x} cy={nd.y} r={32} fill="none" stroke="#FFD700" strokeWidth={2.5} strokeDasharray="4 3"/>}
               <text x={nd.x} y={nd.y+1} textAnchor="middle" dominantBaseline="middle" fill={sel?'#fff':col} fontSize={sel?15:13} fontWeight="800" style={{pointerEvents:'none'}}>{nd.c}</text>
               <text x={nd.x} y={nd.y+(sel?50:42)} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="8" fontWeight="600" style={{pointerEvents:'none'}}>{fn[ni]}</text>
+              <text x={nd.x} y={nd.y+(sel?61:53)} textAnchor="middle" fill="rgba(255,255,255,0.22)" fontSize="6.5" style={{pointerEvents:'none'}}>{cn(pc(nd.c).r,pc(nd.c).t,4).map(n=>n.replace(/\d/,'')).join('·')}</text>
             </g>;})}
           <text x="200" y="192" textAnchor="middle" fill="rgba(255,255,255,0.25)" fontSize="12" fontWeight="700">{sk}</text>
           <text x="200" y="208" textAnchor="middle" fill="rgba(255,255,255,0.12)" fontSize="8">Tap a chord</text>
