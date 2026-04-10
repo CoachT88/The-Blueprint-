@@ -292,49 +292,59 @@
             <i class="fas fa-arrow-left text-sm"></i>
         </button>
         <div class="text-center">
-            <p class="text-emerald-400 font-black uppercase tracking-[0.25em] text-[10px]">Rest</p>
-            <p id="rest-next-label" class="text-slate-500 text-[9px] mt-0.5">Next set coming up</p>
+            <p class="text-emerald-400 font-black uppercase tracking-[0.25em] text-[10px]">Active Rest</p>
+            <p id="rest-next-label" class="text-slate-500 text-[9px] mt-0.5">Next round coming up</p>
         </div>
         <button id="rest-skip-btn" class="text-slate-500 font-black text-[10px] uppercase tracking-widest py-1.5 px-4 border border-slate-800 rounded-full active:scale-95">Skip</button>
     </div>
 
-```
-<!-- Rest countdown arc -->
-<div class="flex flex-col items-center" style="margin-top:80px;">
-    <div class="relative flex items-center justify-center mb-4" style="width:180px;height:180px;">
-        <svg viewBox="0 0 120 120" width="180" height="180" style="transform:rotate(-90deg)">
-            <circle cx="60" cy="60" r="52" fill="none" stroke="#1e293b" stroke-width="6"/>
-            <circle id="rest-arc" cx="60" cy="60" r="52" fill="none" stroke="#10b981" stroke-width="6"
-                stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="0"
-                style="transition:stroke-dashoffset .9s linear;filter:drop-shadow(0 0 6px #10b981)"/>
-        </svg>
-        <div class="absolute flex flex-col items-center">
-            <span id="rest-timer" class="text-5xl font-black tabular-nums text-emerald-400 leading-none" style="text-shadow:0 0 20px rgba(16,185,129,.4)">30</span>
-            <span class="text-emerald-600 text-[9px] font-black uppercase tracking-widest mt-1">seconds</span>
+    <div class="flex flex-col items-center" style="margin-top:76px;gap:0;">
+
+        <!-- Breathing circle pacer — focal visual -->
+        <div class="relative flex items-center justify-center mb-5" style="width:200px;height:200px;">
+            <!-- Outer expanding circle (breath) -->
+            <div id="breath-circle" style="position:absolute;width:120px;height:120px;border-radius:50%;
+                background:radial-gradient(circle,rgba(16,185,129,.18) 0%,rgba(16,185,129,.04) 70%);
+                border:2px solid rgba(16,185,129,.35);
+                box-shadow:0 0 30px rgba(16,185,129,.12);
+                transition:transform 4s ease-in-out, opacity 4s ease-in-out;
+                transform:scale(1);"></div>
+            <!-- Countdown arc overlay -->
+            <svg viewBox="0 0 120 120" width="200" height="200" style="position:absolute;transform:rotate(-90deg)">
+                <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(30,41,59,.8)" stroke-width="4"/>
+                <circle id="rest-arc" cx="60" cy="60" r="52" fill="none" stroke="#10b981" stroke-width="4"
+                    stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="0"
+                    style="transition:stroke-dashoffset .9s linear;filter:drop-shadow(0 0 5px rgba(16,185,129,.6))"/>
+            </svg>
+            <!-- Center: timer -->
+            <div class="absolute flex flex-col items-center">
+                <span id="rest-timer" class="text-4xl font-black tabular-nums text-emerald-400 leading-none" style="text-shadow:0 0 16px rgba(16,185,129,.5)">30</span>
+                <span class="text-emerald-700 text-[8px] font-black uppercase tracking-widest mt-0.5">sec</span>
+            </div>
         </div>
-    </div>
 
-    <!-- Breathing phase -->
-    <div class="text-center mb-6">
-        <p id="box-phase-label" class="text-2xl font-black uppercase italic text-emerald-400 mb-1">INHALE</p>
-        <p id="box-phase-sub" class="text-emerald-600/70 text-[10px] font-black uppercase tracking-widest">bear down gently</p>
-        <div class="flex justify-center gap-2 mt-3">
-            <div id="box-phase-count" class="text-4xl font-black text-emerald-300 tabular-nums">4</div>
+        <!-- Instruction text -->
+        <p class="text-slate-300 font-black text-sm uppercase tracking-widest mb-4">Breathe &amp; Reverse Kegel. Re-lube.</p>
+
+        <!-- Box breathing phase -->
+        <div class="text-center mb-4">
+            <p id="box-phase-label" class="text-3xl font-black uppercase italic text-emerald-400 leading-none mb-1">INHALE</p>
+            <p id="box-phase-sub" class="text-emerald-600/70 text-[9px] font-black uppercase tracking-widest">bear down — reverse kegel</p>
+            <div id="box-phase-count" class="text-5xl font-black text-emerald-300 tabular-nums mt-2">4</div>
         </div>
-    </div>
 
-    <!-- Box breathing mini indicator -->
-    <div class="flex gap-2 mb-6">
-        <div id="box-pip-0" class="w-2 h-2 rounded-full bg-emerald-800 transition-all duration-300"></div>
-        <div id="box-pip-1" class="w-2 h-2 rounded-full bg-emerald-800 transition-all duration-300"></div>
-        <div id="box-pip-2" class="w-2 h-2 rounded-full bg-emerald-800 transition-all duration-300"></div>
-        <div id="box-pip-3" class="w-2 h-2 rounded-full bg-emerald-800 transition-all duration-300"></div>
-    </div>
+        <!-- Box phase pips -->
+        <div class="flex gap-2.5 mb-5">
+            <div id="box-pip-0" class="w-2 h-2 rounded-full bg-emerald-900 transition-all duration-300"></div>
+            <div id="box-pip-1" class="w-2 h-2 rounded-full bg-emerald-900 transition-all duration-300"></div>
+            <div id="box-pip-2" class="w-2 h-2 rounded-full bg-emerald-900 transition-all duration-300"></div>
+            <div id="box-pip-3" class="w-2 h-2 rounded-full bg-emerald-900 transition-all duration-300"></div>
+        </div>
 
-    <!-- RK tip card -->
-    <div class="bg-emerald-950/40 border border-emerald-500/20 rounded-2xl p-4 mx-6 text-center">
-        <p class="text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-2"><i class="fas fa-lungs mr-1"></i>Breath Sync</p>
-        <p class="text-slate-400 text-[11px] leading-relaxed">On the <strong class="text-emerald-300">INHALE</strong> — belly deep, gently bear down. Floor drops and opens. On the <strong class="text-emerald-300">EXHALE</strong> — full release. Never clench during rest.</p>
+        <!-- Protocol reminder -->
+        <div class="bg-emerald-950/50 border border-emerald-500/15 rounded-2xl px-5 py-3 mx-6 text-center">
+            <p class="text-slate-500 text-[10px] leading-relaxed"><strong class="text-emerald-500">INHALE 4s</strong> — belly full, push pelvic floor down (RK) &nbsp;·&nbsp; <strong class="text-emerald-500">HOLD 4s</strong> &nbsp;·&nbsp; <strong class="text-emerald-500">EXHALE 4s</strong> — full release &nbsp;·&nbsp; <strong class="text-emerald-500">HOLD 4s</strong></p>
+        </div>
     </div>
 </div>
 
@@ -1206,13 +1216,22 @@
                         <p><strong class="text-slate-300">Directional Pulls</strong> — 5 directions (Out, Up, Down, Left, Right) performed in sequence. Each direction is a separate timed set. The button always shows which direction you are working before you start. EQ target: 3–4 (flaccid to very soft).</p>
                     </div>
                     <div class="p-3 rounded-xl bg-emerald-500/05 border border-emerald-500/20">
-                        <p class="text-emerald-300 font-bold text-xs mb-1"><i class="fas fa-expand mr-1.5"></i>Girth Protocol</p>
-                        <p class="mb-2">Targets the tunica and internal chambers through hydraulic pressure. Runs as a strict round-based circuit — Wet Jelq into Uli, repeated for the full round count, with a rest and re-lube interval between rounds. The final Uli of the final round ends the session immediately.</p>
-                        <div class="space-y-2 mt-2">
-                            <p><strong class="text-slate-300">Wet Jelq</strong> — Dynamic stroke from base to just before the head. Exactly 3 seconds per stroke. Mandatory lube. EQ: 60–80%. Duration scales per tier.</p>
-                            <p><strong class="text-slate-300">Uli — Manual Clamp</strong> — Static pressure hold immediately after Jelq. OK grip at base traps blood; free hand milks more pressure in. EQ: 80%. Duration scales per tier.</p>
+                        <p class="text-emerald-300 font-bold text-xs mb-2"><i class="fas fa-expand mr-1.5"></i>Girth Protocol</p>
+                        <div class="space-y-3">
+                            <div>
+                                <p class="text-slate-200 font-bold text-[11px] mb-0.5">1. WET JELQ</p>
+                                <p>Apply lubrication. Form an 'OK' grip at the base. Make firm, upward dynamic strokes along the shaft, stopping just before the glans (head). Keep grip at 60–80% EQ to maximize vascular engorgement. Apply even pressure.</p>
+                            </div>
+                            <div>
+                                <p class="text-slate-200 font-bold text-[11px] mb-0.5">2. THE ULI</p>
+                                <p>Achieve maximum engorgement (80% EQ). Apply a firm 'OK' clamp at the very base, trapping blood in the shaft. Hold statically. Maintain hydraulic pressure for tissue expansion.</p>
+                            </div>
+                            <div>
+                                <p class="text-slate-200 font-bold text-[11px] mb-0.5">3. ACTIVE REST (Box Breathing + Reverse Kegels)</p>
+                                <p>Rest your grip and relax the tissue. For 30–60 seconds at the end of each round, perform Box Breathing (Inhale 4s, Hold 4s, Exhale 4s, Hold 4s) while actively performing Reverse Kegels (gently pushing the pelvic floor down/out). This normalizes blood flow and prevents pelvic floor tension. Re-lubricate before the next round.</p>
+                            </div>
                         </div>
-                        <div class="mt-2 pt-2 border-t border-slate-700/50">
+                        <div class="mt-3 pt-2 border-t border-slate-700/50">
                             <p class="text-slate-500 text-[10px]">Beginner: 3 Rounds · Mid: 4 Rounds · Advanced: 5 Rounds · Elite: 5 Rounds (longer durations)</p>
                         </div>
                     </div>
@@ -2896,25 +2915,62 @@ function updateActiveCue(txt){
     if(liveTxt) liveTxt.innerText=txt;
 }
 
+// ── Wet Jelq 3-second stroke pacer ───────────────────────────────────────
+let _jelqStrokeInterval=null, _jelqPhase=0;
+const JELQ_STROKE_MSGS=[
+    'Stroke — OK grip, base to just before head. 3 seconds.',
+    'Switch hands. Re-grip at base.',
+];
+function startJelqStrokePacer(){
+    stopJelqStrokePacer();
+    _jelqPhase=0;
+    updateActiveCue(JELQ_STROKE_MSGS[0]);
+    _jelqStrokeInterval=setInterval(()=>{
+        _jelqPhase=(_jelqPhase+1)%JELQ_STROKE_MSGS.length;
+        updateActiveCue(JELQ_STROKE_MSGS[_jelqPhase]);
+        // Flash the cue panel to draw the eye on each stroke cue
+        const panel=document.getElementById('ex-active-cue');
+        if(panel){
+            panel.style.background='rgba(16,185,129,.14)';
+            panel.style.borderColor='rgba(16,185,129,.55)';
+            setTimeout(()=>{if(panel){panel.style.background='';panel.style.borderColor='';}},250);
+        }
+    },3000);
+}
+function stopJelqStrokePacer(){
+    if(_jelqStrokeInterval){clearInterval(_jelqStrokeInterval);_jelqStrokeInterval=null;}
+}
+
 function startSet(){
     if(session.timer){session.timer.cancel();session.timer=null;}
+    stopJelqStrokePacer();
     const ex=getCurEx();
     _curExDuration=ex.duration;
     document.getElementById('ex-btn').style.display='none';
     document.getElementById('ex-pause-btn').style.display='flex';
     document.getElementById('pause-icon').className='fas fa-pause text-4xl text-slate-300';
     setFocusedMode(true);
-    // Show first cue immediately — fall back to the highest-time cue if none
-    // covers the full (difficulty-adjusted) duration, and always clear any
-    // stale cue text left over from a previous exercise or session.
-    const sortedCues=[...ex.cues].sort((a,b)=>b.time-a.time);
-    const firstCue=sortedCues.find(c=>c.time>=ex.duration)||sortedCues[0];
-    if(firstCue) updateActiveCue(firstCue.text.replace('{DIR}',DIRECTIONALS[session.directionalIndex]));
+    const isWetJelq=ex.title==='Wet Jelq';
+    const isUli=ex.title==='Uli — Manual Clamp';
+    if(isUli){
+        // Static prompt for the full hold duration — never changes mid-set
+        updateActiveCue('Maintain firm base clamp.');
+    } else if(isWetJelq){
+        startJelqStrokePacer();
+    } else {
+        // All other exercises: show first cue immediately from the cues array
+        const sortedCues=[...ex.cues].sort((a,b)=>b.time-a.time);
+        const firstCue=sortedCues.find(c=>c.time>=ex.duration)||sortedCues[0];
+        if(firstCue) updateActiveCue(firstCue.text.replace('{DIR}',DIRECTIONALS[session.directionalIndex]));
+    }
     session.timer=createTimer(ex.duration,rem=>{
         document.getElementById('ex-timer').innerText=fmtDuration(rem);
         session.xp+=Math.round(5*getDiff().xpMult);document.getElementById('live-xp').innerText=`${session.xp} XP`;
-        const activeCue=[...ex.cues].sort((a,b)=>a.time-b.time).find(c=>c.time>=rem);
-        if(activeCue) updateActiveCue(activeCue.text.replace('{DIR}',DIRECTIONALS[session.directionalIndex]));
+        // Uli: cue stays static. Wet Jelq: pacer interval owns cue updates.
+        if(!isUli&&!isWetJelq){
+            const activeCue=[...ex.cues].sort((a,b)=>a.time-b.time).find(c=>c.time>=rem);
+            if(activeCue) updateActiveCue(activeCue.text.replace('{DIR}',DIRECTIONALS[session.directionalIndex]));
+        }
     },()=>onSetDone());
     session.timer.start();
 }
@@ -2924,15 +2980,20 @@ function pauseResumeSet(){
     const lbl=document.getElementById('pause-label');
     if(session.timer.isRunning()){
         session.timer.pause();
+        stopJelqStrokePacer();
         ic.className='fas fa-play text-4xl text-slate-300';
         if(lbl)lbl.innerText='Resume';
     } else {
         session.timer.resume();
+        // Restart pacer if this is a Wet Jelq set
+        const ex=getCurEx();
+        if(ex.title==='Wet Jelq') startJelqStrokePacer();
         ic.className='fas fa-pause text-4xl text-slate-300';
         if(lbl)lbl.innerText='Pause';
     }
 }
 function onSetDone(){
+    stopJelqStrokePacer();
     document.getElementById('ex-pause-btn').style.display='none';
     setFocusedMode(false);
     session.timer=null;
@@ -2943,10 +3004,10 @@ function onSetDone(){
 }
 // ── Box breathing (4-4-4-4) ────────────────────────────────────────────
 const BOX_PHASES=[
-    {label:'INHALE', sub:'bear down — RK',d:'M10,110 L10,10',   secs:4},
-    {label:'HOLD',   sub:'stay full',     d:'M10,10 L110,10',   secs:4},
-    {label:'EXHALE', sub:'release breath', d:'M110,10 L110,110', secs:4},
-    {label:'HOLD',   sub:'stay empty',    d:'M110,110 L10,110', secs:4},
+    {label:'INHALE', sub:'bear down — reverse kegel', secs:4, circleScale:1.55},
+    {label:'HOLD',   sub:'stay full',                 secs:4, circleScale:1.55},
+    {label:'EXHALE', sub:'release breath — relax',    secs:4, circleScale:1.0},
+    {label:'HOLD',   sub:'stay empty',                secs:4, circleScale:1.0},
 ];
 let _boxPhaseIdx=0, _boxPhaseElapsed=0, _boxInterval=null;
 
@@ -2955,6 +3016,21 @@ function renderBoxPhase(){
     document.getElementById('box-phase-label').innerText=p.label;
     document.getElementById('box-phase-sub').innerText=p.sub;
     document.getElementById('box-phase-count').innerText=p.secs;
+    // Animate breathing circle
+    const circle=document.getElementById('breath-circle');
+    if(circle){
+        // INHALE → expand over 4s, EXHALE → contract over 4s, HOLDs keep current size
+        if(p.label==='INHALE'){
+            circle.style.transition='transform 4s ease-in-out, box-shadow 4s ease-in-out';
+            circle.style.transform=`scale(${p.circleScale})`;
+            circle.style.boxShadow='0 0 50px rgba(16,185,129,.25)';
+        } else if(p.label==='EXHALE'){
+            circle.style.transition='transform 4s ease-in-out, box-shadow 4s ease-in-out';
+            circle.style.transform=`scale(${p.circleScale})`;
+            circle.style.boxShadow='0 0 15px rgba(16,185,129,.08)';
+        }
+        // HOLD phases: no transition change — circle stays at current scale
+    }
     // Update pip dots
     for(let i=0;i<4;i++){
         const pip=document.getElementById('box-pip-'+i);
@@ -2962,17 +3038,14 @@ function renderBoxPhase(){
         if(pip&&i===_boxPhaseIdx) pip.style.transform='scale(1.5)';
         else if(pip) pip.style.transform='scale(1)';
     }
-    // Legacy SVG elements (kept for compat but hidden)
-    try{
-        const seg=document.getElementById('box-active-seg');
-        if(seg){seg.setAttribute('d',p.d);seg.style.setProperty('--seg-dur',p.secs+'s');seg.classList.remove('drawing');void seg.getBoundingClientRect();seg.classList.add('drawing');}
-        BOX_PHASES.forEach((_,i)=>{const done=document.getElementById('box-done-'+i);if(done)done.setAttribute('d',i<_boxPhaseIdx?BOX_PHASES[i].d:'');});
-    }catch(e){}
 }
 
 function startBoxBreathing(){
     stopBoxBreathing();
     _boxPhaseIdx=0; _boxPhaseElapsed=0;
+    // Reset breathing circle to contracted state before first inhale
+    const circle=document.getElementById('breath-circle');
+    if(circle){circle.style.transition='none';circle.style.transform='scale(1)';circle.style.boxShadow='';}
     renderBoxPhase();
     _boxInterval=setInterval(()=>{
         _boxPhaseElapsed++;
