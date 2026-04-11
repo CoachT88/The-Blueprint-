@@ -32,7 +32,7 @@ f.connect(comp); f2.connect(comp);
 this.rv=d; this.rv2=d2; this.mg.connect(comp); comp.connect(this.ctx.destination);
 }
 noteToFreq(n) {
-const M={C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,F:5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11};
+const M={C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,Fb:4,F:5,'E#':5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11,Cb:11,'B#':0};
 const m=n.match(/^([A-G][#b]?)(\d)$/); if(!m) return 440;
 return 440*Math.pow(2,(M[m[1]]-9+(parseInt(m[2])-4)*12)/12);
 }
@@ -131,12 +131,13 @@ function idProg(ch){if(!ch||ch.length<3)return null;const ts=ch.map(c=>pc(c).t);
 // ─── MUSIC DATA ─────────────────────────────────────────────
 const NN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const FN=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const ENH={Cb:'B',Fb:'E','E#':'F','B#':'C'};
 const CT={
 major:{iv:[0,4,7],q:'major'},minor:{iv:[0,3,7],q:'minor'},dim:{iv:[0,3,6],q:'diminished'},
 aug:{iv:[0,4,8],q:'augmented'},dom7:{iv:[0,4,7,10],q:'dominant'},maj7:{iv:[0,4,7,11],q:'major'},
 min7:{iv:[0,3,7,10],q:'minor'},sus2:{iv:[0,2,7],q:'suspended'},sus4:{iv:[0,5,7],q:'suspended'},add9:{iv:[0,4,7,14],q:'major'},
 };
-function cn(root,type,oct=4){const ri=NN.indexOf(root)!==-1?NN.indexOf(root):FN.indexOf(root);if(ri===-1)return[];const d=CT[type];if(!d)return[];return d.iv.map(v=>{const ni=(ri+v)%12;return NN[ni]+(oct+Math.floor((ri+v)/12));});}
+function cn(root,type,oct=4){const r=ENH[root]||root;const ri=NN.indexOf(r)!==-1?NN.indexOf(r):FN.indexOf(r);if(ri===-1)return[];const d=CT[type];if(!d)return[];return d.iv.map(v=>{const ni=(ri+v)%12;return NN[ni]+(oct+Math.floor((ri+v)/12));});}
 function pc(sym){const m=sym.match(/^([A-G][#b]?)(m7|maj7|add9|sus2|sus4|°|\+|m|7)?$/);if(!m)return{r:'C',t:'major'};const M={'':'major',m:'minor','°':'dim','+':'aug','7':'dom7',maj7:'maj7',m7:'min7',sus2:'sus2',sus4:'sus4',add9:'add9'};return{r:m[1],t:M[m[2]||'']||'major'};}
 function cc(s){const q=CT[pc(s).t]?.q;return{major:'#FF6B6B',minor:'#4ECDC4',diminished:'#C77DFF',augmented:'#B5FF3D',dominant:'#FFB347',suspended:'#87CEEB'}[q]||'#fff';}
 function ql(s){const q=CT[pc(s).t]?.q;return{major:'Major',minor:'Minor',diminished:'Diminished',augmented:'Augmented',dominant:'Dominant 7th',suspended:'Suspended'}[q]||'Chord';}
@@ -205,13 +206,13 @@ const KEYS={
 'C minor':{r:'C',m:'minor',ch:['Cm','D°','Eb','Fm','Gm','Ab','Bb'],sc:['C','D','Eb','F','G','Ab','Bb']},
 'B minor':{r:'B',m:'minor',ch:['Bm','C#°','D','Em','F#m','G','A'],sc:['B','C#','D','E','F#','G','A']},
 'B major':{r:'B',m:'major',ch:['B','C#m','D#m','E','F#','G#m','A#°'],sc:['B','C#','D#','E','F#','G#','A#']},
-'Gb major':{r:'Gb',m:'major',ch:['Gb','Abm','Bbm','B','Db','Ebm','F°'],sc:['Gb','Ab','Bb','B','Db','Eb','F']},
+'Gb major':{r:'Gb',m:'major',ch:['Gb','Abm','Bbm','Cb','Db','Ebm','F°'],sc:['Gb','Ab','Bb','Cb','Db','Eb','F']},
 'Db major':{r:'Db',m:'major',ch:['Db','Ebm','Fm','Gb','Ab','Bbm','C°'],sc:['Db','Eb','F','Gb','Ab','Bb','C']},
 'Ab major':{r:'Ab',m:'major',ch:['Ab','Bbm','Cm','Db','Eb','Fm','G°'],sc:['Ab','Bb','C','Db','Eb','F','G']},
 'F# minor':{r:'F#',m:'minor',ch:['F#m','G#°','A','Bm','C#m','D','E'],sc:['F#','G#','A','B','C#','D','E']},
 'C# minor':{r:'C#',m:'minor',ch:['C#m','D#°','E','F#m','G#m','A','B'],sc:['C#','D#','E','F#','G#','A','B']},
 'G# minor':{r:'G#',m:'minor',ch:['G#m','A#°','B','C#m','D#m','E','F#'],sc:['G#','A#','B','C#','D#','E','F#']},
-'Eb minor':{r:'Eb',m:'minor',ch:['Ebm','F°','Gb','Abm','Bbm','B','Db'],sc:['Eb','F','Gb','Ab','Bb','B','Db']},
+'Eb minor':{r:'Eb',m:'minor',ch:['Ebm','F°','Gb','Abm','Bbm','Cb','Db'],sc:['Eb','F','Gb','Ab','Bb','Cb','Db']},
 'Bb minor':{r:'Bb',m:'minor',ch:['Bbm','C°','Db','Ebm','Fm','Gb','Ab'],sc:['Bb','C','Db','Eb','F','Gb','Ab']},
 };
 const MAJOR_COF=['C major','G major','D major','A major','E major','B major','Gb major','Db major','Ab major','Eb major','Bb major','F major'];
@@ -328,7 +329,7 @@ progs:[
 const GENRE_KEYS = Object.keys(GENRES);
 
 // ─── VOICINGS ───────────────────────────────────────────────
-function gvoi(sym){const{r,t}=pc(sym);const ri=NN.indexOf(r)!==-1?NN.indexOf(r):FN.indexOf(r);if(ri===-1)return[];const iv=CT[t]?.iv||[0,4,7];
+function gvoi(sym){const{r,t}=pc(sym);const rn=ENH[r]||r;const ri=NN.indexOf(rn)!==-1?NN.indexOf(rn):FN.indexOf(rn);if(ri===-1)return[];const iv=CT[t]?.iv||[0,4,7];
 return[
 {n:'Root position',d:'Standard, clear',notes:iv.map(v=>NN[(ri+v)%12]+(4+Math.floor((ri+v)/12)))},
 {n:'1st inversion',d:'Smoother bass',notes:[NN[(ri+iv[1])%12]+'3',...iv.filter((_,i)=>i!==1).map(v=>NN[(ri+v)%12]+(4+Math.floor((ri+v)/12)))]},
@@ -336,9 +337,10 @@ return[
 {n:'High voicing',d:'Bright, airy',notes:iv.map(v=>NN[(ri+v)%12]+(5+Math.floor((ri+v)/12)))},
 ];
 }
+function chordNotesInKey(k,chordName){if(!k||!k.ch||!k.sc)return cn(pc(chordName).r,pc(chordName).t,4).map(n=>n.replace(/\d/,''));const pos=k.ch.indexOf(chordName);if(pos===-1)return cn(pc(chordName).r,pc(chordName).t,4).map(n=>n.replace(/\d/,''));return[k.sc[pos],k.sc[(pos+2)%7],k.sc[(pos+4)%7]];}
 
 // ─── CHORD EMOTIONS ─────────────────────────────────────────
-const CE={'C':{f:'Bright, pure',r:'Home base'},'Dm':{f:'Melancholy',r:'Pulls inward'},'Em':{f:'Cool, quiet',r:'Contemplation'},'F':{f:'Open, warm',r:'Expands sound'},'G':{f:'Bright, driving',r:'Pushes forward'},'Am':{f:'Sad, deep',r:'Emotional heart'},'Bm':{f:'Dark, serious',r:'Adds weight'},'D':{f:'Warm, confident',r:'Lifts clearly'},'E':{f:'Tense, powerful',r:'Strong pull'},'A':{f:'Bright, joyful',r:'Open confidence'},'Bb':{f:'Dramatic, full',r:'Cinematic color'},'Eb':{f:'Rich, soulful',r:'Gospel warmth'},'Ab':{f:'Lush, floating',r:'Dreamy lift'},'Cm':{f:'Dark, heavy',r:'Brooding weight'},'Fm':{f:'Aching, raw',r:'Deep sorrow'},'Gm':{f:'Moody, restless',r:'Shadow depth'},'G#m':{f:'Eerie, intense',r:'Unsettled beauty'},'C#m':{f:'Haunting',r:'Cold beauty'},'F#m':{f:'Somber',r:'Deeper sadness'},'B°':{f:'Tense, unstable',r:'Creates urgency'},'F#°':{f:'Sharp tension',r:'Drives forward'},'C#°':{f:'Uneasy, sharp',r:'Desperate pull'},'G#°':{f:'Piercing tension',r:'Wants to resolve'},'E°':{f:'Unstable, eerie',r:'Needs to move'},'A°':{f:'Tense, restless',r:'Pulls strongly'},'D°':{f:'Dark tension',r:'Resolves downward'},'G°':{f:'Murky tension',r:'Unsettled'},'Db':{f:'Lush, deep',r:'Rich cinematic warmth'},'Gb':{f:'Mysterious',r:'Exotic, colorful'},'F#':{f:'Bright, tense',r:'Bold drive upward'},'Abm':{f:'Dark, floating',r:'Cool shadow depth'},'Bbm':{f:'Brooding, heavy',r:'Dense emotional weight'},'Ebm':{f:'Aching, cold',r:'Hollow longing'},'D#m':{f:'Eerie, tense',r:'Pulls toward resolution'},'C°':{f:'Sharp instability',r:'Urgent need to move'},'A#°':{f:'Tense, dark',r:'Edge of collapse'},'D#°':{f:'Dissonant pull',r:'Sharp urgency'},'A#m':{f:'Tense, searching',r:'Dark yearning'}};
+const CE={'C':{f:'Bright, pure',r:'Home base'},'Dm':{f:'Melancholy',r:'Pulls inward'},'Em':{f:'Cool, quiet',r:'Contemplation'},'F':{f:'Open, warm',r:'Expands sound'},'G':{f:'Bright, driving',r:'Pushes forward'},'Am':{f:'Sad, deep',r:'Emotional heart'},'Bm':{f:'Dark, serious',r:'Adds weight'},'D':{f:'Warm, confident',r:'Lifts clearly'},'E':{f:'Tense, powerful',r:'Strong pull'},'A':{f:'Bright, joyful',r:'Open confidence'},'Bb':{f:'Dramatic, full',r:'Cinematic color'},'Eb':{f:'Rich, soulful',r:'Gospel warmth'},'Ab':{f:'Lush, floating',r:'Dreamy lift'},'Cm':{f:'Dark, heavy',r:'Brooding weight'},'Fm':{f:'Aching, raw',r:'Deep sorrow'},'Gm':{f:'Moody, restless',r:'Shadow depth'},'G#m':{f:'Eerie, intense',r:'Unsettled beauty'},'C#m':{f:'Haunting',r:'Cold beauty'},'F#m':{f:'Somber',r:'Deeper sadness'},'B°':{f:'Tense, unstable',r:'Creates urgency'},'F#°':{f:'Sharp tension',r:'Drives forward'},'C#°':{f:'Uneasy, sharp',r:'Desperate pull'},'G#°':{f:'Piercing tension',r:'Wants to resolve'},'E°':{f:'Unstable, eerie',r:'Needs to move'},'A°':{f:'Tense, restless',r:'Pulls strongly'},'D°':{f:'Dark tension',r:'Resolves downward'},'G°':{f:'Murky tension',r:'Unsettled'},'Db':{f:'Lush, deep',r:'Rich cinematic warmth'},'Gb':{f:'Mysterious',r:'Exotic, colorful'},'F#':{f:'Bright, tense',r:'Bold drive upward'},'Abm':{f:'Dark, floating',r:'Cool shadow depth'},'Bbm':{f:'Brooding, heavy',r:'Dense emotional weight'},'Ebm':{f:'Aching, cold',r:'Hollow longing'},'D#m':{f:'Eerie, tense',r:'Pulls toward resolution'},'C°':{f:'Sharp instability',r:'Urgent need to move'},'A#°':{f:'Tense, dark',r:'Edge of collapse'},'D#°':{f:'Dissonant pull',r:'Sharp urgency'},'A#m':{f:'Tense, searching',r:'Dark yearning'},'Cb':{f:'Mysterious, lifted',r:'Unexpected exotic color'}};
 
 // ─── EMOTION ENGINE ─────────────────────────────────────────
 const EMO={
@@ -644,7 +646,7 @@ return(
               {ip&&<circle cx={nd.x} cy={nd.y} r={32} fill="none" stroke="#FFD700" strokeWidth={2.5} strokeDasharray="4 3"/>}
               <text x={nd.x} y={nd.y+1} textAnchor="middle" dominantBaseline="middle" fill={sel?'#fff':col} fontSize={sel?15:13} fontWeight="800" style={{pointerEvents:'none'}}>{nd.c}</text>
               <text x={nd.x} y={nd.y+(sel?50:42)} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="8" fontWeight="600" style={{pointerEvents:'none'}}>{fn[ni]}</text>
-              <text x={nd.x} y={nd.y+(sel?61:53)} textAnchor="middle" fill="rgba(255,255,255,0.22)" fontSize="6.5" style={{pointerEvents:'none'}}>{cn(pc(nd.c).r,pc(nd.c).t,4).map(n=>n.replace(/\d/,'')).join('·')}</text>
+              <text x={nd.x} y={nd.y+(sel?61:53)} textAnchor="middle" fill="rgba(255,255,255,0.22)" fontSize="6.5" style={{pointerEvents:'none'}}>{chordNotesInKey(k,nd.c).join('·')}</text>
             </g>;})}
           <text x="200" y="192" textAnchor="middle" fill="rgba(255,255,255,0.25)" fontSize="12" fontWeight="700">{sk}</text>
           <text x="200" y="208" textAnchor="middle" fill="rgba(255,255,255,0.12)" fontSize="8">Tap a chord</text>
@@ -669,7 +671,7 @@ return(
           </div>
           <button onClick={()=>addC(sch)} style={S.btn(cc(sch)+'25',cc(sch),cc(sch)+'50')}>+ Add</button>
         </div>
-        <div style={{marginBottom:10}}><div style={{...S.lbl,marginBottom:4}}>Notes</div><div style={{display:'flex',gap:5}}>{cn(pc(sch).r,pc(sch).t,4).map((n,i)=><span key={i} style={{background:cc(sch)+'12',border:`1px solid ${cc(sch)}25`,borderRadius:6,padding:'3px 9px',fontSize:12,fontWeight:600,color:cc(sch)}}>{n.replace(/\d/,'')}</span>)}</div></div>
+        <div style={{marginBottom:10}}><div style={{...S.lbl,marginBottom:4}}>Notes</div><div style={{display:'flex',gap:5}}>{chordNotesInKey(k,sch).map((n,i)=><span key={i} style={{background:cc(sch)+'12',border:`1px solid ${cc(sch)}25`,borderRadius:6,padding:'3px 9px',fontSize:12,fontWeight:600,color:cc(sch)}}>{n}</span>)}</div></div>
         {CE[sch]&&<div style={{background:'rgba(255,255,255,0.03)',borderRadius:10,padding:10,marginBottom:10}}><div style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,0.75)',marginBottom:3}}>Feels: {CE[sch].f}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.4)',lineHeight:1.4}}>{CE[sch].r}</div></div>}
         <div style={S.lbl}>Where it goes next — tap to hear, + to add</div>
         <div style={{display:'flex',flexDirection:'column',gap:6}}>
