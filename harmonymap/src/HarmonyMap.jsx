@@ -19,17 +19,26 @@ this.ctx.resume();
 // Play an inaudible noise burst through the AudioContext — forces iOS to
 // commit the audio session to speaker output immediately.
 try{const ub=this.ctx.createBuffer(1,this.ctx.sampleRate*0.1,this.ctx.sampleRate);const ud=ub.getChannelData(0);for(let i=0;i<ud.length;i++)ud[i]=(Math.random()-0.5)*1e-5;const us=this.ctx.createBufferSource();us.buffer=ub;us.connect(this.ctx.destination);us.start(0);}catch(e){}
-this.mg=this.ctx.createGain(); this.mg.gain.value=0.26;
+this.mg=this.ctx.createGain(); this.mg.gain.value=0.30;
 const comp=this.ctx.createDynamicsCompressor();
-comp.threshold.value=-20;comp.knee.value=10;comp.ratio.value=3;comp.attack.value=0.005;comp.release.value=0.15;
-const d=this.ctx.createDelay(1.0); d.delayTime.value=0.12;
-const f=this.ctx.createGain(); f.gain.value=0.2;
-const d2=this.ctx.createDelay(1.0); d2.delayTime.value=0.07;
-const f2=this.ctx.createGain(); f2.gain.value=0.10;
-d.connect(f); f.connect(d); d.connect(comp);
-d2.connect(f2); f2.connect(d2); d2.connect(comp);
-f.connect(comp); f2.connect(comp);
-this.rv=d; this.rv2=d2; this.mg.connect(comp); comp.connect(this.ctx.destination);
+comp.threshold.value=-18;comp.knee.value=12;comp.ratio.value=3;comp.attack.value=0.008;comp.release.value=0.20;
+// ── Master Low-Pass Filter ─────────────────────────────────
+// Cuts harsh upper frequencies across the entire output bus.
+// 1800Hz at Q=0.7 gives a warm, tucked-in "studio" quality.
+const masterLP=this.ctx.createBiquadFilter();
+masterLP.type='lowpass';masterLP.frequency.value=1800;masterLP.Q.value=0.7;
+// ── Convolution Reverb (dark small room, ~0.9s RT60) ──────
+// Generated impulse response: exponential noise decay with 12ms
+// pre-delay and a 700Hz LP on the send so the reverb tail is dark.
+const rvBuf=this._buildReverbBuffer(1.3);
+const rvConv=this.ctx.createConvolver();rvConv.buffer=rvBuf;
+const rvSendLP=this.ctx.createBiquadFilter();
+rvSendLP.type='lowpass';rvSendLP.frequency.value=700;rvSendLP.Q.value=0.5;
+const rvGain=this.ctx.createGain();rvGain.gain.value=0.13;
+rvSendLP.connect(rvConv);rvConv.connect(rvGain);rvGain.connect(masterLP);
+// ── Master chain: mg → comp → masterLP → speakers ─────────
+this.mg.connect(comp);comp.connect(masterLP);masterLP.connect(this.ctx.destination);
+this.rv=rvSendLP;this.rv2=null;
 // Pre-build both instrument waves so switching is instant (no lag on first tap)
 this._buildWaves();
 }
@@ -48,6 +57,13 @@ const N=ra.length,rr=new Float32Array(N),ri=new Float32Array(N);
 for(let i=1;i<N;i++)rr[i]=ra[i];
 this.rhodesWave=this.ctx.createPeriodicWave(rr,ri,{disableNormalization:false});
 }
+}
+_buildReverbBuffer(dur){
+// Synthetic dark room IR: exponential noise decay, 12ms pre-delay, ~0.9s RT60
+const sr=this.ctx.sampleRate,len=Math.floor(sr*dur),pre=Math.floor(sr*0.012);
+const buf=this.ctx.createBuffer(2,len,sr);
+for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);for(let i=pre;i<len;i++){const t=(i-pre)/sr;d[i]=(Math.random()*2-1)*Math.exp(-t*3.6);}}
+return buf;
 }
 setInstrument(name){this.instrument=name;}
 noteToFreq(n) {
@@ -72,8 +88,8 @@ nf.type='bandpass';nf.frequency.value=Math.min(fr*2.5,3500);nf.Q.value=1.0;
 ng.gain.setValueAtTime(vel*0.09,t);ng.gain.exponentialRampToValueAtTime(0.0001,t+0.018);
 ns.connect(nf);nf.connect(ng);ng.connect(fl);ns.start(t);ns.stop(t+0.02);
 const env=this.ctx.createGain();
-env.gain.setValueAtTime(0,t);env.gain.linearRampToValueAtTime(vel*0.44,t+0.008);
-env.gain.exponentialRampToValueAtTime(vel*0.27,t+0.07);env.gain.exponentialRampToValueAtTime(vel*0.14,t+0.38);
+env.gain.setValueAtTime(0,t);env.gain.linearRampToValueAtTime(vel*0.44,t+0.014);
+env.gain.exponentialRampToValueAtTime(vel*0.27,t+0.08);env.gain.exponentialRampToValueAtTime(vel*0.14,t+0.40);
 env.gain.exponentialRampToValueAtTime(vel*0.06,t+dur*0.82);env.gain.exponentialRampToValueAtTime(0.0001,t+dur);
 fl.connect(env);return env;
 }
@@ -88,12 +104,12 @@ const bk=this.ctx.createOscillator();bk.type='sine';bk.frequency.value=fr*2.01;
 const bg=this.ctx.createGain();bg.gain.setValueAtTime(vel*0.30,t);bg.gain.exponentialRampToValueAtTime(0.0001,t+0.10);
 bk.connect(bg);bg.connect(fl);bk.start(t);bk.stop(t+0.12);
 const env=this.ctx.createGain();
-env.gain.setValueAtTime(0,t);env.gain.linearRampToValueAtTime(vel*0.50,t+0.005);
-env.gain.exponentialRampToValueAtTime(vel*0.34,t+0.04);env.gain.exponentialRampToValueAtTime(vel*0.22,t+0.28);
+env.gain.setValueAtTime(0,t);env.gain.linearRampToValueAtTime(vel*0.50,t+0.010);
+env.gain.exponentialRampToValueAtTime(vel*0.34,t+0.05);env.gain.exponentialRampToValueAtTime(vel*0.22,t+0.28);
 env.gain.exponentialRampToValueAtTime(vel*0.11,t+dur*0.78);env.gain.exponentialRampToValueAtTime(0.0001,t+dur+0.18);
 fl.connect(mf);mf.connect(env);return env;
 }
-playNote(n,dur=1.2,vel=0.65,st=null){
+playNote(n,dur=1.2,vel=0.42,st=null){
 this.init();if(!this.pianoWave||!this.rhodesWave)this._buildWaves();
 const fr=typeof n==='number'?n:this.noteToFreq(n);const t=st||(this.ctx.currentTime+0.15);
 const env=this.instrument==='warm-rhodes'?this._playRhodes(fr,vel,t,dur):this._playFeltPiano(fr,vel,t,dur);
@@ -106,7 +122,7 @@ const now=this.ctx.currentTime;
 this.noteEnvs.forEach(e=>{try{e.gain.cancelScheduledValues(now);e.gain.setTargetAtTime(0,now,0.04);}catch(x){}});
 this.noteEnvs=[];
 const t=now+0.12;
-notes.forEach((n,i)=>{const e=this.playNote(n,dur,0.65,t+i*stg);if(e)this.noteEnvs.push(e);});
+notes.forEach((n,i)=>{const e=this.playNote(n,dur,0.42,t+i*stg);if(e)this.noteEnvs.push(e);});
 }
 playClick(hi,st){this.init();const t=st||(this.ctx.currentTime+0.15);const o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type='sine';o.frequency.value=hi?1400:900;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.25,t+0.002);g.gain.exponentialRampToValueAtTime(0.0001,t+0.08);o.connect(g);g.connect(this.mg);o.start(t);o.stop(t+0.1);}
 countIn(bpm,beats,cb){this.init();const d=60/bpm;const t0=this.ctx.currentTime;for(let i=0;i<beats;i++)this.playClick(i===0,t0+i*d);const id=setTimeout(cb,beats*d*1000);this.tids.push(id);}
