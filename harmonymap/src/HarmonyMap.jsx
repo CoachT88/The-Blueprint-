@@ -135,10 +135,10 @@ const ENH={Cb:'B',Fb:'E','E#':'F','B#':'C'};
 const CT={
 major:{iv:[0,4,7],q:'major'},minor:{iv:[0,3,7],q:'minor'},dim:{iv:[0,3,6],q:'diminished'},
 aug:{iv:[0,4,8],q:'augmented'},dom7:{iv:[0,4,7,10],q:'dominant'},maj7:{iv:[0,4,7,11],q:'major'},
-min7:{iv:[0,3,7,10],q:'minor'},sus2:{iv:[0,2,7],q:'suspended'},sus4:{iv:[0,5,7],q:'suspended'},add9:{iv:[0,4,7,14],q:'major'},
+min7:{iv:[0,3,7,10],q:'minor'},'m7b5':{iv:[0,3,6,10],q:'diminished'},sus2:{iv:[0,2,7],q:'suspended'},sus4:{iv:[0,5,7],q:'suspended'},add9:{iv:[0,4,7,14],q:'major'},
 };
 function cn(root,type,oct=4){const r=ENH[root]||root;const ri=NN.indexOf(r)!==-1?NN.indexOf(r):FN.indexOf(r);if(ri===-1)return[];const d=CT[type];if(!d)return[];return d.iv.map(v=>{const ni=(ri+v)%12;return NN[ni]+(oct+Math.floor((ri+v)/12));});}
-function pc(sym){const m=sym.match(/^([A-G][#b]?)(m7|maj7|add9|sus2|sus4|°|\+|m|7)?$/);if(!m)return{r:'C',t:'major'};const M={'':'major',m:'minor','°':'dim','+':'aug','7':'dom7',maj7:'maj7',m7:'min7',sus2:'sus2',sus4:'sus4',add9:'add9'};return{r:m[1],t:M[m[2]||'']||'major'};}
+function pc(sym){const m=sym.match(/^([A-G][#b]?)(m7b5|m7|maj7|add9|sus2|sus4|°|\+|m|7)?$/);if(!m)return{r:'C',t:'major'};const M={'':'major',m:'minor','°':'dim','+':'aug','7':'dom7',maj7:'maj7',m7:'min7',m7b5:'m7b5',sus2:'sus2',sus4:'sus4',add9:'add9'};return{r:m[1],t:M[m[2]||'']||'major'};}
 function cc(s){const q=CT[pc(s).t]?.q;return{major:'#FF6B6B',minor:'#4ECDC4',diminished:'#C77DFF',augmented:'#B5FF3D',dominant:'#FFB347',suspended:'#87CEEB'}[q]||'#fff';}
 function ql(s){const q=CT[pc(s).t]?.q;return{major:'Major',minor:'Minor',diminished:'Diminished',augmented:'Augmented',dominant:'Dominant 7th',suspended:'Suspended'}[q]||'Chord';}
 
@@ -338,6 +338,12 @@ return[
 ];
 }
 function chordNotesInKey(k,chordName){if(!k||!k.ch||!k.sc)return cn(pc(chordName).r,pc(chordName).t,4).map(n=>n.replace(/\d/,''));const pos=k.ch.indexOf(chordName);if(pos===-1)return cn(pc(chordName).r,pc(chordName).t,4).map(n=>n.replace(/\d/,''));return[k.sc[pos],k.sc[(pos+2)%7],k.sc[(pos+4)%7]];}
+// ─── NOTE PITCH CLASS ───────────────────────────────────────
+function notePC(note){const M={C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,Fb:4,F:5,'E#':5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11,Cb:11,'B#':0};return M[note]??-1;}
+function pcToKeyNote(pc12,k){if(k?.sc){const found=k.sc.find(n=>notePC(n)===pc12);if(found)return found;}const useFlats=k?.sc?.some(n=>n.includes('b'))??false;return useFlats?FN[pc12]:NN[pc12];}
+// ─── CHORD EXTENSION HELPERS ────────────────────────────────
+function extChordLabel(k,baseName,ext){if(!ext||ext==='triad')return baseName;if(!k||!k.ch)return baseName;const pos=k.ch.indexOf(baseName);if(pos===-1)return baseName;const{r}=pc(baseName);const isDim=(k.m==='major'&&pos===6)||(k.m==='minor'&&pos===1);if(ext==='sus2'){return isDim?baseName:r+'sus2';}if(ext==='sus4'){return isDim?baseName:r+'sus4';}if(ext==='7ths'){if(isDim)return r+'m7b5';const isMaj7=(k.m==='major'&&(pos===0||pos===3))||(k.m==='minor'&&(pos===2||pos===5));const isDom7=(k.m==='major'&&pos===4)||(k.m==='minor'&&pos===6);if(isMaj7)return r+'maj7';if(isDom7)return r+'7';return r+'m7';}return baseName;}
+function extChordNotes(k,baseName,ext){if(!k||!k.ch||!k.sc)return chordNotesInKey(k,baseName);const pos=k.ch.indexOf(baseName);if(pos===-1)return chordNotesInKey(k,baseName);const root=k.sc[pos],third=k.sc[(pos+2)%7],fifth=k.sc[(pos+4)%7];const isDim=(k.m==='major'&&pos===6)||(k.m==='minor'&&pos===1);if(!ext||ext==='triad')return[root,third,fifth];if(ext==='7ths')return[root,third,fifth,k.sc[(pos+6)%7]];if(ext==='sus2'){if(isDim)return[root,third,fifth];return[root,pcToKeyNote((notePC(root)+2)%12,k),fifth];}if(ext==='sus4'){if(isDim)return[root,third,fifth];return[root,pcToKeyNote((notePC(root)+5)%12,k),fifth];}return[root,third,fifth];}
 
 // ─── CHORD EMOTIONS ─────────────────────────────────────────
 const CE={'C':{f:'Bright, pure',r:'Home base'},'Dm':{f:'Melancholy',r:'Pulls inward'},'Em':{f:'Cool, quiet',r:'Contemplation'},'F':{f:'Open, warm',r:'Expands sound'},'G':{f:'Bright, driving',r:'Pushes forward'},'Am':{f:'Sad, deep',r:'Emotional heart'},'Bm':{f:'Dark, serious',r:'Adds weight'},'D':{f:'Warm, confident',r:'Lifts clearly'},'E':{f:'Tense, powerful',r:'Strong pull'},'A':{f:'Bright, joyful',r:'Open confidence'},'Bb':{f:'Dramatic, full',r:'Cinematic color'},'Eb':{f:'Rich, soulful',r:'Gospel warmth'},'Ab':{f:'Lush, floating',r:'Dreamy lift'},'Cm':{f:'Dark, heavy',r:'Brooding weight'},'Fm':{f:'Aching, raw',r:'Deep sorrow'},'Gm':{f:'Moody, restless',r:'Shadow depth'},'G#m':{f:'Eerie, intense',r:'Unsettled beauty'},'C#m':{f:'Haunting',r:'Cold beauty'},'F#m':{f:'Somber',r:'Deeper sadness'},'B°':{f:'Tense, unstable',r:'Creates urgency'},'F#°':{f:'Sharp tension',r:'Drives forward'},'C#°':{f:'Uneasy, sharp',r:'Desperate pull'},'G#°':{f:'Piercing tension',r:'Wants to resolve'},'E°':{f:'Unstable, eerie',r:'Needs to move'},'A°':{f:'Tense, restless',r:'Pulls strongly'},'D°':{f:'Dark tension',r:'Resolves downward'},'G°':{f:'Murky tension',r:'Unsettled'},'Db':{f:'Lush, deep',r:'Rich cinematic warmth'},'Gb':{f:'Mysterious',r:'Exotic, colorful'},'F#':{f:'Bright, tense',r:'Bold drive upward'},'Abm':{f:'Dark, floating',r:'Cool shadow depth'},'Bbm':{f:'Brooding, heavy',r:'Dense emotional weight'},'Ebm':{f:'Aching, cold',r:'Hollow longing'},'D#m':{f:'Eerie, tense',r:'Pulls toward resolution'},'C°':{f:'Sharp instability',r:'Urgent need to move'},'A#°':{f:'Tense, dark',r:'Edge of collapse'},'D#°':{f:'Dissonant pull',r:'Sharp urgency'},'A#m':{f:'Tense, searching',r:'Dark yearning'},'Cb':{f:'Mysterious, lifted',r:'Unexpected exotic color'}};
@@ -445,6 +451,7 @@ const[sd,setSd]=useState(false);
 const[sr,setSr]=useState(null);
 const[sv,setSv]=useState(false);
 const[kmf,setKmf]=useState('major');
+const[ext,setExt]=useState('triad');
 const[ec,setEc]=useState(null);
 const[ea,setEa]=useState(null);
 const[es,setEs]=useState({c:0,t:0});
@@ -470,7 +477,7 @@ const dr=useRef([]);dr.current=disc;
 const k=KEYS[sk],em=emo?EMO[emo]:null;
 const ps=useMemo(()=>presets(sk),[sk]);
 
-const playC=useCallback(s=>{if(s==='REST')return;audio.playChord(cn(pc(s).r,pc(s).t,3));setSch(s);const t=ctip('sel',{ch:s});if(t)setTip(t);},[]);
+const playC=useCallback(s=>{if(s==='REST')return;const lbl=extChordLabel(k,s,ext);audio.playChord(cn(pc(lbl).r,pc(lbl).t,3));setSch(s);const t=ctip('sel',{ch:s});if(t)setTip(t);},[k,ext]);
 const addC=useCallback(s=>{setProg(p=>{const n=[...p,s];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});},[]);
 const remC=useCallback(i=>{setProg(p=>p.filter((_,j)=>j!==i));},[]);
 const playP=useCallback((bpm=72,beats=4,stg=0.018)=>{const n=prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3));audio.playProgression(n,bpm,i=>setPi(i),beats,stg);const t=ctip('play',{prog});if(t)setTimeout(()=>setTip(t),2000);},[prog]);
@@ -601,6 +608,10 @@ return(
         </div>
         <div style={{marginTop:4,fontSize:8,color:'rgba(255,255,255,0.42)',textAlign:'center',lineHeight:1.4}}>Circle of Fifths order — neighboring keys share the most notes</div>
       </div>
+      {/* ── Chord Extension Toggle ── */}
+      <div style={{display:'flex',gap:0,marginBottom:12,background:'rgba(255,255,255,0.05)',borderRadius:50,padding:3,border:'1px solid rgba(255,255,255,0.08)'}}>
+        {[{v:'triad',l:'Triads'},{v:'7ths',l:'7ths'},{v:'sus2',l:'Sus2'},{v:'sus4',l:'Sus4'}].map(o=><button key={o.v} onClick={()=>setExt(o.v)} style={{flex:1,background:ext===o.v?'rgba(255,255,255,0.14)':'transparent',border:'none',borderRadius:50,padding:'8px 4px',cursor:'pointer',color:ext===o.v?'#fff':'rgba(255,255,255,0.45)',fontWeight:ext===o.v?700:500,fontSize:12,transition:'all 0.15s',boxShadow:ext===o.v?'0 1px 6px rgba(0,0,0,0.35)':'none'}}>{o.l}</button>)}
+      </div>
       {/* ── Progression panel ── */}
       <div style={{background:'rgba(0,0,0,0.3)',borderRadius:16,padding:14,marginBottom:12,minHeight:60,border:'1px solid rgba(255,255,255,0.06)'}}>
         <div style={S.lbl}>Your Progression {prog.length>0&&`(${prog.length} chords)`}</div>
@@ -639,17 +650,17 @@ return(
               strokeDasharray={isStrong?'none':'5 5'}
               style={{transition:'all 0.3s',filter:h&&isStrong?'drop-shadow(0 0 4px #FFD700)':'none'}}/>;
           })}
-          {k&&ml(k.ch,200,200,140).map((nd,ni)=>{const col=cc(nd.c),sel=sch===nd.c,ip=prog.includes(nd.c),fn=k.m==='minor'?FNm:FNM;
+          {k&&ml(k.ch,200,200,140).map((nd,ni)=>{const col=cc(nd.c),sel=sch===nd.c,extLbl=extChordLabel(k,nd.c,ext),ip=prog.includes(extLbl)||prog.includes(nd.c),fn=k.m==='minor'?FNm:FNM;
             return<g key={ni} onClick={()=>playC(nd.c)} style={{cursor:'pointer'}}>
               <circle cx={nd.x} cy={nd.y} r={sel?38:30} fill={col+(sel?'18':'0a')} stroke={col+(sel?'60':'25')} strokeWidth={sel?2:1} style={{transition:'all 0.3s'}}/>
               <circle cx={nd.x} cy={nd.y} r={sel?28:23} fill={col+(sel?'30':'15')} stroke={col} strokeWidth={sel?3:1.5} style={{transition:'all 0.3s',filter:sel?`drop-shadow(0 0 12px ${col}90)`:'none'}}/>
               {ip&&<circle cx={nd.x} cy={nd.y} r={32} fill="none" stroke="#FFD700" strokeWidth={2.5} strokeDasharray="4 3"/>}
-              <text x={nd.x} y={nd.y+1} textAnchor="middle" dominantBaseline="middle" fill={sel?'#fff':col} fontSize={sel?15:13} fontWeight="800" style={{pointerEvents:'none'}}>{nd.c}</text>
-              <text x={nd.x} y={nd.y+(sel?50:42)} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="8" fontWeight="600" style={{pointerEvents:'none'}}>{fn[ni]}</text>
-              <text x={nd.x} y={nd.y+(sel?61:53)} textAnchor="middle" fill="rgba(255,255,255,0.22)" fontSize="6.5" style={{pointerEvents:'none'}}>{chordNotesInKey(k,nd.c).join('·')}</text>
+              <text x={nd.x} y={nd.y+1} textAnchor="middle" dominantBaseline="middle" fill={sel?'#fff':col} fontSize={sel?14:12} fontWeight="800" style={{pointerEvents:'none'}}>{extLbl}</text>
+              <text x={nd.x} y={nd.y+(sel?50:42)} textAnchor="middle" fill="rgba(255,255,255,0.78)" fontSize="7.5" fontWeight="600" style={{pointerEvents:'none'}}>{fn[ni]}</text>
+              <text x={nd.x} y={nd.y+(sel?61:53)} textAnchor="middle" fill="rgba(255,255,255,0.65)" fontSize="6.5" style={{pointerEvents:'none'}}>{extChordNotes(k,nd.c,ext).join('·')}</text>
             </g>;})}
-          <text x="200" y="192" textAnchor="middle" fill="rgba(255,255,255,0.25)" fontSize="12" fontWeight="700">{sk}</text>
-          <text x="200" y="208" textAnchor="middle" fill="rgba(255,255,255,0.12)" fontSize="8">Tap a chord</text>
+          <text x="200" y="192" textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="12" fontWeight="700">{sk}</text>
+          <text x="200" y="208" textAnchor="middle" fill="rgba(255,255,255,0.22)" fontSize="8">Tap a chord</text>
         </svg>
       </div>
       {/* Legend */}
@@ -666,24 +677,24 @@ return(
       {sch&&<div style={{...S.card(cc(sch)+'30'),marginTop:14,animation:'fadeIn 0.3s'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
           <div>
-            <h3 style={{fontSize:26,fontWeight:800,color:cc(sch),margin:'0 0 2px'}}>{sch}</h3>
-            <div style={{fontSize:11,color:'rgba(255,255,255,0.4)'}}>{ql(sch)} · {(k?.m==='minor'?FNm:FNM)[k?.ch.indexOf(sch)]||'Borrowed'}</div>
+            <h3 style={{fontSize:26,fontWeight:800,color:cc(sch),margin:'0 0 2px'}}>{extChordLabel(k,sch,ext)}</h3>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.55)'}}>{ql(sch)} · {(k?.m==='minor'?FNm:FNM)[k?.ch.indexOf(sch)]||'Borrowed'}</div>
           </div>
-          <button onClick={()=>addC(sch)} style={S.btn(cc(sch)+'25',cc(sch),cc(sch)+'50')}>+ Add</button>
+          <button onClick={()=>addC(extChordLabel(k,sch,ext))} style={S.btn(cc(sch)+'25',cc(sch),cc(sch)+'50')}>+ Add</button>
         </div>
-        <div style={{marginBottom:10}}><div style={{...S.lbl,marginBottom:4}}>Notes</div><div style={{display:'flex',gap:5}}>{chordNotesInKey(k,sch).map((n,i)=><span key={i} style={{background:cc(sch)+'12',border:`1px solid ${cc(sch)}25`,borderRadius:6,padding:'3px 9px',fontSize:12,fontWeight:600,color:cc(sch)}}>{n}</span>)}</div></div>
-        {CE[sch]&&<div style={{background:'rgba(255,255,255,0.03)',borderRadius:10,padding:10,marginBottom:10}}><div style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,0.75)',marginBottom:3}}>Feels: {CE[sch].f}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.4)',lineHeight:1.4}}>{CE[sch].r}</div></div>}
+        <div style={{marginBottom:10}}><div style={{...S.lbl,marginBottom:4}}>Notes</div><div style={{display:'flex',gap:5}}>{extChordNotes(k,sch,ext).map((n,i)=><span key={i} style={{background:cc(sch)+'12',border:`1px solid ${cc(sch)}25`,borderRadius:6,padding:'3px 9px',fontSize:12,fontWeight:600,color:cc(sch)}}>{n}</span>)}</div></div>
+        {CE[sch]&&<div style={{background:'rgba(255,255,255,0.03)',borderRadius:10,padding:10,marginBottom:10}}><div style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,0.75)',marginBottom:3}}>Feels: {CE[sch].f}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.55)',lineHeight:1.4}}>{CE[sch].r}</div></div>}
         <div style={S.lbl}>Where it goes next — tap to hear, + to add</div>
         <div style={{display:'flex',flexDirection:'column',gap:6}}>
-          {k&&gcon(k.ch,k.m).filter(c=>c.f===sch).map((c,i)=>{const m=mf(c.f,c.t),v=vl(c.f,c.t);return<div key={i} style={{background:'rgba(255,255,255,0.04)',border:`1px solid ${cc(c.t)}25`,borderRadius:10,padding:'10px 12px',display:'flex',gap:8,alignItems:'center'}}>
+          {k&&gcon(k.ch,k.m).filter(c=>c.f===sch).map((c,i)=>{const m=mf(c.f,c.t),v=vl(c.f,c.t);const tLbl=extChordLabel(k,c.t,ext);return<div key={i} style={{background:'rgba(255,255,255,0.04)',border:`1px solid ${cc(c.t)}25`,borderRadius:10,padding:'10px 12px',display:'flex',gap:8,alignItems:'center'}}>
             <button onClick={()=>playC(c.t)} style={{flex:1,background:'none',border:'none',cursor:'pointer',textAlign:'left',padding:0}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-                <div><span style={{fontSize:14,fontWeight:700,color:cc(c.t)}}>{c.t}</span><span style={{fontSize:10,color:'rgba(255,255,255,0.35)',marginLeft:8}}>{m.e} {m.l}</span></div>
-                <span style={{fontSize:9,color:'rgba(255,255,255,0.3)',background:'rgba(255,255,255,0.05)',borderRadius:4,padding:'2px 5px'}}>{v.sm.toLowerCase()}</span>
+                <div><span style={{fontSize:14,fontWeight:700,color:cc(c.t)}}>{tLbl}</span><span style={{fontSize:10,color:'rgba(255,255,255,0.5)',marginLeft:8}}>{m.e} {m.l}</span></div>
+                <span style={{fontSize:9,color:'rgba(255,255,255,0.45)',background:'rgba(255,255,255,0.05)',borderRadius:4,padding:'2px 5px'}}>{v.sm.toLowerCase()}</span>
               </div>
               <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{v.mv.map((mv,j)=><span key={j} style={{fontSize:9,color:mv.s?'#4ECDC480':'#FFB34780',background:mv.s?'#4ECDC408':'#FFB34708',borderRadius:3,padding:'1px 5px'}}>{mv.s?`${mv.f} stays`:`${mv.f}→${mv.t}`}</span>)}</div>
             </button>
-            <button onClick={()=>addC(c.t)} style={{...S.btn(cc(c.t)+'20',cc(c.t),cc(c.t)+'40'),flexShrink:0,padding:'6px 10px',fontSize:12,fontWeight:800}}>+ Add</button>
+            <button onClick={()=>addC(tLbl)} style={{...S.btn(cc(c.t)+'20',cc(c.t),cc(c.t)+'40'),flexShrink:0,padding:'6px 10px',fontSize:12,fontWeight:800}}>+ Add</button>
           </div>;})}
         </div>
         <div style={{marginTop:12}}>
