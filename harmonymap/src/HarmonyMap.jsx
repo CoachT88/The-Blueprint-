@@ -7,7 +7,7 @@ Complete emotion-driven music theory app for beginners
 
 // ─── AUDIO ENGINE ───────────────────────────────────────────
 class AudioEngine {
-constructor() { this.ctx=null; this.mg=null; this.rv=null; this.isPlaying=false; this.tids=[]; this.instrument='felt-piano'; this.pianoWave=null; this.rhodesWave=null; this.noteEnvs=[]; }
+constructor() { this.ctx=null; this.mg=null; this.rv=null; this.rvStadium=null; this.isPlaying=false; this.tids=[]; this.instrument='underwater'; this.pianoWave=null; this.cinematicWave=null; this.noteEnvs=[]; }
 init() {
 if(this.ctx){if(this.ctx.state==='suspended')this.ctx.resume();return;}
 // iOS speaker fix: the <audio> element must have REAL audio data to switch
@@ -19,50 +19,54 @@ this.ctx.resume();
 // Play an inaudible noise burst through the AudioContext — forces iOS to
 // commit the audio session to speaker output immediately.
 try{const ub=this.ctx.createBuffer(1,this.ctx.sampleRate*0.1,this.ctx.sampleRate);const ud=ub.getChannelData(0);for(let i=0;i<ud.length;i++)ud[i]=(Math.random()-0.5)*1e-5;const us=this.ctx.createBufferSource();us.buffer=ub;us.connect(this.ctx.destination);us.start(0);}catch(e){}
-this.mg=this.ctx.createGain(); this.mg.gain.value=0.30;
+this.mg=this.ctx.createGain(); this.mg.gain.value=0.32;
 const comp=this.ctx.createDynamicsCompressor();
 comp.threshold.value=-18;comp.knee.value=12;comp.ratio.value=3;comp.attack.value=0.008;comp.release.value=0.20;
-// ── Master Low-Pass Filter ─────────────────────────────────
-// Cuts harsh upper frequencies across the entire output bus.
-// 1800Hz at Q=0.7 gives a warm, tucked-in "studio" quality.
+// ── Master Low-Pass: 2800Hz — open enough for both profiles ─
 const masterLP=this.ctx.createBiquadFilter();
-masterLP.type='lowpass';masterLP.frequency.value=1200;masterLP.Q.value=0.7;
-// ── Convolution Reverb (dark small room, ~0.9s RT60) ──────
-// Generated impulse response: exponential noise decay with 12ms
-// pre-delay and a 700Hz LP on the send so the reverb tail is dark.
-const rvBuf=this._buildReverbBuffer(1.3);
+masterLP.type='lowpass';masterLP.frequency.value=2800;masterLP.Q.value=0.7;
+// ── Room reverb (Underwater dry send, small dark tail) ────
+const rvBuf=this._buildReverbBuffer(1.2,4.0);
 const rvConv=this.ctx.createConvolver();rvConv.buffer=rvBuf;
 const rvSendLP=this.ctx.createBiquadFilter();
-rvSendLP.type='lowpass';rvSendLP.frequency.value=700;rvSendLP.Q.value=0.5;
-const rvGain=this.ctx.createGain();rvGain.gain.value=0.13;
+rvSendLP.type='lowpass';rvSendLP.frequency.value=600;rvSendLP.Q.value=0.5;
+const rvGain=this.ctx.createGain();rvGain.gain.value=0.07;
 rvSendLP.connect(rvConv);rvConv.connect(rvGain);rvGain.connect(masterLP);
+// ── Stadium reverb (Cinematic — lush 2.8s hall) ───────────
+const stBuf=this._buildReverbBuffer(2.8,1.8);
+const stConv=this.ctx.createConvolver();stConv.buffer=stBuf;
+const stSendLP=this.ctx.createBiquadFilter();
+stSendLP.type='lowpass';stSendLP.frequency.value=1400;stSendLP.Q.value=0.5;
+const stGain=this.ctx.createGain();stGain.gain.value=0.28;
+stSendLP.connect(stConv);stConv.connect(stGain);stGain.connect(masterLP);
 // ── Master chain: mg → comp → masterLP → speakers ─────────
 this.mg.connect(comp);comp.connect(masterLP);masterLP.connect(this.ctx.destination);
-this.rv=rvSendLP;this.rv2=null;
+this.rv=rvSendLP;this.rvStadium=stSendLP;
 // Pre-build both instrument waves so switching is instant (no lag on first tap)
 this._buildWaves();
 }
 _buildWaves(){
 if(!this.pianoWave){
-// Felt Piano: softened Steinway spectrum — harmonics roll off gently above 12th partial
+// Underwater: soft piano, gentle harmonic rolloff — muffled by LP 700Hz anyway
 const pa=[0,1.0,0.55,0.30,0.16,0.10,0.068,0.044,0.030,0.020,0.013,0.009,0.006,0.004];
 const N=pa.length,pr=new Float32Array(N),pi=new Float32Array(N);
 for(let i=1;i<N;i++)pr[i]=pa[i];
 this.pianoWave=this.ctx.createPeriodicWave(pr,pi,{disableNormalization:false});
 }
-if(!this.rhodesWave){
-// Warm Rhodes: tine resonator spectrum — strong fundamental, bell-like 2nd harmonic
-const ra=[0,1.0,0.46,0.16,0.065,0.028,0.012,0.005,0.002];
-const N=ra.length,rr=new Float32Array(N),ri=new Float32Array(N);
-for(let i=1;i<N;i++)rr[i]=ra[i];
-this.rhodesWave=this.ctx.createPeriodicWave(rr,ri,{disableNormalization:false});
+if(!this.cinematicWave){
+// Cinematic: analog saw-square blend — odd partials boosted for that Travis-Scott buzz
+// Sawtooth base (1/n) with odd harmonics 1.4× louder → classic Moog-like character
+const N=16;const cr=new Float32Array(N),ci=new Float32Array(N);
+for(let i=1;i<N;i++){cr[i]=0;ci[i]=-(1/i)*(i%2===1?1.4:0.8);}
+this.cinematicWave=this.ctx.createPeriodicWave(cr,ci,{disableNormalization:false});
 }
 }
-_buildReverbBuffer(dur){
-// Synthetic dark room IR: exponential noise decay, 12ms pre-delay, ~0.9s RT60
-const sr=this.ctx.sampleRate,len=Math.floor(sr*dur),pre=Math.floor(sr*0.012);
+_buildReverbBuffer(dur,decay=3.6){
+// Synthetic IR: exponential noise decay with variable decay rate
+// decay=4.0 → short dark room; decay=1.8 → long lush hall
+const sr=this.ctx.sampleRate,len=Math.floor(sr*dur),pre=Math.floor(sr*0.018);
 const buf=this.ctx.createBuffer(2,len,sr);
-for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);for(let i=pre;i<len;i++){const t=(i-pre)/sr;d[i]=(Math.random()*2-1)*Math.exp(-t*3.6);}}
+for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);for(let i=pre;i<len;i++){const t=(i-pre)/sr;d[i]=(Math.random()*2-1)*Math.exp(-t*decay);}}
 return buf;
 }
 setInstrument(name){this.instrument=name;}
@@ -71,53 +75,65 @@ const M={C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,Fb:4,F:5,'E#':5,'F#':6,Gb:6,G:7,'G#
 const m=n.match(/^([A-G][#b]?)(\d)$/); if(!m) return 440;
 return 440*Math.pow(2,(M[m[1]]-9+(parseInt(m[2])-4)*12)/12);
 }
-_playFeltPiano(fr,vel,t,dur){
-// Muted felt: lower filter, swell attack, tape wobble LFO
-const fl=this.ctx.createBiquadFilter();fl.type='lowpass';fl.Q.value=0.4;
-const cutHi=Math.min(fr*5+vel*2000+400,4800),cutLo=Math.min(Math.max(fr*2.2+300,600),2400);
-fl.frequency.setValueAtTime(cutHi,t);fl.frequency.exponentialRampToValueAtTime(cutLo,t+dur*0.6);
-// Tape wobble: slow LFO (0.4-0.7 Hz, ±5 cents) — cassette warble character
-const lfo=this.ctx.createOscillator();const lfog=this.ctx.createGain();
-lfo.type='sine';lfo.frequency.value=0.4+Math.random()*0.3;lfog.gain.value=5;
-lfo.connect(lfog);lfo.start(t);lfo.stop(t+dur+0.5);
-[-6,0,6].forEach(dt=>{const o=this.ctx.createOscillator();o.setPeriodicWave(this.pianoWave);o.frequency.value=fr;o.detune.value=dt;lfog.connect(o.detune);o.connect(fl);o.start(t);o.stop(t+dur+0.35);});
-const hi=this.ctx.createOscillator();hi.type='sine';hi.frequency.value=fr*4.03;
-const hg=this.ctx.createGain();hg.gain.setValueAtTime(vel*0.03,t);hg.gain.exponentialRampToValueAtTime(0.0001,t+dur*0.3);
-hi.connect(hg);hg.connect(fl);hi.start(t);hi.stop(t+dur*0.35);
-const bLen=Math.floor(this.ctx.sampleRate*0.016),buf=this.ctx.createBuffer(1,bLen,this.ctx.sampleRate),bd=buf.getChannelData(0);
-for(let i=0;i<bLen;i++)bd[i]=(Math.random()*2-1)*Math.pow(1-i/bLen,3.0);
-const ns=this.ctx.createBufferSource();ns.buffer=buf;
-const ng=this.ctx.createGain(),nf=this.ctx.createBiquadFilter();
-nf.type='bandpass';nf.frequency.value=Math.min(fr*2.5,3500);nf.Q.value=1.0;
-ng.gain.setValueAtTime(vel*0.07,t);ng.gain.exponentialRampToValueAtTime(0.0001,t+0.018);
-ns.connect(nf);nf.connect(ng);ng.connect(fl);ns.start(t);ns.stop(t+0.02);
+_playUnderwater(fr,vel,t,dur){
+// ── UNDERWATER ─────────────────────────────────────────────
+// Deep, muffled, still — Drake "Take Care" vibe.
+// Heavy LP at 700Hz kills all brightness. No wobble (stillness = eeriness).
+const fl=this.ctx.createBiquadFilter();fl.type='lowpass';fl.Q.value=0.6;
+// Hard-muffled: fixed 700Hz sweeping gently to 580Hz as note blooms
+fl.frequency.setValueAtTime(700,t);fl.frequency.linearRampToValueAtTime(580,t+dur*0.65);
+// 3-voice unison width (no LFO — stillness is the effect)
+[-7,0,7].forEach(dt=>{
+  const o=this.ctx.createOscillator();
+  o.setPeriodicWave(this.pianoWave);
+  o.frequency.value=fr;o.detune.value=dt;
+  o.connect(fl);o.start(t);o.stop(t+dur+0.4);
+});
 const env=this.ctx.createGain();
-// Swell attack: 35ms linear ramp — chord blooms in, no click
-env.gain.setValueAtTime(0,t);env.gain.linearRampToValueAtTime(vel*0.44,t+0.035);
-env.gain.exponentialRampToValueAtTime(vel*0.27,t+0.10);env.gain.exponentialRampToValueAtTime(vel*0.14,t+0.42);
-env.gain.exponentialRampToValueAtTime(vel*0.06,t+dur*0.82);env.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+// 45ms swell — chord blooms slowly, no attack click
+env.gain.setValueAtTime(0,t);
+env.gain.linearRampToValueAtTime(vel*0.52,t+0.045);
+env.gain.exponentialRampToValueAtTime(vel*0.34,t+0.12);
+env.gain.exponentialRampToValueAtTime(vel*0.20,t+0.55);
+env.gain.exponentialRampToValueAtTime(vel*0.09,t+dur*0.85);
+env.gain.exponentialRampToValueAtTime(0.0001,t+dur+0.1);
 fl.connect(env);return env;
 }
-_playRhodes(fr,vel,t,dur){
-// Warm Rhodes: bell tine, chorus detune, characteristic bark, no hammer noise
-const fl=this.ctx.createBiquadFilter();fl.type='lowpass';fl.Q.value=0.55;
-const cutHi=Math.min(fr*6.5+vel*1400+700,6500);
-fl.frequency.setValueAtTime(cutHi,t);fl.frequency.exponentialRampToValueAtTime(Math.min(cutHi*0.65,3800),t+dur*0.5);
-const mf=this.ctx.createBiquadFilter();mf.type='peaking';mf.frequency.value=Math.min(fr*1.4,900);mf.Q.value=0.75;mf.gain.value=3.5;
-// Tape wobble: slower LFO (0.3-0.55 Hz, ±8 cents) — vintage electric piano warble
+_playCinematic(fr,vel,t,dur){
+// ── CINEMATIC ──────────────────────────────────────────────
+// Massive, analog, Travis Scott "Stargazing" vibe.
+// Saw-square wave blend, tape drift LFO, soft saturation, lush hall reverb.
+const fl=this.ctx.createBiquadFilter();fl.type='lowpass';fl.Q.value=0.65;
+fl.frequency.setValueAtTime(1600,t);fl.frequency.exponentialRampToValueAtTime(1100,t+dur*0.6);
+// Soft saturation waveshaper — tape warmth / slight overdrive
+const ws=this.ctx.createWaveShaper();
+const wc=new Float32Array(256);
+for(let i=0;i<256;i++){const x=i*2/255-1;wc[i]=x*(1.5+Math.abs(x)*0.5)/(1+Math.abs(x)*2.0);}
+ws.curve=wc;ws.oversample='2x';
+// Tape wobble LFO (0.3-0.5 Hz, ±16 cents) — analog drift character
 const lfo=this.ctx.createOscillator();const lfog=this.ctx.createGain();
-lfo.type='sine';lfo.frequency.value=0.3+Math.random()*0.25;lfog.gain.value=8;
-lfo.connect(lfog);lfo.start(t);lfo.stop(t+dur+0.6);
-[-10,0,10].forEach(dt=>{const o=this.ctx.createOscillator();o.setPeriodicWave(this.rhodesWave);o.frequency.value=fr;o.detune.value=dt;lfog.connect(o.detune);o.connect(fl);o.start(t);o.stop(t+dur+0.55);});
-const bk=this.ctx.createOscillator();bk.type='sine';bk.frequency.value=fr*2.01;
-const bg=this.ctx.createGain();bg.gain.setValueAtTime(vel*0.30,t);bg.gain.exponentialRampToValueAtTime(0.0001,t+0.10);
-bk.connect(bg);bg.connect(fl);bk.start(t);bk.stop(t+0.12);
+lfo.type='sine';lfo.frequency.value=0.28+Math.random()*0.22;lfog.gain.value=16;
+lfo.connect(lfog);lfo.start(t);lfo.stop(t+dur+0.9);
+// Pre-gain to prevent waveshaper clipping from 5-voice sum
+const pg=this.ctx.createGain();pg.gain.value=0.22;
+// 5-voice chorus — wide stereo spread, massive analog sound
+[-20,-7,0,7,20].forEach(dt=>{
+  const o=this.ctx.createOscillator();
+  o.setPeriodicWave(this.cinematicWave);
+  o.frequency.value=fr;o.detune.value=dt;
+  lfog.connect(o.detune);
+  o.connect(pg);o.start(t);o.stop(t+dur+0.7);
+});
+pg.connect(ws);ws.connect(fl);
 const env=this.ctx.createGain();
-// Swell attack: 40ms — chord swells in for intimate warmth
-env.gain.setValueAtTime(0,t);env.gain.linearRampToValueAtTime(vel*0.50,t+0.040);
-env.gain.exponentialRampToValueAtTime(vel*0.34,t+0.10);env.gain.exponentialRampToValueAtTime(vel*0.22,t+0.32);
-env.gain.exponentialRampToValueAtTime(vel*0.11,t+dur*0.78);env.gain.exponentialRampToValueAtTime(0.0001,t+dur+0.18);
-fl.connect(mf);mf.connect(env);return env;
+// 50ms swell — cinematic chord swells in like a film score
+env.gain.setValueAtTime(0,t);
+env.gain.linearRampToValueAtTime(vel*0.56,t+0.050);
+env.gain.exponentialRampToValueAtTime(vel*0.40,t+0.14);
+env.gain.exponentialRampToValueAtTime(vel*0.28,t+0.50);
+env.gain.exponentialRampToValueAtTime(vel*0.14,t+dur*0.80);
+env.gain.exponentialRampToValueAtTime(0.0001,t+dur+0.25);
+fl.connect(env);return env;
 }
 _octaveDown(n){const m=n.match(/^([A-G][#b]?)(\d)$/);if(!m)return n;return m[1]+(parseInt(m[2])-1);}
 _playBass(fr,vel,t,dur){
@@ -132,20 +148,26 @@ o.start(t);o.stop(t+dur+0.1);
 return env;
 }
 playNote(n,dur=1.2,vel=0.42,st=null){
-this.init();if(!this.pianoWave||!this.rhodesWave)this._buildWaves();
+this.init();if(!this.pianoWave||!this.cinematicWave)this._buildWaves();
 const fr=typeof n==='number'?n:this.noteToFreq(n);const t=st||(this.ctx.currentTime+0.15);
-const env=this.instrument==='warm-rhodes'?this._playRhodes(fr,vel,t,dur):this._playFeltPiano(fr,vel,t,dur);
-env.connect(this.mg);env.connect(this.rv);if(this.rv2)env.connect(this.rv2);return env;
+const isCinematic=this.instrument==='cinematic';
+const env=isCinematic?this._playCinematic(fr,vel,t,dur):this._playUnderwater(fr,vel,t,dur);
+env.connect(this.mg);
+// Cinematic → lush stadium reverb; Underwater → stays dry (claustrophobic muffled feel)
+if(isCinematic){env.connect(this.rvStadium);}else{env.connect(this.rv);}
+return env;
 }
 playChord(notes,dur=1.5,stg=0.018){
 this.init();if(!notes||!notes.length)return;
 const now=this.ctx.currentTime;
-// Choke group: ~45ms fade kills previous chord immediately on new tap
+// Choke group: ~45ms kill — previous chord cut the moment new one fires
 this.noteEnvs.forEach(e=>{try{e.gain.cancelScheduledValues(now);e.gain.setTargetAtTime(0,now,0.015);}catch(x){}});
 this.noteEnvs=[];
 const t=now+0.05;
-// Sub-octave bass root (one octave below first note) for warmth and body
-const be=this._playBass(this.noteToFreq(this._octaveDown(notes[0])),0.42,t,dur*0.75);
+// Bass root: Cinematic = 2 octaves down (stadium depth); Underwater = 1 octave down
+const bassNote=this.instrument==='cinematic'?
+  this._octaveDown(this._octaveDown(notes[0])):this._octaveDown(notes[0]);
+const be=this._playBass(this.noteToFreq(bassNote),0.42,t,dur*0.80);
 if(be)this.noteEnvs.push(be);
 notes.forEach((n,i)=>{const e=this.playNote(n,dur,0.42,t+i*stg);if(e)this.noteEnvs.push(e);});
 }
@@ -527,7 +549,7 @@ const[pa,setPa]=useState(false);
 const[genre,setGenre]=useState(null);
 const[progLooping,setProgLooping]=useState(false);
 const[bpm,setBpm]=useState(90);const[beats,setBeats]=useState(4);const[stg,setStg]=useState(0.018);
-const[inst,setInst]=useState('felt-piano');
+const[inst,setInst]=useState('underwater');
 useEffect(()=>{audio.setInstrument(inst);},[inst]);
 // Pre-warm AudioContext on first touch anywhere — before any button handler fires.
 // This separates context creation+resume from note scheduling, solving iOS first-tap silence.
@@ -536,7 +558,7 @@ const warmup=()=>{audio.init();};
 document.addEventListener('touchstart',warmup,{once:true,passive:true,capture:true});
 return()=>document.removeEventListener('touchstart',warmup,{capture:true});
 },[]);
-useEffect(()=>{try{const s=localStorage.getItem('harmonymap_saved');if(s)setSaved(JSON.parse(s));const st=localStorage.getItem('harmonymap_settings');if(st){const o=JSON.parse(st);if(o.bpm)setBpm(o.bpm);if(o.beats)setBeats(o.beats);if(o.stg!=null)setStg(o.stg);if(o.sk)setSk(o.sk);if(o.inst)setInst(o.inst);}}catch(e){}},[]);
+useEffect(()=>{try{const s=localStorage.getItem('harmonymap_saved');if(s)setSaved(JSON.parse(s));const st=localStorage.getItem('harmonymap_settings');if(st){const o=JSON.parse(st);if(o.bpm)setBpm(o.bpm);if(o.beats)setBeats(o.beats);if(o.stg!=null)setStg(o.stg);if(o.sk)setSk(o.sk);if(o.inst==='underwater'||o.inst==='cinematic')setInst(o.inst);}}catch(e){}},[]);
 useEffect(()=>{try{localStorage.setItem('harmonymap_saved',JSON.stringify(saved));}catch(e){}},[saved]);
 useEffect(()=>{try{localStorage.setItem('harmonymap_settings',JSON.stringify({bpm,beats,stg,sk,inst}));}catch(e){}},[bpm,beats,stg,sk,inst]);
 const dr=useRef([]);dr.current=disc;
@@ -572,7 +594,7 @@ return(
     </div>
     <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0,marginLeft:6}}>
       <div style={{display:'flex',background:'rgba(255,255,255,0.07)',borderRadius:50,padding:2,border:'1px solid rgba(255,255,255,0.1)'}}>
-        {[{v:'felt-piano',l:'🎹 Felt Piano'},{v:'warm-rhodes',l:'🎹 Rhodes'}].map(o=><button key={o.v} onClick={()=>setInst(o.v)} style={{background:inst===o.v?'rgba(78,205,196,0.22)':'transparent',border:'none',borderRadius:50,padding:'5px 9px',cursor:'pointer',color:inst===o.v?'#4ECDC4':'rgba(255,255,255,0.45)',fontWeight:inst===o.v?700:400,fontSize:10,whiteSpace:'nowrap',transition:'all 0.15s',boxShadow:inst===o.v?'0 1px 5px rgba(0,0,0,0.3)':'none'}}>{o.l}</button>)}
+        {[{v:'underwater',l:'🌊 Underwater'},{v:'cinematic',l:'🎬 Cinematic'}].map(o=><button key={o.v} onClick={()=>setInst(o.v)} style={{background:inst===o.v?'rgba(78,205,196,0.22)':'transparent',border:'none',borderRadius:50,padding:'5px 9px',cursor:'pointer',color:inst===o.v?'#4ECDC4':'rgba(255,255,255,0.45)',fontWeight:inst===o.v?700:400,fontSize:10,whiteSpace:'nowrap',transition:'all 0.15s',boxShadow:inst===o.v?'0 1px 5px rgba(0,0,0,0.3)':'none'}}>{o.l}</button>)}
       </div>
       {(pa||progLooping||pi>=0||pRow>=0)&&<button onClick={stopAll} style={{background:'linear-gradient(135deg,#FF6B6B,#FF4444)',border:'1px solid rgba(255,107,107,0.6)',borderRadius:8,padding:'6px 10px',color:'#fff',cursor:'pointer',fontSize:11,fontWeight:800,flexShrink:0,boxShadow:'0 0 12px rgba(255,107,107,0.5)',animation:'pulse 1.4s ease-in-out infinite'}}>■ Stop</button>}
     </div>
