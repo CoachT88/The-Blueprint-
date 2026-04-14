@@ -161,9 +161,12 @@ playChord(notes,dur=1.5,stg=0.018){
 this.init();if(!notes||!notes.length)return;
 const now=this.ctx.currentTime;
 // Choke group: ~45ms kill — previous chord cut the moment new one fires
-this.noteEnvs.forEach(e=>{try{e.gain.cancelScheduledValues(now);e.gain.setTargetAtTime(0,now,0.015);}catch(x){}});
+const dead=this.noteEnvs.slice();
+dead.forEach(e=>{try{e.gain.cancelScheduledValues(now);e.gain.setTargetAtTime(0,now,0.015);}catch(x){}});
+// Disconnect dead nodes from graph after fade completes — prevents memory leak
+setTimeout(()=>{dead.forEach(e=>{try{e.disconnect();}catch(x){}});},200);
 this.noteEnvs=[];
-const t=now+0.05;
+const t=now+0.015;
 // Bass root: Cinematic = 2 octaves down (stadium depth); Underwater = 1 octave down
 const bassNote=this.instrument==='cinematic'?
   this._octaveDown(this._octaveDown(notes[0])):this._octaveDown(notes[0]);
@@ -560,7 +563,12 @@ return()=>document.removeEventListener('touchstart',warmup,{capture:true});
 },[]);
 useEffect(()=>{try{const s=localStorage.getItem('harmonymap_saved');if(s)setSaved(JSON.parse(s));const st=localStorage.getItem('harmonymap_settings');if(st){const o=JSON.parse(st);if(o.bpm)setBpm(o.bpm);if(o.beats)setBeats(o.beats);if(o.stg!=null)setStg(o.stg);if(o.sk)setSk(o.sk);if(o.inst==='underwater'||o.inst==='cinematic')setInst(o.inst);}}catch(e){}},[]);
 useEffect(()=>{try{localStorage.setItem('harmonymap_saved',JSON.stringify(saved));}catch(e){}},[saved]);
-useEffect(()=>{try{localStorage.setItem('harmonymap_settings',JSON.stringify({bpm,beats,stg,sk,inst}));}catch(e){}},[bpm,beats,stg,sk,inst]);
+const lsDeb=useRef(null);
+useEffect(()=>{
+  if(lsDeb.current)clearTimeout(lsDeb.current);
+  lsDeb.current=setTimeout(()=>{try{localStorage.setItem('harmonymap_settings',JSON.stringify({bpm,beats,stg,sk,inst}));}catch(e){}},500);
+  return()=>{if(lsDeb.current)clearTimeout(lsDeb.current);};
+},[bpm,beats,stg,sk,inst]);
 const dr=useRef([]);dr.current=disc;
 const k=KEYS[sk],em=emo?EMO[emo]:null;
 const ps=useMemo(()=>presets(sk),[sk]);
@@ -571,7 +579,7 @@ const remC=useCallback(i=>{setProg(p=>p.filter((_,j)=>j!==i));},[]);
 const playP=useCallback((bpm=72,beats=4,stg=0.018)=>{const n=prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3));audio.playProgression(n,bpm,i=>setPi(i),beats,stg);const t=ctip('play',{prog});if(t)setTimeout(()=>setTip(t),2000);},[prog]);
 const loopP=useCallback((bpm=72,beats=4,stg=0.018)=>{const n=prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3));setProgLooping(true);audio.playLoop(n,bpm,i=>{setPi(i);},beats,stg);},[prog]);
 const saveI=useCallback(()=>{if(!prog.length)return;setSaved(p=>[...p,{id:Date.now(),emo,k:sk,prog:[...prog],date:new Date().toLocaleDateString()}]);if(!dr.current.includes('fs'))setDisc(d=>[...d,'fs']);},[prog,emo,sk]);
-const selEmo=useCallback(e=>{setEmo(e);if(EMO[e].ks[0])setSk(EMO[e].ks[0]);setScreen('emotion');},[]);
+const selEmo=useCallback(e=>{setEmo(e);if(EMO[e].ks[0])setSk(EMO[e].ks[0]);setSch(null);setScreen('emotion');},[]);
 const stopAll=useCallback(()=>{audio.stop();setPa(false);setPi(-1);setPRow(-1);setProgLooping(false);},[]);
 const newEar=useCallback(()=>{setEa(null);const c=earGen(et);setEc(c);if(c)setTimeout(()=>{if(c.pt==='chord')audio.playChord(c.pd);else if(c.pt==='melodic')audio.playMelodicInterval(c.pd[0],c.pd[1]);else if(c.pt==='two'){audio.playChord(c.pd[0],1.3);setTimeout(()=>audio.playChord(c.pd[1],1.3),1500);}},300);},[et]);
 const replayEar=useCallback(()=>{if(!ec)return;if(ec.pt==='chord')audio.playChord(ec.pd);else if(ec.pt==='melodic')audio.playMelodicInterval(ec.pd[0],ec.pd[1]);else if(ec.pt==='two'){audio.playChord(ec.pd[0],1.3);setTimeout(()=>audio.playChord(ec.pd[1],1.3),1500);}},[ec]);
@@ -1096,7 +1104,7 @@ return(
         <div style={{display:'flex',gap:3,flexWrap:'wrap',marginBottom:6}}>{idea.prog.slice(1).map((c,i)=>{if(c==='REST'||idea.prog[i]==='REST')return null;const m=mf(idea.prog[i],c);return<span key={i} style={{fontSize:8,color:'rgba(255,255,255,0.3)',background:'rgba(255,255,255,0.04)',borderRadius:3,padding:'1px 5px'}}>{m.e} {m.l}</span>;})}</div>
         <div style={{display:'flex',gap:6}}>
           <button onClick={()=>{audio.playProgression(idea.prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3)),bpm,i=>{setPi(i);setPRow(-1);});}} style={S.btn()}>▶ Play</button>
-          <button onClick={()=>{setProg(idea.prog);setSk(idea.k||sk);setScreen('chordmap');}} style={S.btn()}>Edit →</button>
+          <button onClick={()=>{setProg(idea.prog);setSk(idea.k||sk);setSch(null);setScreen('chordmap');}} style={S.btn()}>Edit →</button>
           <button onClick={()=>{const e=idea.emo?EMO[idea.emo]:null;const t=[`🎵 HarmonyMap Sketch`,`${e?e.l+' — '+e.p:'Free exploration'}`,`Key: ${idea.k}`,`${idea.prog.join(' → ')}`,idea.date].join('\n');try{navigator.clipboard.writeText(t);setTip('Copied to clipboard!');}catch(e){}}} style={S.btn()}>📋 Copy</button>
         </div>
       </div>;})}
