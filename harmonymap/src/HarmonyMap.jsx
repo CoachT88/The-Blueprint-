@@ -7,7 +7,7 @@ Complete emotion-driven music theory app for beginners
 
 // ─── AUDIO ENGINE ───────────────────────────────────────────
 class AudioEngine {
-constructor() { this.ctx=null; this.mg=null; this.rv=null; this.rvStadium=null; this.isPlaying=false; this.tids=[]; this.instrument='underwater'; this.pianoWave=null; this.cinematicWave=null; this.noteEnvs=[]; }
+constructor() { this.ctx=null; this.mg=null; this.rv=null; this.rvStadium=null; this.isPlaying=false; this.tids=[]; this.instrument='underwater'; this.pianoWave=null; this.cinematicWave=null; this.padWave=null; this.noteEnvs=[]; }
 init() {
 if(this.ctx){if(this.ctx.state==='suspended')this.ctx.resume();return;}
 // iOS speaker fix: the <audio> element must have REAL audio data to switch
@@ -61,6 +61,13 @@ if(!this.cinematicWave){
 const N=16;const cr=new Float32Array(N),ci=new Float32Array(N);
 for(let i=1;i<N;i++){cr[i]=0;ci[i]=-(1/i)*(i%2===1?1.4:0.8);}
 this.cinematicWave=this.ctx.createPeriodicWave(cr,ci,{disableNormalization:false});
+}
+if(!this.padWave){
+// Vintage Analog Pad: saw + square hybrid — warm, full, slightly brassy ensemble tone
+// Sawtooth spine with square-boosted odd harmonics; soft upper rolloff for warmth
+const N=22;const pr=new Float32Array(N),pi2=new Float32Array(N);
+for(let i=1;i<N;i++){const sq=i%2===1?1.28:0.72;pi2[i]=-(1/i)*sq*(1-i/N*0.35);}
+this.padWave=this.ctx.createPeriodicWave(pr,pi2,{disableNormalization:false});
 }
 }
 _buildReverbBuffer(dur,decay=3.6){
@@ -137,6 +144,39 @@ env.gain.exponentialRampToValueAtTime(vel*0.14,t+dur*0.80);
 env.gain.exponentialRampToValueAtTime(0.0001,t+dur+0.25);
 fl.connect(env);return env;
 }
+_playAnalogPad(fr,vel,t,dur){
+// ── VINTAGE ANALOG PAD ─────────────────────────────────────
+// 7-voice detuned ensemble — Mike Dean / stadium synth brass.
+// Slow swell, sweeping filter open, slow vibrato for organic movement.
+const fl=this.ctx.createBiquadFilter();fl.type='lowpass';fl.Q.value=0.5;
+// Filter sweeps up during attack (800→3200Hz), then settles back for warmth
+fl.frequency.setValueAtTime(800,t);
+fl.frequency.exponentialRampToValueAtTime(3200,t+0.30);
+fl.frequency.exponentialRampToValueAtTime(2200,t+dur*0.55);
+// Slow vibrato LFO (0.35–0.47 Hz, ±9 cents) — organic ensemble drift
+const lfo=this.ctx.createOscillator();const lfog=this.ctx.createGain();
+lfo.type='sine';lfo.frequency.value=0.35+Math.random()*0.12;lfog.gain.value=9;
+lfo.connect(lfog);lfo.start(t);lfo.stop(t+dur+1.4);
+// Pre-gain: 7 voices would overdrive — keep sum under unity
+const pg=this.ctx.createGain();pg.gain.value=0.15;
+// 7-voice spread: ±24/10/4/0 cents — massive, chorus-width ensemble
+[-24,-10,-4,0,4,10,24].forEach(dt=>{
+  const o=this.ctx.createOscillator();
+  o.setPeriodicWave(this.padWave);
+  o.frequency.value=fr;o.detune.value=dt;
+  lfog.connect(o.detune); // LFO rides all voices for ensemble sway
+  o.connect(pg);o.start(t);o.stop(t+dur+1.2);
+});
+pg.connect(fl);
+const env=this.ctx.createGain();
+// 220ms slow swell — brass section rising, not a pluck
+env.gain.setValueAtTime(0,t);
+env.gain.linearRampToValueAtTime(vel*0.64,t+0.22);
+env.gain.exponentialRampToValueAtTime(vel*0.52,t+0.48);
+env.gain.exponentialRampToValueAtTime(vel*0.38,t+dur*0.72);
+env.gain.exponentialRampToValueAtTime(0.0001,t+dur+0.55);
+fl.connect(env);return env;
+}
 _octaveDown(n){const m=n.match(/^([A-G][#b]?)(\d)$/);if(!m)return n;return m[1]+(parseInt(m[2])-1);}
 _playBass(fr,vel,t,dur){
 // Pure sine sub-bass root — LP at 200Hz keeps it clean, no reverb send to prevent mud
@@ -150,13 +190,13 @@ o.start(t);o.stop(t+dur+0.1);
 return env;
 }
 playNote(n,dur=1.2,vel=0.42,st=null){
-this.init();if(!this.pianoWave||!this.cinematicWave)this._buildWaves();
+this.init();if(!this.pianoWave||!this.cinematicWave||!this.padWave)this._buildWaves();
 const fr=typeof n==='number'?n:this.noteToFreq(n);const t=st||(this.ctx.currentTime+0.15);
-const isCinematic=this.instrument==='cinematic';
-const env=isCinematic?this._playCinematic(fr,vel,t,dur):this._playUnderwater(fr,vel,t,dur);
+const inst=this.instrument;
+const env=inst==='analog-pad'?this._playAnalogPad(fr,vel,t,dur):inst==='cinematic'?this._playCinematic(fr,vel,t,dur):this._playUnderwater(fr,vel,t,dur);
 env.connect(this.mg);
-// Cinematic → lush stadium reverb; Underwater → stays dry (claustrophobic muffled feel)
-if(isCinematic){env.connect(this.rvStadium);}else{env.connect(this.rv);}
+// Analog Pad + Cinematic → full stadium reverb; Underwater → small dark room
+if(inst==='cinematic'||inst==='analog-pad'){env.connect(this.rvStadium);}else{env.connect(this.rv);}
 return env;
 }
 playChord(notes,dur=1.5,stg=0.018){
@@ -169,8 +209,8 @@ dead.forEach(e=>{try{e.gain.cancelScheduledValues(now);e.gain.setTargetAtTime(0,
 setTimeout(()=>{dead.forEach(e=>{try{e.disconnect();}catch(x){}});},200);
 this.noteEnvs=[];
 const t=now+0.015;
-// Bass root: Cinematic = 2 octaves down (stadium depth); Underwater = 1 octave down
-const bassNote=this.instrument==='cinematic'?
+// Bass root: Cinematic + Analog Pad = 2 octaves down (stadium depth); Underwater = 1 octave down
+const bassNote=(this.instrument==='cinematic'||this.instrument==='analog-pad')?
   this._octaveDown(this._octaveDown(notes[0])):this._octaveDown(notes[0]);
 const be=this._playBass(this.noteToFreq(bassNote),0.42,t,dur*0.80);
 if(be)this.noteEnvs.push(be);
@@ -605,7 +645,7 @@ const warmup=()=>{audio.init();};
 document.addEventListener('touchstart',warmup,{once:true,passive:true,capture:true});
 return()=>document.removeEventListener('touchstart',warmup,{capture:true});
 },[]);
-useEffect(()=>{try{const s=localStorage.getItem('harmonymap_saved');if(s)setSaved(JSON.parse(s));const st=localStorage.getItem('harmonymap_settings');if(st){const o=JSON.parse(st);if(o.bpm)setBpm(o.bpm);if(o.beats)setBeats(o.beats);if(o.stg!=null)setStg(o.stg);if(o.sk)setSk(o.sk);if(o.inst==='underwater'||o.inst==='cinematic')setInst(o.inst);}const sk2=localStorage.getItem('harmonymap_streak');if(sk2)setStreak(JSON.parse(sk2));const xp2=localStorage.getItem('harmonymap_xp');if(xp2)setXp(parseInt(xp2)||0);const today=new Date().toISOString().slice(0,10);const dl=localStorage.getItem('harmonymap_daily');if(!dl||JSON.parse(dl).date!==today)setDailyAvail(true);}catch(e){}},[]);
+useEffect(()=>{try{const s=localStorage.getItem('harmonymap_saved');if(s)setSaved(JSON.parse(s));const st=localStorage.getItem('harmonymap_settings');if(st){const o=JSON.parse(st);if(o.bpm)setBpm(o.bpm);if(o.beats)setBeats(o.beats);if(o.stg!=null)setStg(o.stg);if(o.sk)setSk(o.sk);if(['underwater','cinematic','analog-pad'].includes(o.inst))setInst(o.inst);}const sk2=localStorage.getItem('harmonymap_streak');if(sk2)setStreak(JSON.parse(sk2));const xp2=localStorage.getItem('harmonymap_xp');if(xp2)setXp(parseInt(xp2)||0);const today=new Date().toISOString().slice(0,10);const dl=localStorage.getItem('harmonymap_daily');if(!dl||JSON.parse(dl).date!==today)setDailyAvail(true);}catch(e){}},[]);
 useEffect(()=>{try{localStorage.setItem('harmonymap_saved',JSON.stringify(saved));}catch(e){}},[saved]);
 useEffect(()=>{try{localStorage.setItem('harmonymap_streak',JSON.stringify(streak));}catch(e){}},[streak]);
 useEffect(()=>{try{localStorage.setItem('harmonymap_xp',String(xp));}catch(e){}},[xp]);
@@ -1306,7 +1346,7 @@ return(
       </button>)}
     </div>
     <div style={{display:'flex',gap:4,alignItems:'center'}}>
-      {[{v:'808sub',l:'🎸',t:'808',xpReq:25},{v:'rhodes',l:'🎹',t:'Rhodes',xpReq:50},{v:'midpad',l:'🌙',t:'Pad',xpReq:100}].map(o=>{const unlocked=xp>=o.xpReq;return<button key={o.v} onClick={()=>{if(unlocked)setInst(o.v);}} style={{background:inst===o.v&&unlocked?'rgba(199,125,255,0.2)':'rgba(255,255,255,0.04)',border:`1px solid ${inst===o.v&&unlocked?'rgba(199,125,255,0.45)':'rgba(255,255,255,0.08)'}`,borderRadius:8,padding:'5px 7px',cursor:unlocked?'pointer':'default',color:unlocked?(inst===o.v?'#C77DFF':'rgba(255,255,255,0.55)'):'rgba(255,255,255,0.2)',fontSize:10,display:'flex',flexDirection:'column',alignItems:'center',gap:1,opacity:unlocked?1:0.6,flexShrink:0}}>
+      {[{v:'analog-pad',l:'🎹',t:'Pad',xpReq:25},{v:'rhodes',l:'✨',t:'Rhodes',xpReq:50},{v:'midpad',l:'🌙',t:'Mid',xpReq:100}].map(o=>{const unlocked=xp>=o.xpReq;return<button key={o.v} onClick={()=>{if(unlocked)setInst(o.v);}} style={{background:inst===o.v&&unlocked?'rgba(199,125,255,0.2)':'rgba(255,255,255,0.04)',border:`1px solid ${inst===o.v&&unlocked?'rgba(199,125,255,0.45)':'rgba(255,255,255,0.08)'}`,borderRadius:8,padding:'5px 7px',cursor:unlocked?'pointer':'default',color:unlocked?(inst===o.v?'#C77DFF':'rgba(255,255,255,0.55)'):'rgba(255,255,255,0.2)',fontSize:10,display:'flex',flexDirection:'column',alignItems:'center',gap:1,opacity:unlocked?1:0.6,flexShrink:0}}>
         <span style={{fontSize:12}}>{unlocked?o.l:'🔒'}</span>
         <span style={{fontSize:7,lineHeight:1}}>{unlocked?o.t:`${o.xpReq}xp`}</span>
       </button>;})}
