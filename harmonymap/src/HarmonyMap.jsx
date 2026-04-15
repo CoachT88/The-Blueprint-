@@ -40,7 +40,9 @@ stSendLP.type='lowpass';stSendLP.frequency.value=1400;stSendLP.Q.value=0.5;
 const stGain=this.ctx.createGain();stGain.gain.value=0.28;
 stSendLP.connect(stConv);stConv.connect(stGain);stGain.connect(masterLP);
 // ── Master chain: mg → comp → masterLP → speakers ─────────
-this.mg.connect(comp);comp.connect(masterLP);masterLP.connect(this.ctx.destination);
+// ── Soft-clipper: tanh limiter before destination — zero distortion at any volume ──
+const clip=this.ctx.createWaveShaper();const cv=new Float32Array(256);for(let i=0;i<256;i++){const x=i*2/255-1;cv[i]=Math.tanh(x*2.5)/Math.tanh(2.5);}clip.curve=cv;clip.oversample='4x';
+this.mg.connect(comp);comp.connect(masterLP);masterLP.connect(clip);clip.connect(this.ctx.destination);
 this.rv=rvSendLP;this.rvStadium=stSendLP;
 // Pre-build both instrument waves so switching is instant (no lag on first tap)
 this._buildWaves();
@@ -172,7 +174,8 @@ const bassNote=this.instrument==='cinematic'?
   this._octaveDown(this._octaveDown(notes[0])):this._octaveDown(notes[0]);
 const be=this._playBass(this.noteToFreq(bassNote),0.42,t,dur*0.80);
 if(be)this.noteEnvs.push(be);
-notes.forEach((n,i)=>{const e=this.playNote(n,dur,0.42,t+i*stg);if(e)this.noteEnvs.push(e);});
+// Humanize: ±14% velocity + ±3ms timing jitter for soulful feel
+notes.forEach((n,i)=>{const vel=0.42*(0.86+Math.random()*0.28);const jit=(Math.random()-0.5)*0.006;const e=this.playNote(n,dur,vel,t+i*stg+jit);if(e)this.noteEnvs.push(e);});
 }
 playClick(hi,st){this.init();const t=st||(this.ctx.currentTime+0.15);const o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type='sine';o.frequency.value=hi?1400:900;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.25,t+0.002);g.gain.exponentialRampToValueAtTime(0.0001,t+0.08);o.connect(g);g.connect(this.mg);o.start(t);o.stop(t+0.1);}
 countIn(bpm,beats,cb){this.init();const d=60/bpm;const t0=this.ctx.currentTime;for(let i=0;i<beats;i++)this.playClick(i===0,t0+i*d);const id=setTimeout(cb,beats*d*1000);this.tids.push(id);}
@@ -516,6 +519,33 @@ const RHY=[
 // ─── LAYOUT ─────────────────────────────────────────────────
 function ml(ch,cx,cy,r){return ch.map((c,i)=>{const a=(i/ch.length)*Math.PI*2-Math.PI/2;return{c,x:cx+Math.cos(a)*r,y:cy+Math.sin(a)*r};});}
 
+// ─── TENSION / MIDI / BLUEPRINT HELPERS ─────────────────────
+function tensionLevel(f,t){if(!f||!t)return 0;try{const v=vl(f,t);return Math.min(5,Math.round(v.tm/2));}catch(e){return 0;}}
+function midiVarLen(v){const b=[];let x=v&0x7f;v>>=7;while(v){b.unshift(0x80|(v&0x7f));v>>=7;}b.push(x);return b;}
+function noteToMidi(n){const M={C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,F:5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11};const m=n.match(/^([A-G][#b]?)(\d)$/);if(!m)return 60;return(M[m[1]]??0)+(parseInt(m[2])+1)*12;}
+function exportMIDI(prog,bpm=90,beats=4){
+  const filled=prog.filter(s=>s&&s!=='REST');if(!filled.length)return;
+  const tpqn=480,beatTicks=tpqn*beats,tempo=Math.round(60000000/bpm);
+  const evts=[];
+  filled.forEach((s,si)=>{const ns=cn(pc(s).r,pc(s).t,4);const st=si*beatTicks,et=(si+1)*beatTicks;ns.forEach(n=>{const m=noteToMidi(n);evts.push([st,0x90,m,80],[et,0x80,m,0]);});});
+  evts.sort((a,b)=>a[0]-b[0]||(a[1]===0x80?-1:1));
+  let prev=0;const td=[0x00,0xFF,0x51,0x03,(tempo>>16)&0xFF,(tempo>>8)&0xFF,tempo&0xFF];
+  evts.forEach(([tick,st,note,vel])=>{const d=tick-prev;prev=tick;td.push(...midiVarLen(d),st,note,vel);});
+  td.push(0x00,0xFF,0x2F,0x00);const tl=td.length;
+  const bytes=new Uint8Array([0x4D,0x54,0x68,0x64,0,0,0,6,0,1,0,1,(tpqn>>8)&0xFF,tpqn&0xFF,0x4D,0x54,0x72,0x6B,(tl>>24)&0xFF,(tl>>16)&0xFF,(tl>>8)&0xFF,tl&0xFF,...td]);
+  const url=URL.createObjectURL(new Blob([bytes],{type:'audio/midi'}));
+  const a=document.createElement('a');a.href=url;a.download='harmonymap.mid';document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function generateBlueprint(prog,k){
+  const f=prog.filter(s=>s&&s!=='REST');if(f.length<4)return null;
+  const ts=f.slice(1).map((c,i)=>tensionLevel(f[i],c));
+  const avg=ts.reduce((a,b)=>a+b,0)/(ts.length||1);
+  const mx=Math.max(...ts),mn2=Math.min(...ts);
+  const arc=mx-mn2>=3?'dramatic roller-coaster arc':avg>=3?'high-tension journey':avg<=1?'smooth, flowing':'emotionally varied arc';
+  const endQ=CT[pc(f[f.length-1]).t]?.q||'major';
+  const endFeel=endQ==='major'?'resolves into light':endQ==='minor'?'settles into shadow':endQ==='dominant'?'ends on tension — leaves the listener wanting more':'fades into ambiguity';
+  return`Your ${f.length}-chord progression traces a ${arc} — starting on ${f[0]} and moving through ${f.slice(1,-1).join(' → ')}. It ${endFeel}.`;
+}
 // ─── STYLES ─────────────────────────────────────────────────
 const S={
 card:(bc='rgba(255,255,255,0.06)')=>({background:'rgba(255,255,255,0.04)',borderRadius:16,padding:16,border:`1px solid ${bc}`,marginBottom:12}),
@@ -552,6 +582,7 @@ const[disc,setDisc]=useState([]);
 const[pa,setPa]=useState(false);
 const[genre,setGenre]=useState(null);
 const[progLooping,setProgLooping]=useState(false);
+const[blueprint,setBlueprint]=useState(null);
 const[swapIdx,setSwapIdx]=useState(null);
 const[undoProg,setUndoProg]=useState(null);
 const[originalKey,setOriginalKey]=useState(null);
@@ -594,14 +625,14 @@ const playC=useCallback(s=>{
     // Swap mode: replace active slot, reset 8s inactivity timeout
     setProg(p=>{const n=[...p];n[swapIdx]=lbl;return n;});
     if(swapTid.current)clearTimeout(swapTid.current);
-    swapTid.current=setTimeout(()=>setSwapIdx(null),8000);
+    swapTid.current=setTimeout(()=>setSwapIdx(null),5000);
   } else {
     // Default jam mode: play + immediately add to progression
     setProg(p=>{const n=[...p,lbl];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});
     const t=ctip('sel',{ch:s});if(t)setTip(t);
   }
 },[k,ext,swapIdx]);
-const addC=useCallback(s=>{setProg(p=>{const n=[...p,s];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});},[]);
+const addC=useCallback(s=>{setProg(p=>{if(p.length>=16)return p;const n=[...p,s];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});},[]);
 const remC=useCallback(i=>{
   setProg(p=>p.filter((_,j)=>j!==i));
   // If the removed slot was active, deselect; if it was before active, shift index down
@@ -617,7 +648,7 @@ const selectSlot=useCallback((i,c)=>{
   // Snapshot progression for undo before any swaps happen
   setUndoProg(prog);
   setSwapIdx(i);
-  swapTid.current=setTimeout(()=>setSwapIdx(null),8000);
+  swapTid.current=setTimeout(()=>setSwapIdx(null),5000);
   // Play the slot's current chord so user hears what they're replacing
   if(c!=='REST'){const lbl=extChordLabel(k,c,ext);audio.playChord(cn(pc(lbl).r,pc(lbl).t,3));}
 },[swapIdx,k,ext,prog]);
@@ -665,9 +696,6 @@ return(
       {tabs.map(t=><button key={t.k} onClick={()=>setScreen(t.k)} style={{background:screen===t.k?'rgba(255,255,255,0.12)':'transparent',border:'none',color:screen===t.k?'#fff':'rgba(255,255,255,0.4)',borderRadius:6,padding:'5px 7px',cursor:'pointer',fontSize:9,fontWeight:600,display:'flex',flexDirection:'column',alignItems:'center',whiteSpace:'nowrap',minHeight:44,justifyContent:'center'}}><span style={{fontSize:13}}>{t.i}</span><span>{t.l}</span></button>)}
     </div>
     <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0,marginLeft:6}}>
-      <div style={{display:'flex',background:'rgba(255,255,255,0.07)',borderRadius:50,padding:2,border:'1px solid rgba(255,255,255,0.1)'}}>
-        {[{v:'underwater',l:'🌊 Underwater'},{v:'cinematic',l:'🎬 Cinematic'}].map(o=><button key={o.v} onClick={()=>setInst(o.v)} style={{background:inst===o.v?'rgba(78,205,196,0.22)':'transparent',border:'none',borderRadius:50,padding:'5px 9px',cursor:'pointer',color:inst===o.v?'#4ECDC4':'rgba(255,255,255,0.45)',fontWeight:inst===o.v?700:400,fontSize:10,whiteSpace:'nowrap',transition:'all 0.15s',boxShadow:inst===o.v?'0 1px 5px rgba(0,0,0,0.3)':'none'}}>{o.l}</button>)}
-      </div>
       {(pa||progLooping||pi>=0||pRow>=0)&&<button onClick={stopAll} style={{background:'linear-gradient(135deg,#FF6B6B,#FF4444)',border:'1px solid rgba(255,107,107,0.6)',borderRadius:8,padding:'6px 10px',color:'#fff',cursor:'pointer',fontSize:11,fontWeight:800,flexShrink:0,boxShadow:'0 0 12px rgba(255,107,107,0.5)',animation:'pulse 1.4s ease-in-out infinite'}}>■ Stop</button>}
     </div>
   </nav>
@@ -679,7 +707,7 @@ return(
     <button onClick={()=>setTip(null)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',cursor:'pointer',fontSize:14,padding:0}}>×</button>
   </div>}
 
-  <main style={{position:'relative',zIndex:1,paddingBottom:60}}>
+  <main style={{position:'relative',zIndex:1,paddingBottom:72}}>
 
     {/* ═══ HOME ═══ */}
     {screen==='home'&&<div style={{padding:'24px 16px',maxWidth:600,margin:'0 auto'}}>
@@ -772,45 +800,6 @@ return(
       {/* ── Chord Extension Toggle ── */}
       <div style={{display:'flex',gap:0,marginBottom:12,background:'rgba(255,255,255,0.05)',borderRadius:50,padding:3,border:'1px solid rgba(255,255,255,0.08)'}}>
         {[{v:'triad',l:'Triads'},{v:'7ths',l:'7ths'},{v:'sus2',l:'Sus2'},{v:'sus4',l:'Sus4'}].map(o=><button key={o.v} onClick={()=>setExt(o.v)} style={{flex:1,background:ext===o.v?'rgba(255,255,255,0.14)':'transparent',border:'none',borderRadius:50,padding:'8px 4px',cursor:'pointer',color:ext===o.v?'#fff':'rgba(255,255,255,0.45)',fontWeight:ext===o.v?700:500,fontSize:12,transition:'all 0.15s',boxShadow:ext===o.v?'0 1px 6px rgba(0,0,0,0.35)':'none'}}>{o.l}</button>)}
-      </div>
-      {/* ── Progression panel ── */}
-      <div style={{background:'rgba(0,0,0,0.3)',borderRadius:16,padding:14,marginBottom:12,minHeight:60,border:'1px solid rgba(255,255,255,0.06)'}}>
-        <div style={S.lbl}>Your Progression {prog.length>0&&`(${prog.length} chords)`}</div>
-        {/* Dynamic instruction box — context-aware hint */}
-        <div style={{background:swapIdx!==null?'rgba(255,215,0,0.08)':'rgba(78,205,196,0.07)',border:`1px solid ${swapIdx!==null?'rgba(255,215,0,0.35)':'rgba(78,205,196,0.22)'}`,borderRadius:8,padding:'6px 10px',marginBottom:8,display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-          <span style={{fontSize:11,color:swapIdx!==null?'#FFD700':'rgba(78,205,196,0.9)',fontWeight:500,lineHeight:1.4}}>
-            {swapIdx!==null?`✏️ Slot ${swapIdx+1} active — tap any chord on the map to swap it in`:'🎵 Tap any chord on the map to hear it and add it to your progression'}
-          </span>
-          {swapIdx!==null&&<button onClick={clearSwap} style={{...S.btn('rgba(255,215,0,0.2)','#FFD700','rgba(255,215,0,0.5)'),padding:'3px 9px',fontSize:10,flexShrink:0}}>✓ Done</button>}
-        </div>
-        {prog.length===0
-          ?<div style={{color:'rgba(255,255,255,0.3)',fontSize:11,lineHeight:1.6,padding:'6px 0'}}>No chords yet — tap any chord on the map below to start building.</div>
-          :<div>
-            <div style={{display:'flex',gap:7,flexWrap:'wrap',alignItems:'center'}}>
-              {prog.map((c,i)=>{const isActive=swapIdx===i;return<div key={i} style={{position:'relative'}}>
-                {c==='REST'
-                  ?<div onClick={()=>selectSlot(i,c)} style={{display:'inline-flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:isActive?'rgba(255,215,0,0.12)':'rgba(255,255,255,0.04)',color:isActive?'#FFD700':'rgba(255,255,255,0.35)',border:`1.5px ${isActive?'solid':'dashed'} rgba(255,215,0,${isActive?0.75:pi===i?0.5:0.2})`,borderRadius:10,padding:'8px 12px',fontSize:14,fontWeight:700,transform:isActive||pi===i?'scale(1.08)':'scale(1)',transition:'all 0.2s',cursor:'pointer',boxShadow:isActive?'0 0 16px rgba(255,215,0,0.55)':'none'}}>𝄽 rest{isActive&&<span style={{fontSize:8,color:'#FFD700',marginTop:2}}>← tap map</span>}</div>
-                  :<div onClick={()=>selectSlot(i,c)} style={{...S.pill(cc(c),pi===i&&!isActive),padding:'8px 12px',fontSize:14,cursor:'pointer',flexDirection:'column',display:'inline-flex',alignItems:'center',border:isActive?`2px solid #FFD700`:undefined,boxShadow:isActive?'0 0 22px rgba(255,215,0,0.9), 0 0 44px rgba(255,215,0,0.35), inset 0 0 10px rgba(255,215,0,0.10)':undefined,transform:isActive?'scale(1.12)':pi===i?'scale(1.05)':'scale(1)',background:isActive?'rgba(255,215,0,0.18)':undefined,transition:'all 0.2s',animation:isActive?'swapPulse 1.2s ease-in-out infinite':undefined}}>{c}{isActive&&<span style={{fontSize:8,color:'#FFD700',marginTop:2}}>← tap map</span>}</div>}
-                <button onClick={()=>remC(i)} style={{position:'absolute',top:-5,right:-5,background:'rgba(255,60,60,0.8)',border:'none',borderRadius:'50%',width:16,height:16,color:'#fff',fontSize:9,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
-              </div>;})}
-              <button onClick={()=>addC('REST')} style={{background:'rgba(255,255,255,0.04)',border:'1.5px dashed rgba(255,255,255,0.2)',borderRadius:10,padding:'8px 10px',cursor:'pointer',color:'rgba(255,255,255,0.45)',fontSize:12,fontWeight:700}}>+ 𝄽 rest</button>
-            </div>
-            {prog.filter(c=>c!=='REST').length>=2&&<div style={{marginTop:10,background:'rgba(255,255,255,0.03)',borderRadius:10,padding:8}}>
-              <div style={{...S.lbl,marginBottom:4}}>How these chords connect</div>
-              {prog.slice(1).map((c,i)=>{if(c==='REST'||prog[i]==='REST')return null;const m=mf(prog[i],c),v=vl(prog[i],c),rA=chordRN(k,prog[i]),rB=chordRN(k,c);return<div key={i} style={{marginBottom:4,background:'rgba(255,255,255,0.02)',borderRadius:8,padding:'5px 7px'}}>
-                <div style={{display:'flex',alignItems:'center',gap:4,marginBottom:2,flexWrap:'wrap'}}><span style={{fontSize:12,fontWeight:700,color:cc(prog[i])}}>{prog[i]}</span>{rA&&<span style={{fontSize:9,color:'rgba(255,215,0,0.65)'}}>({rA})</span>}<span style={{color:'rgba(255,255,255,0.2)',fontSize:10}}>→</span><span style={{fontSize:12,fontWeight:700,color:cc(c)}}>{c}</span>{rB&&<span style={{fontSize:9,color:'rgba(255,215,0,0.65)'}}>({rB})</span>}<span style={{marginLeft:6,fontSize:10,color:'rgba(255,255,255,0.4)'}}>{m.e} {m.l}</span><span style={{marginLeft:'auto',fontSize:9,color:'rgba(255,255,255,0.25)',background:'rgba(255,255,255,0.04)',borderRadius:4,padding:'1px 5px'}}>{v.sm}</span></div>
-                <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{v.mv.map((mv,j)=><span key={j} style={{fontSize:9,color:mv.s?'#4ECDC480':'#FFB34780',background:mv.s?'#4ECDC408':'#FFB34708',borderRadius:3,padding:'1px 5px'}}>{mv.s?`${mv.f} stays`:`${mv.f}→${mv.t}`}</span>)}</div>
-              </div>;})}
-              {prog.filter(c=>c!=='REST').length>=3&&idProg(prog.filter(c=>c!=='REST'))&&<div style={{marginTop:4,fontSize:10,color:'#FFB347',background:'rgba(255,183,71,0.08)',borderRadius:8,padding:'5px 8px'}}>✦ {idProg(prog.filter(c=>c!=='REST'))}</div>}
-            </div>}
-            <div style={{display:'flex',gap:7,marginTop:10,flexWrap:'wrap'}}>
-              <button onClick={()=>playP(bpm,beats,stg)} style={{...S.btn('linear-gradient(135deg,#4ECDC4,#44B09E)','#fff','transparent'),border:'none'}}>▶ Play</button>
-              <button onClick={progLooping?stopAll:()=>loopP(bpm,beats,stg)} style={{...S.btn(progLooping?'rgba(255,107,107,0.18)':'rgba(199,125,255,0.15)',progLooping?'#FF6B6B':'#C77DFF',progLooping?'rgba(255,107,107,0.4)':'rgba(199,125,255,0.3)')}}>{progLooping?'■ Stop':'↺ Loop'}</button>
-              <button onClick={saveI} style={S.btn('rgba(255,215,0,0.15)','#FFD700','rgba(255,215,0,0.3)')}>♡ Save</button>
-              {undoProg&&<button onClick={()=>{setProg(undoProg);setUndoProg(null);clearSwap();}} style={S.btn('rgba(78,205,196,0.12)','#4ECDC4','rgba(78,205,196,0.3)')}>↩ Undo</button>}
-              <button onClick={()=>{stopAll();setProg([]);setUndoProg(null);clearSwap();}} style={S.btn()}>Clear</button>
-            </div>
-          </div>}
       </div>
       <div style={{background:'rgba(0,0,0,0.4)',borderRadius:22,padding:14,border:'1px solid rgba(255,255,255,0.06)'}}>
         <svg viewBox="0 0 400 400" style={{width:'100%',height:'auto'}}>
@@ -917,6 +906,73 @@ return(
           <div style={{fontSize:9,color:'rgba(255,255,255,0.35)'}}>Beats per chord:</div>
           {[1,2,4,8].map(b=><button key={b} onClick={()=>setBeats(b)} style={{...S.btn(beats===b?'rgba(78,205,196,0.2)':'rgba(255,255,255,0.04)',beats===b?'#4ECDC4':'rgba(255,255,255,0.5)'),padding:'3px 9px',fontSize:10}}>{b}</button>)}
         </div>
+      </div>
+      {/* ── 16-Slot Progression Grid ── */}
+      <div style={{background:'rgba(0,0,0,0.3)',borderRadius:16,padding:14,marginBottom:12,border:'1px solid rgba(255,255,255,0.06)'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+          <div style={S.lbl}>Progression Grid {prog.length>0&&`${prog.length}/16`}</div>
+          <div style={{display:'flex',gap:5}}>
+            {prog.length>0&&<button onClick={()=>exportMIDI(prog,bpm,beats)} style={{...S.btn('rgba(78,205,196,0.12)','#4ECDC4','rgba(78,205,196,0.3)'),padding:'3px 8px',fontSize:9,fontWeight:700}}>⬇ MIDI</button>}
+          </div>
+        </div>
+        <div style={{background:swapIdx!==null?'rgba(255,215,0,0.08)':'rgba(78,205,196,0.07)',border:`1px solid ${swapIdx!==null?'rgba(255,215,0,0.35)':'rgba(78,205,196,0.22)'}`,borderRadius:8,padding:'6px 10px',marginBottom:10,display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+          <span style={{fontSize:11,color:swapIdx!==null?'#FFD700':'rgba(78,205,196,0.9)',fontWeight:500,lineHeight:1.4}}>
+            {swapIdx!==null?`✏️ Slot ${swapIdx+1} active — tap a chord on the map to swap it in`:'🎵 Tap chords on the map to fill the 16-slot grid'}
+          </span>
+          {swapIdx!==null&&<button onClick={clearSwap} style={{...S.btn('rgba(255,215,0,0.2)','#FFD700','rgba(255,215,0,0.5)'),padding:'3px 9px',fontSize:10,flexShrink:0}}>✓ Done</button>}
+        </div>
+        {/* 4×4 grid */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:10}}>
+          {Array.from({length:16},(_,i)=>{
+            const c=prog[i]||null;const isActive=swapIdx===i;const isPlaying=pi===i;
+            if(!c)return<div key={i} style={{background:'rgba(255,255,255,0.03)',border:'1px dashed rgba(255,255,255,0.07)',borderRadius:10,minHeight:54,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.12)',userSelect:'none'}}>
+              <span style={{fontSize:15,fontWeight:300,lineHeight:1}}>+</span><span style={{fontSize:7,marginTop:2}}>{i+1}</span>
+            </div>;
+            return<div key={i} style={{position:'relative'}}>
+              <div onClick={()=>selectSlot(i,c)} style={{background:isActive?'rgba(255,215,0,0.18)':cc(c)+'18',border:isActive?'2px solid #FFD700':`1.5px solid ${cc(c)}45`,borderRadius:10,minHeight:54,padding:'8px 4px',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'all 0.2s',animation:isActive?'swapPulse 1.2s ease-in-out infinite':undefined,boxShadow:isActive?'0 0 16px rgba(255,215,0,0.65)':isPlaying?`0 0 10px ${cc(c)}70`:'none',transform:isPlaying&&!isActive?'scale(1.05)':undefined}}>
+                <div style={{fontSize:11,fontWeight:800,color:isActive?'#FFD700':cc(c),textAlign:'center',lineHeight:1.2}}>{c}</div>
+                <div style={{fontSize:7,color:isActive?'rgba(255,215,0,0.55)':'rgba(255,255,255,0.25)',marginTop:2}}>{i+1}</div>
+                {isActive&&<div style={{fontSize:7,color:'#FFD700',marginTop:1}}>←tap</div>}
+              </div>
+              <button onClick={e=>{e.stopPropagation();remC(i);}} style={{position:'absolute',top:-4,right:-4,background:'rgba(255,60,60,0.85)',border:'none',borderRadius:'50%',width:14,height:14,color:'#fff',fontSize:8,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',zIndex:2,lineHeight:1}}>×</button>
+            </div>;})}
+        </div>
+        {/* Last move + tension meter */}
+        {prog.filter(c=>c&&c!=='REST').length>=2&&(()=>{const fp=prog.filter(c=>c&&c!=='REST');const lf=fp[fp.length-2],lt=fp[fp.length-1];const m=mf(lf,lt),v=vl(lf,lt),tl=tensionLevel(lf,lt),rA=chordRN(k,lf),rB=chordRN(k,lt);return<div style={{background:'rgba(255,255,255,0.03)',borderRadius:10,padding:'8px 10px',marginBottom:8}}>
+          <div style={{display:'flex',alignItems:'center',gap:5,marginBottom:4,flexWrap:'wrap'}}>
+            <span style={{fontSize:12,fontWeight:700,color:cc(lf)}}>{lf}</span>{rA&&<span style={{fontSize:9,color:'rgba(255,215,0,0.65)'}}>({rA})</span>}
+            <span style={{color:'rgba(255,255,255,0.2)',fontSize:10}}>→</span>
+            <span style={{fontSize:12,fontWeight:700,color:cc(lt)}}>{lt}</span>{rB&&<span style={{fontSize:9,color:'rgba(255,215,0,0.65)'}}>({rB})</span>}
+            <span style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginLeft:2}}>{m.e} {m.l}</span>
+            <div style={{marginLeft:'auto',display:'flex',gap:2,alignItems:'center'}}>
+              {Array.from({length:5},(_,j)=><div key={j} style={{width:5,height:10,borderRadius:1,background:j<tl?(tl>=4?'#FF6B6B':tl>=3?'#FFB347':'#4ECDC4'):'rgba(255,255,255,0.1)'}}/>)}
+              <span style={{fontSize:8,color:'rgba(255,255,255,0.35)',marginLeft:3}}>{tl>=4?'Dramatic':tl>=3?'High':tl>=2?'Medium':'Smooth'}</span>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{v.mv.map((mv,j)=><span key={j} style={{fontSize:9,color:mv.s?'#4ECDC480':'#FFB34780',background:mv.s?'#4ECDC408':'#FFB34708',borderRadius:3,padding:'1px 5px'}}>{mv.s?`${mv.f} stays`:`${mv.f}→${mv.t}`}</span>)}</div>
+          {idProg(fp)&&<div style={{marginTop:4,fontSize:10,color:'#FFB347',background:'rgba(255,183,71,0.08)',borderRadius:6,padding:'4px 7px'}}>✦ {idProg(fp)}</div>}
+        </div>;})()||null}
+        {/* Actions */}
+        {prog.length>0&&<div>
+          <div style={{display:'flex',gap:6,marginBottom:8,flexWrap:'wrap'}}>
+            <button onClick={()=>playP(bpm,beats,stg)} style={{...S.btn('linear-gradient(135deg,#4ECDC4,#44B09E)','#fff','transparent'),border:'none'}}>▶ Play</button>
+            <button onClick={progLooping?stopAll:()=>loopP(bpm,beats,stg)} style={{...S.btn(progLooping?'rgba(255,107,107,0.18)':'rgba(199,125,255,0.15)',progLooping?'#FF6B6B':'#C77DFF',progLooping?'rgba(255,107,107,0.4)':'rgba(199,125,255,0.3)')}}>{progLooping?'■ Stop':'↺ Loop'}</button>
+            <button onClick={()=>addC('REST')} style={{...S.btn(),padding:'8px 10px',fontSize:11}}>𝄽 Rest</button>
+            <button onClick={saveI} style={S.btn('rgba(255,215,0,0.15)','#FFD700','rgba(255,215,0,0.3)')}>♡ Save</button>
+            {undoProg&&<button onClick={()=>{setProg(undoProg);setUndoProg(null);clearSwap();}} style={S.btn('rgba(78,205,196,0.12)','#4ECDC4','rgba(78,205,196,0.3)')}>↩ Undo</button>}
+            <button onClick={()=>{stopAll();setProg([]);setUndoProg(null);clearSwap();setBlueprint(null);}} style={S.btn()}>Clear</button>
+          </div>
+          {prog.filter(c=>c&&c!=='REST').length>=4&&<div style={{marginBottom:6}}>
+            {!blueprint
+              ?<button onClick={()=>setBlueprint(generateBlueprint(prog,k))} style={{...S.btn('rgba(255,183,71,0.1)','#FFB347','rgba(255,183,71,0.3)'),width:'100%',fontSize:11,display:'flex',justifyContent:'center'}}>✦ Generate Beat Blueprint</button>
+              :<div style={{background:'rgba(255,183,71,0.07)',border:'1px solid rgba(255,183,71,0.3)',borderRadius:10,padding:'10px 12px',fontSize:11,color:'rgba(255,255,255,0.75)',lineHeight:1.6,display:'flex',gap:8,alignItems:'flex-start',animation:'fadeIn 0.3s'}}>
+                <span style={{fontSize:14,flexShrink:0}}>✦</span>
+                <div style={{flex:1}}>{blueprint}</div>
+                <button onClick={()=>setBlueprint(null)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',cursor:'pointer',fontSize:13,padding:0,flexShrink:0}}>×</button>
+              </div>
+            }
+          </div>}
+        </div>}
       </div>
       {/* ── Presets ── */}
       <div style={{marginBottom:14}}>
@@ -1203,6 +1259,17 @@ return(
     </div>}
 
   </main>
+  {/* SOUND TRAY */}
+  <div style={{position:'fixed',bottom:0,left:0,right:0,zIndex:90,background:'rgba(8,8,20,0.94)',backdropFilter:'blur(22px)',borderTop:'1px solid rgba(255,255,255,0.08)',padding:'8px 14px',display:'flex',alignItems:'center',gap:10}}>
+    <span style={{fontSize:9,color:'rgba(255,255,255,0.3)',fontWeight:700,textTransform:'uppercase',letterSpacing:0.8,flexShrink:0}}>Sound</span>
+    <div style={{display:'flex',background:'rgba(255,255,255,0.06)',borderRadius:50,padding:2,border:'1px solid rgba(255,255,255,0.1)',flex:1}}>
+      {[{v:'underwater',l:'🌊 Underwater',d:'R&B'},{v:'cinematic',l:'🎬 Cinematic',d:'Trap'}].map(o=><button key={o.v} onClick={()=>setInst(o.v)} style={{flex:1,background:inst===o.v?'rgba(78,205,196,0.22)':'transparent',border:'none',borderRadius:50,padding:'7px 10px',cursor:'pointer',color:inst===o.v?'#4ECDC4':'rgba(255,255,255,0.4)',fontWeight:inst===o.v?700:500,fontSize:11,transition:'all 0.15s',display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
+        <span>{o.l}</span>
+        {inst===o.v&&<span style={{fontSize:8,color:'rgba(78,205,196,0.55)',fontWeight:500}}>{o.d}</span>}
+      </button>)}
+    </div>
+    <div style={{fontSize:11,fontWeight:700,color:'#4ECDC4',flexShrink:0,minWidth:48,textAlign:'right'}}>{bpm}<span style={{fontSize:8,color:'rgba(255,255,255,0.3)',fontWeight:500,marginLeft:2}}>bpm</span></div>
+  </div>
   <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}@keyframes pulse{0%,100%{box-shadow:0 0 12px rgba(255,107,107,0.5)}50%{box-shadow:0 0 22px rgba(255,107,107,0.9)}}@keyframes swapPulse{0%,100%{box-shadow:0 0 22px rgba(255,215,0,0.9),0 0 44px rgba(255,215,0,0.35)}50%{box-shadow:0 0 32px rgba(255,215,0,1),0 0 60px rgba(255,215,0,0.55)}}@keyframes svgRingPulse{0%,100%{stroke-opacity:0.45}50%{stroke-opacity:1}}button:hover{filter:brightness(1.1)}button:active{transform:scale(0.97)!important}*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:3px}input[type=range]{-webkit-appearance:none;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;outline:none}input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;background:#4ECDC4;border-radius:50%;cursor:pointer;box-shadow:0 0 8px rgba(78,205,196,0.5)}input[type=range]::-moz-range-thumb{width:18px;height:18px;background:#4ECDC4;border-radius:50%;cursor:pointer;border:none}`}</style>
 </div>
 );
