@@ -27,8 +27,30 @@
   let sensitivity = 0.15   // transient threshold 0–1
 
   // ── Playback ─────────────────────────────────────────────────────────────
-  let isPlaying  = false
+  let isPlaying   = false
   let currentTime = 0
+
+  // ── Zoom ─────────────────────────────────────────────────────────────────
+  // pixels-per-second; 0 = fit-to-container (default overview)
+  let zoomPx = 0
+
+  const ZOOM_MIN  = 0
+  const ZOOM_MAX  = 600
+  const ZOOM_STEP = 60   // each tap ≈ one bar width on a typical beat grid
+
+  function zoomIn() {
+    zoomPx = Math.min(zoomPx + ZOOM_STEP, ZOOM_MAX)
+    applyZoom()
+  }
+  function zoomOut() {
+    zoomPx = Math.max(zoomPx - ZOOM_STEP, ZOOM_MIN)
+    applyZoom()
+  }
+  function applyZoom() {
+    if (!wavesurfer) return
+    // zoom(0) or falsy resets to overview; positive values scroll the waveform
+    wavesurfer.zoom(zoomPx || undefined)
+  }
 
   // ── UI ───────────────────────────────────────────────────────────────────
   let errorMsg         = ''
@@ -63,10 +85,11 @@
       wsRegions   = null
     }
 
-    state     = 'loading'
-    errorMsg  = ''
-    fileName  = file.name
+    state       = 'loading'
+    errorMsg    = ''
+    fileName    = file.name
     audioBuffer = null
+    zoomPx      = 0
 
     try {
       const mimeType  = file.type || 'audio/mpeg'
@@ -326,7 +349,26 @@
     <!-- Waveform — bind:this works because we tick() before rendering this block -->
     <div class="waveform-wrap">
       <div bind:this={waveformEl} class="waveform"></div>
-      <p class="waveform-tip">Tap waveform to add a split point</p>
+      <div class="waveform-footer">
+        <p class="waveform-tip">Tap to split</p>
+        <div class="zoom-btns">
+          <button
+            class="btn-zoom"
+            on:click={zoomOut}
+            disabled={zoomPx === ZOOM_MIN}
+            title="Zoom out"
+            aria-label="Zoom out"
+          >−</button>
+          <span class="zoom-label">{zoomPx === 0 ? 'Overview' : `${zoomPx}px/s`}</span>
+          <button
+            class="btn-zoom"
+            on:click={zoomIn}
+            disabled={zoomPx === ZOOM_MAX}
+            title="Zoom in"
+            aria-label="Zoom in"
+          >+</button>
+        </div>
+      </div>
     </div>
 
     <!-- Transport -->
@@ -585,11 +627,46 @@
     /* WaveSurfer injects its own canvas; touch-action prevents scroll jank */
     touch-action: none;
   }
+  .waveform-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 14px 8px;
+  }
   .waveform-tip {
-    text-align: center;
     font-size: 11px;
     color: #3a3a3c;
-    margin: 6px 0 8px;
+    margin: 0;
+  }
+  .zoom-btns {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-zoom {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: #1c1c1e;
+    border: none;
+    color: #f2f2f7;
+    font-size: 18px;
+    font-weight: 300;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: background 0.1s;
+  }
+  .btn-zoom:active  { background: #2c2c2e; }
+  .btn-zoom:disabled { color: #3a3a3c; cursor: default; }
+  .zoom-label {
+    font-size: 11px;
+    color: #636366;
+    min-width: 62px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
   }
 
   /* ── Transport ───────────────────────────────────────────────────────── */

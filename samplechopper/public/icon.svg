@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0d0d0d"/>
+  <!-- Scissor blades -->
+  <g fill="none" stroke="#ff6b35" stroke-width="36" stroke-linecap="round">
+    <!-- top blade -->
+    <line x1="120" y1="140" x2="392" y2="372"/>
+    <!-- bottom blade -->
+    <line x1="120" y1="372" x2="392" y2="140"/>
+  </g>
+  <!-- Pivot circle -->
+  <circle cx="256" cy="256" r="28" fill="#ff6b35"/>
+  <!-- Waveform bars under the scissors -->
+  <rect x="96"  y="404" width="16" height="48" rx="4" fill="#ff6b35" opacity="0.7"/>
+  <rect x="122" y="388" width="16" height="64" rx="4" fill="#ff6b35" opacity="0.7"/>
+  <rect x="148" y="396" width="16" height="56" rx="4" fill="#ff6b35" opacity="0.7"/>
+  <rect x="174" y="380" width="16" height="72" rx="4" fill="#ff6b35" opacity="0.7"/>
+  <rect x="200" y="408" width="16" height="44" rx="4" fill="#ff6b35" opacity="0.7"/>
+  <rect x="226" y="392" width="16" height="60" rx="4" fill="#ff6b35" opacity="0.7"/>
+  <rect x="252" y="400" width="16" height="52" rx="4" fill="#ff6b35" opacity="0.7"/>
+  <rect x="278" y="376" width="16" height="76" rx="4" fill="#ff6b35" opacity="0.7"/>
+  <rect x="304" y="404" width="16" height="48" rx="4" fill="#ff6b35" opacity="0.7"/>
+  <rect x="330" y="384" width="16" height="68" rx="4" fill="#ff6b35" opacity="0.7"/>
+  <rect x="356" y="396" width="16" height="56" rx="4" fill="#ff6b35" opacity="0.7"/>
+  <rect x="382" y="408" width="16" height="44" rx="4" fill="#ff6b35" opacity="0.7"/>
+</svg>
