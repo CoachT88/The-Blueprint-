@@ -2,7 +2,7 @@
   import { onDestroy, tick } from 'svelte'
   import WaveSurfer from 'wavesurfer.js'
   import RegionsPlugin from 'wavesurfer.js/plugins/regions'
-  import { detectTransients } from './lib/transientDetector.js'
+  import { getAutoChops } from './lib/transientDetector.js'
   import { audioBufferToWav }  from './lib/wavEncoder.js'
   import { exportZip }         from './lib/zipExporter.js'
 
@@ -24,7 +24,10 @@
   // ── Chop points ──────────────────────────────────────────────────────────
   // Always sorted; first = 0, last = duration
   let chopPoints  = []
-  let sensitivity = 0.15   // transient threshold 0–1
+  let sensitivity = 0.85   // fraction of peak amplitude (0.85 = only loudest hits)
+
+  // Derived region objects used by pads and export
+  $: chopRegions = chopPoints.slice(0, -1).map((s, i) => ({ start: s, end: chopPoints[i + 1] }))
 
   // ── Playback ─────────────────────────────────────────────────────────────
   let isPlaying   = false
@@ -39,7 +42,8 @@
   const padSources = {}          // padIndex → AudioBufferSourceNode (non-reactive)
 
   function playPad(i) {
-    if (!audioCtx || !audioBuffer || i >= chopCount) return
+    const region = chopRegions[i]
+    if (!audioCtx || !audioBuffer || !region) return
     unlockAudio()
 
     // Retrigger: stop any still-playing source for this slot
@@ -48,18 +52,23 @@
       delete padSources[i]
     }
 
-    const src = audioCtx.createBufferSource()
-    src.buffer            = audioBuffer
-    src.playbackRate.value = playbackRate
-    src.connect(audioCtx.destination)
+    // Create a fresh source node for every tap, but route to the SAME context
+    const source = audioCtx.createBufferSource()
+    source.buffer = audioBuffer
 
-    const offset  = chopPoints[i]
-    const chopLen = chopPoints[i + 1] - chopPoints[i]
-    src.start(0, offset, chopLen)
-    padSources[i] = src
+    // The Pitch Shift Math: vinyl-style pitch/time manipulation
+    source.playbackRate.value = Math.pow(2, pitchSemitones / 12)
+
+    // Route to output
+    source.connect(audioCtx.destination)
+
+    // Play just this specific chop region
+    const duration = region.end - region.start
+    source.start(0, region.start, duration)
+    padSources[i] = source
 
     activePads = new Set([...activePads, i])
-    src.onended = () => {
+    source.onended = () => {
       delete padSources[i]
       activePads = new Set([...activePads].filter(x => x !== i))
     }
@@ -253,10 +262,10 @@
   // ── Auto-chop ─────────────────────────────────────────────────────────────
   function autoChop() {
     if (!audioBuffer) return
-    const transients = detectTransients(audioBuffer, { threshold: sensitivity, minGap: 0.25 })
-    const raw        = [0, ...transients, duration]
-    const seen       = new Set()
-    chopPoints = raw
+    // getAutoChops already includes 0; append duration as the final boundary
+    const times = getAutoChops(audioBuffer, sensitivity)
+    const seen  = new Set()
+    chopPoints  = [...times, duration]
       .map(t  => Math.round(t * 1000) / 1000)
       .filter(t => { if (seen.has(t)) return false; seen.add(t); return true })
       .sort((a, b) => a - b)
@@ -283,8 +292,9 @@
       const base  = fileName.replace(/\.[^.]+$/, '') || 'sample'
       const files = []
 
-      for (let i = 0; i < chopPoints.length - 1; i++) {
-        const wav = audioBufferToWav(audioBuffer, chopPoints[i], chopPoints[i + 1])
+      for (let i = 0; i < chopRegions.length; i++) {
+        const { start, end } = chopRegions[i]
+        const wav = audioBufferToWav(audioBuffer, start, end)
         files.push({ name: `${base}_chop_${String(i + 1).padStart(2, '0')}.wav`, blob: wav })
       }
 
@@ -306,10 +316,10 @@
   }
 
   function chopDuration(i) {
-    const ms = (chopPoints[i + 1] - chopPoints[i]) * 1000
-    return ms >= 1000
-      ? `${(ms / 1000).toFixed(2)}s`
-      : `${ms.toFixed(0)}ms`
+    const region = chopRegions[i]
+    if (!region) return ''
+    const ms = (region.end - region.start) * 1000
+    return ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms.toFixed(0)}ms`
   }
 
   onDestroy(() => {
@@ -348,7 +358,7 @@
         New
         <input
           type="file"
-          accept="audio/*, video/*, .mp3, .wav, .m4a, .mp4, .mov, .aiff, .ogg, .flac"
+          accept="audio/*, video/*, .mp3, .wav, .m4a, .mp4, .mov"
           on:change={handleFileSelect}
           class="sr-only"
         />
@@ -372,7 +382,7 @@
         Upload Sample
         <input
           type="file"
-          accept="audio/*, video/*, .mp3, .wav, .m4a, .mp4, .mov, .aiff, .ogg, .flac"
+          accept="audio/*, video/*, .mp3, .wav, .m4a, .mp4, .mov"
           on:change={handleFileSelect}
           class="sr-only"
         />
@@ -431,13 +441,13 @@
     <div class="chop-controls">
       <div class="sensitivity-row">
         <label class="sens-label" for="sens-range">
-          Sensitivity
+          Threshold
           <span class="sens-val">{Math.round(sensitivity * 100)}%</span>
         </label>
         <input
           id="sens-range"
           type="range"
-          min="0.05" max="0.50" step="0.01"
+          min="0.50" max="0.99" step="0.01"
           bind:value={sensitivity}
           class="range-slider"
         />
@@ -470,15 +480,15 @@
       <div class="pad-grid">
         {#each { length: 16 } as _, i}
           <button
-            class="pad"
-            class:pad--active={activePads.has(i)}
-            class:pad--empty={i >= chopCount}
+            class="mpc-pad"
+            class:mpc-pad--active={activePads.has(i)}
+            class:mpc-pad--empty={i >= chopRegions.length}
             on:pointerdown={() => playPad(i)}
-            style={i < chopCount ? `--pad-color:${DOT_COLORS[i % DOT_COLORS.length]}` : ''}
-            disabled={i >= chopCount}
-            aria-label={i < chopCount ? `Play chop ${i + 1}` : 'Empty pad'}
+            style={i < chopRegions.length ? `--pad-color:${DOT_COLORS[i % DOT_COLORS.length]}` : ''}
+            disabled={i >= chopRegions.length}
+            aria-label={i < chopRegions.length ? `Play chop ${i + 1}` : 'Empty pad'}
           >
-            {#if i < chopCount}
+            {#if i < chopRegions.length}
               <span class="pad-num">{i + 1}</span>
               <span class="pad-dur">{chopDuration(i)}</span>
             {:else}
@@ -494,13 +504,13 @@
       <button
         class="btn-export"
         on:click={doExport}
-        disabled={state === 'exporting' || chopCount === 0}
+        disabled={state === 'exporting' || chopRegions.length === 0}
       >
         {#if state === 'exporting'}
           <span class="spinner spinner-sm" aria-hidden="true"></span>
           Packaging…
         {:else}
-          Export {chopCount} WAV{chopCount !== 1 ? 's' : ''} as ZIP
+          Export {chopRegions.length} WAV{chopRegions.length !== 1 ? 's' : ''} as ZIP
         {/if}
       </button>
       <p class="export-meta">16-bit · 44.1 kHz · DAW-ready</p>
@@ -968,12 +978,18 @@
     gap: 10px;
     min-height: 0;
   }
-  .pad {
-    border-radius: 12px;
-    background: #1c1c1e;
-    border: 2px solid var(--pad-color, #2c2c2e);
-    color: #f2f2f7;
+  .mpc-pad {
+    aspect-ratio: 1 / 1;
+    background: #333;
+    border: 2px solid var(--pad-color, #555);
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
     cursor: pointer;
+    touch-action: manipulation;    /* prevents double-tap zooming on mobile  */
+    /* layout fill inside the CSS grid cell */
+    width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -981,18 +997,13 @@
     gap: 4px;
     position: relative;
     overflow: hidden;
-    /* hardware-accelerated press feedback — no layout reflow on mobile */
-    transition: transform 0.06s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-                background 0.06s;
+    transition: transform 0.06s, background 0.06s;
     -webkit-appearance: none;
-    touch-action: manipulation;    /* prevents 300 ms tap delay on iOS      */
     user-select: none;
     -webkit-user-select: none;
-    width: 100%;
-    height: 100%;
   }
   /* Colour tint fill */
-  .pad::before {
+  .mpc-pad::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -1000,33 +1011,30 @@
     opacity: 0.10;
     pointer-events: none;
   }
-  /* Press state — fires instantly via pointerdown */
-  .pad:active,
-  .pad--active {
-    transform: scale(0.90);
-    border-color: var(--pad-color, #ff6b35);
-    background: #2c2c2e;
+  .mpc-pad:active,
+  .mpc-pad--active {
+    background: #ff5500;           /* light up on press — user's exact value */
+    border-color: #ff8800;
+    transform: scale(0.91);
   }
-  .pad--active::before { opacity: 0.28; }
-  /* Empty / no chop assigned */
-  .pad--empty {
+  .mpc-pad--active::before { opacity: 0.28; }
+  .mpc-pad--empty {
     opacity: 0.18;
     cursor: default;
-    border-color: #1c1c1e !important;
-    background: #111 !important;
+    border-color: #555 !important;
+    background: #222 !important;
   }
-  .pad--empty::before { display: none; }
+  .mpc-pad--empty::before { display: none; }
   .pad-num {
     font-size: 18px;
     font-weight: 800;
     line-height: 1;
     position: relative;
     z-index: 1;
-    color: #f2f2f7;
   }
   .pad-dur {
     font-size: 10px;
-    color: #8e8e93;
+    color: rgba(255,255,255,0.6);
     position: relative;
     z-index: 1;
     font-variant-numeric: tabular-nums;
@@ -1035,6 +1043,6 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #2c2c2e;
+    background: #444;
   }
 </style>
