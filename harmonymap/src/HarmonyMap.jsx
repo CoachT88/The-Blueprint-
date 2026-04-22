@@ -658,7 +658,8 @@ useEffect(()=>{
 const swapTid=useRef(null);
 const toastTid=useRef(null);
 const dailyTid=useRef(null);
-useEffect(()=>{if(!dailyActive)return;if(dailySecs<=0){setDailyActive(false);setDailyDone(true);setDailyAvail(false);setXp(x=>x+10);try{localStorage.setItem('harmonymap_daily',JSON.stringify({date:new Date().toISOString().slice(0,10)}));}catch(e){}return;}dailyTid.current=setInterval(()=>setDailySecs(s=>s-1),1000);return()=>clearInterval(dailyTid.current);},[dailyActive,dailySecs]);
+useEffect(()=>{if(!dailyActive)return;dailyTid.current=setInterval(()=>setDailySecs(s=>s>0?s-1:0),1000);return()=>clearInterval(dailyTid.current);},[dailyActive]);
+useEffect(()=>{if(!dailyActive||dailySecs!==0)return;clearInterval(dailyTid.current);setDailyActive(false);setDailyDone(true);setDailyAvail(false);setXp(x=>x+10);try{localStorage.setItem('harmonymap_daily',JSON.stringify({date:new Date().toISOString().slice(0,10)}));}catch(e){};},[dailyActive,dailySecs]);
 const clearSwap=useCallback(()=>{setSwapIdx(null);if(swapTid.current){clearTimeout(swapTid.current);swapTid.current=null;}},[]);
 // Ctrl+Z / Cmd+Z: revert last swap session
 useEffect(()=>{const onKey=(e)=>{if((e.ctrlKey||e.metaKey)&&e.key==='z'&&undoProg){setProg(undoProg);setUndoProg(null);clearSwap();}};document.addEventListener('keydown',onKey);return()=>document.removeEventListener('keydown',onKey);},[undoProg,clearSwap]);
@@ -679,8 +680,8 @@ const playC=useCallback(s=>{
     if(swapTid.current)clearTimeout(swapTid.current);
     swapTid.current=setTimeout(()=>setSwapIdx(null),5000);
   } else {
-    // Default jam mode: play + immediately add to progression
-    setProg(p=>{const n=[...p,lbl];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});
+    // Default jam mode: play + immediately add to progression (hard cap at 16)
+    setProg(p=>{if(p.length>=16)return p;const n=[...p,lbl];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});
     const t=ctip('sel',{ch:s});if(t)setTip(t);
   }
 },[k,ext,swapIdx]);
@@ -723,12 +724,12 @@ const returnHome=useCallback(()=>{
 },[originalKey]);
 const playP=useCallback((bpm=72,beats=4,stg=0.018)=>{const n=prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3));audio.playProgression(n,bpm,i=>setPi(i),beats,stg);const t=ctip('play',{prog});if(t)setTimeout(()=>setTip(t),2000);},[prog]);
 const loopP=useCallback((bpm=72,beats=4,stg=0.018)=>{const n=prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3));setProgLooping(true);audio.playLoop(n,bpm,i=>{setPi(i);},beats,stg);},[prog]);
-const saveI=useCallback(()=>{if(!prog.length)return;setSaved(p=>[...p,{id:Date.now(),emo,k:sk,prog:[...prog],date:new Date().toLocaleDateString()}]);if(!dr.current.includes('fs'))setDisc(d=>[...d,'fs']);setXp(x=>x+2);const today=new Date().toISOString().slice(0,10);setStreak(s=>{const diff=s.lastDate?(new Date(today)-new Date(s.lastDate))/(86400000):null;const cnt=diff===1?(s.count||0)+1:diff===0?s.count||1:1;return{count:cnt,lastDate:today};});},[prog,emo,sk]);
+const saveI=useCallback(()=>{if(!prog.length)return;setSaved(p=>[...p,{id:Date.now(),emo,k:sk,prog:[...prog],date:new Date().toLocaleDateString()}]);if(!dr.current.includes('fs'))setDisc(d=>[...d,'fs']);setXp(x=>x+2);const today=new Date().toISOString().slice(0,10);setStreak(s=>{const diff=s.lastDate?Math.round((new Date(today)-new Date(s.lastDate))/86400000):null;const cnt=diff===1?(s.count||0)+1:diff===0?s.count||1:1;return{count:cnt,lastDate:today};});},[prog,emo,sk]);
 const selEmo=useCallback(e=>{setEmo(e);if(EMO[e].ks[0])setSk(EMO[e].ks[0]);setSch(null);setScreen('emotion');},[]);
 const stopAll=useCallback(()=>{audio.absoluteStop();setPa(false);setPi(-1);setPRow(-1);setProgLooping(false);},[]);
 const newEar=useCallback(()=>{setEa(null);const c=earGen(et);setEc(c);if(c)setTimeout(()=>{if(c.pt==='chord')audio.playChord(c.pd);else if(c.pt==='melodic')audio.playMelodicInterval(c.pd[0],c.pd[1]);else if(c.pt==='two'){audio.playChord(c.pd[0],1.3);setTimeout(()=>audio.playChord(c.pd[1],1.3),1500);}},300);},[et]);
 const replayEar=useCallback(()=>{if(!ec)return;if(ec.pt==='chord')audio.playChord(ec.pd);else if(ec.pt==='melodic')audio.playMelodicInterval(ec.pd[0],ec.pd[1]);else if(ec.pt==='two'){audio.playChord(ec.pd[0],1.3);setTimeout(()=>audio.playChord(ec.pd[1],1.3),1500);}},[ec]);
-const ansEar=useCallback(a=>{if(ea)return;setEa(a);const ok=a===ec?.ans;setEs(s=>({c:s.c+(ok?1:0),t:s.t+1}));if(ok){setXp(x=>x+1);if(!dr.current.includes('fe'))setDisc(d=>[...d,'fe']);}if(dailyActive)setTimeout(()=>setEa(null)||newEar(),900);},[ec,ea,dailyActive,newEar]);
+const ansEar=useCallback(a=>{if(ea)return;setEa(a);const ok=a===ec?.ans;setEs(s=>({c:s.c+(ok?1:0),t:s.t+1}));if(ok){setXp(x=>x+1);if(!dr.current.includes('fe'))setDisc(d=>[...d,'fe']);}if(dailyActive)setTimeout(()=>{setEa(null);newEar();},900);},[ec,ea,dailyActive,newEar]);
 
 const startDaily=useCallback(()=>{setDailySecs(60);setDailyActive(true);setEa(null);setEc(null);newEar();},[newEar]);
 const tabs=[{k:'home',i:'⌂',l:'Home'},{k:'chordmap',i:'◉',l:'Map'},{k:'melody',i:'♪',l:'Melody'},{k:'ear',i:'👂',l:'Ear'},{k:'intervals',i:'↕',l:'Intervals'},{k:'learn',i:'✦',l:'Learn'},{k:'mix',i:'🎚',l:'Mix'},{k:'saved',i:'♡',l:'Saved'}];
