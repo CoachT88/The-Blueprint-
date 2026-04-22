@@ -531,6 +531,15 @@ const[dailyAvail,setDailyAvail]=useState(false);
 const[dailySecs,setDailySecs]=useState(60);
 const[dailyActive,setDailyActive]=useState(false);
 const[dailyDone,setDailyDone]=useState(false);
+const[recState,setRecState]=useState('idle');// 'idle'|'recording'|'replaying'
+const[takes,setTakes]=useState([]);
+const[recElapsed,setRecElapsed]=useState(0);
+const[replayChord,setReplayChord]=useState(null);
+const isRecording=useRef(false);
+const recEventsRef=useRef([]);
+const recStartRef=useRef(null);
+const recElapsedTid=useRef(null);
+const replayTids=useRef([]);
 const[bpm,setBpm]=useState(90);const[beats,setBeats]=useState(4);const[stg,setStg]=useState(0.018);
 const[inst,setInst]=useState('underwater');
 useEffect(()=>{audio.setInstrument(inst);},[inst]);
@@ -566,7 +575,7 @@ audio.playProgression(n, bpm, i => setPi(i), beats, stg);
 }, [prog, bpm, beats, stg])
 );
 
-const playC=useCallback(s=>{if(s==='REST')return;const lbl=extChordLabel(k,s,ext);audio.playChord(cn(pc(lbl).r,pc(lbl).t,3));setSch(s);if(swapIdx!==null){setProg(p=>{const n=[...p];n[swapIdx]=lbl;return n;});if(swapTid.current)clearTimeout(swapTid.current);swapTid.current=setTimeout(()=>setSwapIdx(null),5000);}else{setProg(p=>{if(p.length>=16)return p;const n=[...p,lbl];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});const t=ctip('sel',{ch:s});if(t)setTip(t);}},[k,ext,swapIdx]);
+const playC=useCallback(s=>{if(s==='REST')return;const lbl=extChordLabel(k,s,ext);audio.playChord(cn(pc(lbl).r,pc(lbl).t,3));setSch(s);if(isRecording.current){recEventsRef.current.push({chord:lbl,mapChord:s,t:Date.now()-recStartRef.current});};if(swapIdx!==null){setProg(p=>{const n=[...p];n[swapIdx]=lbl;return n;});if(swapTid.current)clearTimeout(swapTid.current);swapTid.current=setTimeout(()=>setSwapIdx(null),5000);}else{setProg(p=>{if(p.length>=16)return p;const n=[...p,lbl];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});const t=ctip('sel',{ch:s});if(t)setTip(t);}},[k,ext,swapIdx]);
 const addC=useCallback(s=>{setProg(p=>{if(p.length>=16)return p;const n=[...p,s];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});},[]);
 const remC=useCallback(i=>{setProg(p=>p.filter((_,j)=>j!==i));setSwapIdx(cur=>{if(cur===null)return null;if(cur===i){if(swapTid.current){clearTimeout(swapTid.current);swapTid.current=null;}return null;}return cur>i?cur-1:cur;});},[]);
 const selectSlot=useCallback((i,c)=>{if(swapTid.current)clearTimeout(swapTid.current);if(swapIdx===i){setSwapIdx(null);swapTid.current=null;return;}setUndoProg(prog);setSwapIdx(i);swapTid.current=setTimeout(()=>setSwapIdx(null),5000);if(c!=='REST'){const lbl=extChordLabel(k,c,ext);audio.playChord(cn(pc(lbl).r,pc(lbl).t,3));}},[swapIdx,k,ext,prog]);
@@ -581,6 +590,54 @@ const newEar=useCallback(()=>{setEa(null);const c=earGen(et);setEc(c);if(c)setTi
 const replayEar=useCallback(()=>{if(!ec)return;if(ec.pt==='chord')audio.playChord(ec.pd);else if(ec.pt==='melodic')audio.playMelodicInterval(ec.pd[0],ec.pd[1]);else if(ec.pt==='two'){audio.playChord(ec.pd[0],1.3);setTimeout(()=>audio.playChord(ec.pd[1],1.3),1500);}},[ec]);
 const ansEar=useCallback(a=>{if(ea)return;setEa(a);const ok=a===ec?.ans;setEs(s=>({c:s.c+(ok?1:0),t:s.t+1}));if(ok){setXp(x=>x+1);if(!dr.current.includes('fe'))setDisc(d=>[...d,'fe']);}if(dailyActive)setTimeout(()=>{setEa(null);newEar();},900);},[ec,ea,dailyActive,newEar]);
 const startDaily=useCallback(()=>{setDailySecs(60);setDailyActive(true);setEa(null);setEc(null);newEar();},[newEar]);
+
+const startRec=useCallback(()=>{
+  recEventsRef.current=[];
+  recStartRef.current=Date.now();
+  isRecording.current=true;
+  setRecState('recording');
+  setRecElapsed(0);
+  recElapsedTid.current=setInterval(()=>setRecElapsed(s=>s+1),1000);
+},[]);
+
+const stopRec=useCallback(()=>{
+  isRecording.current=false;
+  clearInterval(recElapsedTid.current);
+  if(recEventsRef.current.length>0){
+    const duration=Date.now()-recStartRef.current;
+    const take={id:Date.now(),key:sk,events:[...recEventsRef.current],duration,date:new Date().toLocaleTimeString(),chordCount:recEventsRef.current.length};
+    setTakes(prev=>[take,...prev].slice(0,10));
+  }
+  setRecState('idle');
+},[sk]);
+
+const replayTake=useCallback((take)=>{
+  replayTids.current.forEach(clearTimeout);
+  replayTids.current=[];
+  setRecState('replaying');
+  take.events.forEach(ev=>{
+    const tid=setTimeout(()=>{
+      audio.playChord(cn(pc(ev.chord).r,pc(ev.chord).t,3));
+      setSch(ev.mapChord||pc(ev.chord).r);
+      setReplayChord(ev.chord);
+    },ev.t);
+    replayTids.current.push(tid);
+  });
+  const lastT=take.events[take.events.length-1]?.t||0;
+  replayTids.current.push(setTimeout(()=>{setRecState('idle');setReplayChord(null);setSch(null);},lastT+1800));
+},[]);
+
+const stopReplay=useCallback(()=>{
+  replayTids.current.forEach(clearTimeout);
+  replayTids.current=[];
+  setRecState('idle');
+  setReplayChord(null);
+},[]);
+
+const loadTake=useCallback((take)=>{
+  const unique=[];take.events.forEach(ev=>{if(!unique.includes(ev.chord)&&unique.length<16)unique.push(ev.chord);});
+  setProg(unique);setSch(null);
+},[]);
 
 // ── 16-slot Progression Grid (drag-reorder enabled) ──────────
 const ProgGrid = useCallback(() => {
@@ -832,6 +889,61 @@ visible={prog.length > 0}
 
 {/* ═══ CHORD MAP ═══ */}
 {screen==='chordmap'&&<div style={{padding:'14px',maxWidth:600,margin:'0 auto'}}>
+  {/* ── SESSION RECORDER ── */}
+  <div style={{background:'rgba(255,77,109,0.06)',border:`1.5px solid ${recState==='recording'?'rgba(255,77,109,0.5)':recState==='replaying'?'rgba(0,240,200,0.4)':'rgba(255,255,255,0.08)'}`,borderRadius:14,padding:'10px 12px',marginBottom:12,transition:'border 0.3s'}}>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+      <div style={{display:'flex',alignItems:'center',gap:8}}>
+        {recState==='idle'&&<button onClick={startRec} style={{display:'flex',alignItems:'center',gap:6,background:'rgba(255,77,109,0.18)',border:'1.5px solid rgba(255,77,109,0.45)',borderRadius:20,padding:'6px 12px',color:'#FF4D6D',cursor:'pointer',fontSize:11,fontWeight:800}}>
+          <span style={{width:8,height:8,borderRadius:'50%',background:'#FF4D6D',display:'inline-block',boxShadow:'0 0 6px rgba(255,77,109,0.8)'}}/>
+          Record Session
+        </button>}
+        {recState==='recording'&&<>
+          <button onClick={stopRec} style={{display:'flex',alignItems:'center',gap:6,background:'rgba(255,77,109,0.25)',border:'1.5px solid rgba(255,77,109,0.7)',borderRadius:20,padding:'6px 12px',color:'#FF4D6D',cursor:'pointer',fontSize:11,fontWeight:800,animation:'pulse 1s ease-in-out infinite'}}>
+            <span style={{width:8,height:8,borderRadius:2,background:'#FF4D6D',display:'inline-block'}}/>
+            Stop
+          </button>
+          <span style={{fontSize:12,color:'#FF4D6D',fontWeight:700,fontVariantNumeric:'tabular-nums'}}>{String(Math.floor(recElapsed/60)).padStart(2,'0')}:{String(recElapsed%60).padStart(2,'0')}</span>
+          <span style={{fontSize:10,color:'rgba(255,77,109,0.6)'}}>· {recEventsRef.current.length} chord{recEventsRef.current.length!==1?'s':''}</span>
+        </>}
+        {recState==='replaying'&&<>
+          <button onClick={stopReplay} style={{display:'flex',alignItems:'center',gap:6,background:'rgba(0,240,200,0.15)',border:'1.5px solid rgba(0,240,200,0.4)',borderRadius:20,padding:'6px 12px',color:'#00F0C8',cursor:'pointer',fontSize:11,fontWeight:800}}>
+            <span style={{width:8,height:8,borderRadius:2,background:'#00F0C8',display:'inline-block'}}/>
+            Stop Replay
+          </button>
+          {replayChord&&<span style={{fontSize:12,color:'#00F0C8',fontWeight:800,animation:'fadeIn 0.1s'}}>{replayChord}</span>}
+        </>}
+      </div>
+      {takes.length>0&&<span style={{fontSize:9,color:'rgba(255,255,255,0.3)',fontWeight:700}}>{takes.length} take{takes.length!==1?'s':''}</span>}
+    </div>
+
+    {takes.length>0&&<div style={{marginTop:10,display:'flex',flexDirection:'column',gap:6}}>
+      {takes.map(take=>(
+        <div key={take.id} style={{background:'rgba(0,0,0,0.25)',borderRadius:10,padding:'8px 10px',border:'1px solid rgba(255,255,255,0.06)'}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
+            <div style={{display:'flex',alignItems:'center',gap:5}}>
+              <span style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.5)'}}>{take.key.replace(' major','').replace(' minor','m')}</span>
+              <span style={{fontSize:8,color:'rgba(255,255,255,0.25)'}}>·</span>
+              <span style={{fontSize:9,color:'rgba(255,255,255,0.35)'}}>{take.chordCount} chords</span>
+              <span style={{fontSize:8,color:'rgba(255,255,255,0.25)'}}>·</span>
+              <span style={{fontSize:9,color:'rgba(255,255,255,0.3)'}}>{Math.round(take.duration/1000)}s</span>
+            </div>
+            <div style={{display:'flex',gap:4}}>
+              <button onClick={()=>replayTake(take)} disabled={recState!=='idle'} style={{background:'rgba(0,240,200,0.15)',border:'1px solid rgba(0,240,200,0.35)',borderRadius:7,padding:'3px 8px',color:'#00F0C8',cursor:'pointer',fontSize:10,fontWeight:700,opacity:recState!=='idle'?0.4:1}}>▶ Replay</button>
+              <button onClick={()=>loadTake(take)} style={{background:'rgba(199,125,255,0.12)',border:'1px solid rgba(199,125,255,0.3)',borderRadius:7,padding:'3px 8px',color:'#C77DFF',cursor:'pointer',fontSize:10,fontWeight:700}}>↗ Load</button>
+              <button onClick={()=>setTakes(prev=>prev.filter(t=>t.id!==take.id))} style={{background:'none',border:'none',color:'rgba(255,255,255,0.2)',cursor:'pointer',fontSize:12,padding:'0 2px',fontWeight:700}}>×</button>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:3,flexWrap:'wrap'}}>
+            {take.events.slice(0,12).map((ev,i)=>(
+              <span key={i} style={{fontSize:9,fontWeight:700,color:replayChord===ev.chord&&recState==='replaying'?cc(ev.chord):'rgba(255,255,255,0.45)',background:replayChord===ev.chord&&recState==='replaying'?cc(ev.chord)+'22':'rgba(255,255,255,0.05)',borderRadius:4,padding:'1px 5px',border:`1px solid ${replayChord===ev.chord&&recState==='replaying'?cc(ev.chord)+'60':'rgba(255,255,255,0.07)'}`,transition:'all 0.1s'}}>{ev.chord}</span>
+            ))}
+            {take.events.length>12&&<span style={{fontSize:8,color:'rgba(255,255,255,0.2)'}}>+{take.events.length-12}</span>}
+          </div>
+        </div>
+      ))}
+    </div>}
+  </div>
+
   <div style={{background:'rgba(78,205,196,0.08)',border:'1px solid rgba(78,205,196,0.2)',borderRadius:12,padding:'10px 12px',marginBottom:12,fontSize:11,color:'rgba(255,255,255,0.65)',lineHeight:1.5}}>
     <strong style={{color:'#4ECDC4'}}>How to use:</strong> Tap any chord on the map to hear it and add it to your progression. Long-press grid slots to drag & reorder.
   </div>
@@ -1178,6 +1290,7 @@ visible={prog.length > 0}
   <style>{`
     @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
     @keyframes orbFloat{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.85;transform:scale(1.04)}}
+    @keyframes recDot{0%,100%{opacity:1;box-shadow:0 0 6px rgba(255,77,109,0.8)}50%{opacity:0.6;box-shadow:0 0 16px rgba(255,77,109,1)}}
     @keyframes tabPop{0%{transform:scale(1)}50%{transform:scale(1.14)}100%{transform:scale(1)}}
     @keyframes pulse{0%,100%{box-shadow:0 0 14px rgba(255,77,109,0.6)}50%{box-shadow:0 0 28px rgba(255,77,109,1),0 0 50px rgba(255,77,109,0.4)}}
     @keyframes swapPulse{0%,100%{box-shadow:0 0 24px rgba(255,215,0,1),0 0 48px rgba(255,215,0,0.5)}50%{box-shadow:0 0 38px rgba(255,215,0,1),0 0 72px rgba(255,215,0,0.7)}}
