@@ -75,7 +75,7 @@ const ENH={Cb:'B',Fb:'E','E#':'F','B#':'C'};
 const CT={major:{iv:[0,4,7],q:'major'},minor:{iv:[0,3,7],q:'minor'},dim:{iv:[0,3,6],q:'diminished'},aug:{iv:[0,4,8],q:'augmented'},dom7:{iv:[0,4,7,10],q:'dominant'},maj7:{iv:[0,4,7,11],q:'major'},min7:{iv:[0,3,7,10],q:'minor'},'m7b5':{iv:[0,3,6,10],q:'diminished'},sus2:{iv:[0,2,7],q:'suspended'},sus4:{iv:[0,5,7],q:'suspended'},add9:{iv:[0,4,7,14],q:'major'}};
 function cn(root,type,oct=4){const r=ENH[root]||root;const ri=NN.indexOf(r)!==-1?NN.indexOf(r):FN.indexOf(r);if(ri===-1)return[];const d=CT[type];if(!d)return[];return d.iv.map(v=>{const ni=(ri+v)%12;return NN[ni]+(oct+Math.floor((ri+v)/12));});}
 function pc(sym){const m=sym.match(/^([A-G][#b]?)(m7b5|m7|maj7|add9|sus2|sus4|°|\+|m|7)?$/);if(!m)return{r:'C',t:'major'};const M={'':'major',m:'minor','°':'dim','+':'aug','7':'dom7',maj7:'maj7',m7:'min7',m7b5:'m7b5',sus2:'sus2',sus4:'sus4',add9:'add9'};return{r:m[1],t:M[m[2]||'']||'major'};}
-function cc(s){const q=CT[pc(s).t]?.q;return{major:'#FF6B6B',minor:'#4ECDC4',diminished:'#C77DFF',augmented:'#B5FF3D',dominant:'#FFB347',suspended:'#87CEEB'}[q]||'#fff';}
+function cc(s){const q=CT[pc(s).t]?.q;return{major:'#FF4D6D',minor:'#00F0C8',diminished:'#D946EF',augmented:'#A3E635',dominant:'#FF8C00',suspended:'#38BDF8'}[q]||'#fff';}
 function ql(s){const q=CT[pc(s).t]?.q;return{major:'Major',minor:'Minor',diminished:'Diminished',augmented:'Augmented',dominant:'Dominant 7th',suspended:'Suspended'}[q]||'Chord';}
 
 const IVS=[{s:0,n:'Unison',sn:'P1',f:'Identity — pure stillness',c:'perfect'},{s:1,n:'Minor 2nd',sn:'m2',f:'Tension — two notes pressing together',c:'dissonant'},{s:2,n:'Major 2nd',sn:'M2',f:'Gentle movement — a step forward',c:'mild'},{s:3,n:'Minor 3rd',sn:'m3',f:'Sadness, tenderness — heart of minor',c:'consonant'},{s:4,n:'Major 3rd',sn:'M3',f:'Brightness, joy — heart of major',c:'consonant'},{s:5,n:'Perfect 4th',sn:'P4',f:'Openness — floating, calm suspension',c:'perfect'},{s:6,n:'Tritone',sn:'TT',f:'Maximum tension — wants to resolve desperately',c:'dissonant'},{s:7,n:'Perfect 5th',sn:'P5',f:'Power — foundation of almost all chords',c:'perfect'},{s:8,n:'Minor 6th',sn:'m6',f:'Longing — aches gorgeously',c:'consonant'},{s:9,n:'Major 6th',sn:'M6',f:'Warmth, nostalgia — golden and familiar',c:'consonant'},{s:10,n:'Minor 7th',sn:'m7',f:'Bluesy pull — cool tension',c:'mild'},{s:11,n:'Major 7th',sn:'M7',f:'Dreamy tension — floating below resolution',c:'dissonant'},{s:12,n:'Octave',sn:'P8',f:'Completion — same note higher',c:'perfect'}];
@@ -148,7 +148,7 @@ pill:(col,play=false)=>({display:'inline-flex',alignItems:'center',justifyConten
 // ═══════════════════════════════════════════════════════════════
 // FLOATING METRONOME HOOK
 // ═══════════════════════════════════════════════════════════════
-function useMetronome(bpm) {
+function useMetronome(bpm, onBpmChange) {
 const [metrOn, setMetrOn] = useState(false);
 const [beat, setBeat] = useState(0);
 const [tapTimes, setTapTimes] = useState([]);
@@ -196,6 +196,7 @@ const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
 const newBpm = Math.round(60000 / avg);
 const clamped = Math.max(40, Math.min(200, newBpm));
 setMetBpm(clamped);
+if(onBpmChange)onBpmChange(clamped);
 if (metrActive.current) startMetro(clamped);
 }
 return recent;
@@ -366,10 +367,10 @@ animation: isActive ? 'floatPulse 3s ease-in-out infinite' : 'none',
 // ═══════════════════════════════════════════════════════════════
 // FLOATING METRONOME COMPONENT
 // ═══════════════════════════════════════════════════════════════
-function FloatingMetronome({ bpm }) {
+function FloatingMetronome({ bpm, onBpmChange }) {
 const [visible, setVisible] = useState(false);
 const [minimized, setMinimized] = useState(false);
-const { metrOn, beat, metBpm, setMetBpm, toggleMetro, tapTempo } = useMetronome(bpm);
+const { metrOn, beat, metBpm, setMetBpm, toggleMetro, tapTempo } = useMetronome(bpm, onBpmChange);
 
 const beatDots = [0, 1, 2, 3];
 
@@ -422,7 +423,7 @@ backdropFilter: 'blur(12px)',
             <span style={{ fontSize: 28, fontWeight: 900, color: metrOn ? '#FFB347' : 'rgba(255,255,255,0.6)' }}>{metBpm}</span>
             <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginLeft: 4 }}>BPM</span>
           </div>
-          <input type="range" min="40" max="200" value={metBpm} onChange={e => setMetBpm(parseInt(e.target.value))} style={{ width: '100%', marginBottom: 10 }} />
+          <input type="range" min="40" max="200" value={metBpm} onChange={e=>{const v=parseInt(e.target.value);setMetBpm(v);if(onBpmChange)onBpmChange(v);}} style={{ width: '100%', marginBottom: 10 }} />
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={toggleMetro} style={{ flex: 1, background: metrOn ? 'rgba(255,107,107,0.15)' : 'rgba(255,183,71,0.15)', border: `1px solid ${metrOn ? 'rgba(255,107,107,0.4)' : 'rgba(255,183,71,0.4)'}`, borderRadius: 10, padding: '9px 0', color: metrOn ? '#FF6B6B' : '#FFB347', cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>{metrOn ? '■ Stop' : '▶ Start'}</button>
             <button onClick={tapTempo} style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '9px 0', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>Tap</button>
@@ -631,14 +632,14 @@ return (
             onPointerUp={() => { onLongPressEnd(); if (!isDragSource) selectSlot(i, c); }}
             onPointerLeave={onLongPressEnd}
             style={{
-              background: isDragSource ? 'rgba(255,215,0,0.3)' : isDragTarget ? 'rgba(78,205,196,0.2)' : isActive ? 'rgba(255,215,0,0.18)' : cc(c) + '18',
+              background: isDragSource ? 'rgba(255,215,0,0.32)' : isDragTarget ? 'rgba(0,240,200,0.22)' : isActive ? 'rgba(255,215,0,0.22)' : cc(c) + '2a',
               border: isDragSource ? '2px solid #FFD700' : isDragTarget ? '2px solid #4ECDC4' : isActive ? '2px solid #FFD700' : `1.5px solid ${cc(c)}45`,
               borderRadius: 10, minHeight: 54, padding: '8px 4px',
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               cursor: 'grab', touchAction: 'none', userSelect: 'none',
               transition: 'all 0.15s',
               animation: isActive && !isDragSource ? 'swapPulse 1.2s ease-in-out infinite' : undefined,
-              boxShadow: isDragSource ? '0 8px 24px rgba(255,215,0,0.5)' : isActive ? '0 0 16px rgba(255,215,0,0.65)' : isPlaying ? `0 0 10px ${cc(c)}70` : 'none',
+              boxShadow: isDragSource ? '0 8px 28px rgba(255,215,0,0.6)' : isActive ? '0 0 20px rgba(255,215,0,0.8),0 0 40px rgba(255,215,0,0.3)' : isPlaying ? `0 0 18px ${cc(c)}a0,0 0 36px ${cc(c)}40` : 'none',
               transform: isDragSource ? 'scale(1.08) rotate(2deg)' : isPlaying && !isActive ? 'scale(1.05)' : undefined,
             }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: isDragSource ? '#FFD700' : isActive ? '#FFD700' : cc(c), textAlign: 'center', lineHeight: 1.2 }}>{c}</div>
@@ -710,13 +711,13 @@ return (
 );
 }, [prog, pi, progLooping, swapIdx, dragging, dragOver, bpm, beats, stg, k, ext, undoProg, blueprint, streak, xp, clearSwap, cancelDrag, onLongPressStart, onLongPressEnd, onDragEnter, onDrop, selectSlot, remC, addC, playP, loopP, saveI, stopAll]);
 
-const tabs=[{k:'home',i:'⌂',l:'Home'},{k:'chordmap',i:'◉',l:'Map'},{k:'melody',i:'♪',l:'Melody'},{k:'ear',i:'👂',l:'Ear'},{k:'intervals',i:'↕',l:'Intervals'},{k:'learn',i:'✦',l:'Learn'},{k:'mix',i:'🎚',l:'Mix'},{k:'saved',i:'♡',l:'Saved'}];
+const tabs=[{k:'home',i:'⌂',l:'Home',c:'#FF4D6D'},{k:'chordmap',i:'◉',l:'Map',c:'#00F0C8'},{k:'melody',i:'♪',l:'Melody',c:'#C77DFF'},{k:'ear',i:'👂',l:'Ear',c:'#FFB347'},{k:'intervals',i:'↕',l:'Intervals',c:'#38BDF8'},{k:'learn',i:'✦',l:'Learn',c:'#A3E635'},{k:'mix',i:'🎚',l:'Mix',c:'#FF5252'},{k:'saved',i:'♡',l:'Saved',c:'#FB923C'}];
 const isAudioActive = pa || progLooping || pi >= 0 || pRow >= 0;
 
 return(
 
-<div style={{width:'100%',minHeight:'100vh',background:em?em.gr:'linear-gradient(135deg,#0a0a1a,#1a0a2e,#0a1a2d)',color:'#F0F0F0',fontFamily:"'Segoe UI','SF Pro Display',-apple-system,sans-serif",position:'relative',overflow:'hidden',transition:'background 0.8s'}}>
-<div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:`radial-gradient(ellipse at 30% 20%,${em?em.co[0]+'15':'#4ECDC415'} 0%,transparent 60%),radial-gradient(ellipse at 70% 80%,${em?em.co[1]+'10':'#FF6B6B10'} 0%,transparent 60%)`,pointerEvents:'none',zIndex:0}}/>
+<div style={{width:'100%',minHeight:'100vh',background:em?em.gr:'linear-gradient(135deg,#09091e,#160830,#060f22)',color:'#F0F0F0',fontFamily:"'Segoe UI','SF Pro Display',-apple-system,sans-serif",position:'relative',overflow:'hidden',transition:'background 0.8s'}}>
+<div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:`radial-gradient(ellipse at 15% 12%,${em?em.co[0]+'28':'#FF4D6D28'} 0%,transparent 50%),radial-gradient(ellipse at 85% 80%,${em?em.co[1]+'22':'#00F0C820'} 0%,transparent 50%),radial-gradient(ellipse at 55% 45%,${em?em.co[0]+'10':'#D946EF14'} 0%,transparent 45%)`,pointerEvents:'none',zIndex:0,animation:'orbFloat 14s ease-in-out infinite'}}/>
 
 {/* FLOATING STOP */}
 <button onClick={stopAll} style={{position:'fixed',bottom:76,right:14,zIndex:200,background:isAudioActive?'linear-gradient(135deg,#FF4444,#CC0000)':'rgba(40,40,50,0.82)',border:`1.5px solid ${isAudioActive?'rgba(255,80,80,0.7)':'rgba(255,255,255,0.1)'}`,borderRadius:'50%',width:44,height:44,color:isAudioActive?'#fff':'rgba(255,255,255,0.3)',cursor:'pointer',fontSize:13,fontWeight:900,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:isAudioActive?'0 4px 18px rgba(255,60,60,0.55)':'0 2px 8px rgba(0,0,0,0.4)',animation:isAudioActive?'pulse 1.8s ease-in-out infinite':undefined,transition:'background 0.3s,border 0.3s,color 0.3s',backdropFilter:'blur(12px)'}}>■</button>
@@ -730,20 +731,20 @@ visible={prog.length > 0}
 />
 
 {/* FLOATING METRONOME */}
-<FloatingMetronome bpm={bpm} />
+<FloatingMetronome bpm={bpm} onBpmChange={setBpm} />
 
 {/* KEY WARP TOAST */}
 {keyToast&&<div style={{position:'fixed',top:80,left:'50%',transform:'translateX(-50%)',background:'rgba(78,205,196,0.95)',color:'#0a0a1a',borderRadius:12,padding:'10px 20px',fontSize:12,fontWeight:700,zIndex:300,boxShadow:'0 4px 20px rgba(0,0,0,0.5)',whiteSpace:'nowrap',animation:'fadeIn 0.3s',backdropFilter:'blur(10px)'}}>{keyToast}</div>}
 
 {/* NAV */}
 
-  <nav style={{position:'sticky',top:0,zIndex:100,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 10px',background:'rgba(10,10,26,0.88)',backdropFilter:'blur(20px)',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+  <nav style={{position:'sticky',top:0,zIndex:100,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 10px',background:'rgba(8,8,20,0.92)',backdropFilter:'blur(24px)',borderBottom:`2px solid ${tabs.find(t=>t.k===screen)?.c||'#00F0C8'}50`}}>
     <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
       <div style={{width:24,height:24,borderRadius:'50%',background:'linear-gradient(135deg,#FF6B6B,#4ECDC4,#C77DFF)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:900}}>H</div>
       <span style={{fontWeight:700,fontSize:13}}>HarmonyMap</span>
     </div>
     <div style={{display:'flex',gap:1,overflowX:'auto',flexShrink:1,alignItems:'center'}}>
-      {tabs.map(t=><button key={t.k} onClick={()=>setScreen(t.k)} style={{background:screen===t.k?'rgba(255,255,255,0.12)':'transparent',border:'none',color:screen===t.k?'#fff':'rgba(255,255,255,0.4)',borderRadius:6,padding:'5px 7px',cursor:'pointer',fontSize:9,fontWeight:600,display:'flex',flexDirection:'column',alignItems:'center',whiteSpace:'nowrap',minHeight:44,justifyContent:'center',position:'relative'}}><span style={{fontSize:13,position:'relative'}}>{t.i}{t.k==='ear'&&dailyAvail&&!dailyDone&&<span style={{position:'absolute',top:-2,right:-3,width:6,height:6,background:'#FFB347',borderRadius:'50%',boxShadow:'0 0 5px #FFB347',display:'block'}}/>}</span><span>{t.l}</span></button>)}
+      {tabs.map(t=><button key={t.k} onClick={()=>setScreen(t.k)} style={{background:screen===t.k?`${t.c}20`:'transparent',border:'none',color:screen===t.k?t.c:'rgba(255,255,255,0.4)',borderRadius:6,padding:'5px 7px',cursor:'pointer',fontSize:9,fontWeight:screen===t.k?800:500,display:'flex',flexDirection:'column',alignItems:'center',whiteSpace:'nowrap',minHeight:44,justifyContent:'center',position:'relative',textShadow:screen===t.k?`0 0 10px ${t.c}80`:'none',transition:'all 0.2s'}}><span style={{fontSize:13,position:'relative'}}>{t.i}{t.k==='ear'&&dailyAvail&&!dailyDone&&<span style={{position:'absolute',top:-2,right:-3,width:6,height:6,background:'#FFB347',borderRadius:'50%',boxShadow:'0 0 5px #FFB347',display:'block'}}/>}</span><span>{t.l}</span></button>)}
       {streak.count>0&&<div style={{display:'flex',alignItems:'center',paddingLeft:5,paddingRight:3,fontSize:10,color:'rgba(255,200,100,0.75)',fontWeight:800,flexShrink:0,whiteSpace:'nowrap'}}>🔥{streak.count}</div>}
     </div>
     <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0,marginLeft:6}}>
@@ -861,12 +862,12 @@ visible={prog.length > 0}
     <svg viewBox="0 0 400 400" style={{width:'100%',height:'auto'}}>
       <rect x="0" y="0" width="400" height="400" fill="transparent" onClick={()=>{if(swapIdx!==null)clearSwap();}}/>
       {k&&gcon(k.ch,k.m).map((c,i)=>{const ly=ml(k.ch,200,200,140);const f=ly.find(n=>n.c===c.f),t=ly.find(n=>n.c===c.t);if(!f||!t)return null;const h=sch&&(c.f===sch||c.t===sch);const isStrong=c.st==='strong';
-        return<line key={i} x1={f.x} y1={f.y} x2={t.x} y2={t.y} stroke={h?(isStrong?'#FFD700':cc(sch)):isStrong?'rgba(255,215,0,0.35)':'rgba(255,255,255,0.08)'} strokeWidth={h?(isStrong?4:2.5):isStrong?2.5:1} strokeDasharray={isStrong?'none':'5 5'} style={{transition:'all 0.3s',filter:h&&isStrong?'drop-shadow(0 0 4px #FFD700)':'none'}}/>;
+        return<line key={i} x1={f.x} y1={f.y} x2={t.x} y2={t.y} stroke={h?(isStrong?'#FFD700':cc(sch)):isStrong?'rgba(255,215,0,0.45)':'rgba(255,255,255,0.11)'} strokeWidth={h?(isStrong?4:2.5):isStrong?2.5:1} strokeDasharray={isStrong?'none':'5 5'} style={{transition:'all 0.3s',filter:h&&isStrong?'drop-shadow(0 0 4px #FFD700)':'none'}}/>;
       })}
       {k&&ml(k.ch,200,200,140).map((nd,ni)=>{const col=cc(nd.c),sel=sch===nd.c,extLbl=extChordLabel(k,nd.c,ext),ip=prog.includes(extLbl)||prog.includes(nd.c),fn=k.m==='minor'?FNm:FNM;const fnParts=fn[ni].split(' (');const fnName=fnParts[0];const fnRN=fnParts[1]?.slice(0,-1);const bnRank=bestNext.indexOf(nd.c);const isBestNext=bnRank!==-1;
         return<g key={ni} onClick={()=>playC(nd.c)} style={{cursor:'pointer'}}>
           {isBestNext&&<circle cx={nd.x} cy={nd.y} r={44} fill="none" stroke={col} strokeWidth={bnRank===0?3.5:2.5} strokeOpacity={bnRank===0?0.9:0.65} style={{animation:'svgRingPulse 1.4s ease-in-out infinite',animationDelay:`${bnRank*0.4}s`}}/>}
-          <circle cx={nd.x} cy={nd.y} r={sel?38:30} fill={col+(sel?'18':'0a')} stroke={col+(sel?'60':'25')} strokeWidth={sel?2:1} style={{transition:'all 0.3s'}}/>
+          <circle cx={nd.x} cy={nd.y} r={sel?38:30} fill={col+(sel?'30':'10')} stroke={col+(sel?'80':'35')} strokeWidth={sel?2:1} style={{transition:'all 0.3s'}}/>
           <circle cx={nd.x} cy={nd.y} r={sel?28:23} fill={col+(sel?'30':'15')} stroke={col} strokeWidth={sel?3:1.5} style={{transition:'all 0.3s',filter:sel?`drop-shadow(0 0 12px ${col}90)`:'none'}}/>
           {ip&&<circle cx={nd.x} cy={nd.y} r={32} fill="none" stroke="#FFD700" strokeWidth={2.5} strokeDasharray="4 3"/>}
           <text x={nd.x} y={nd.y+1} textAnchor="middle" dominantBaseline="middle" fill={sel?'#fff':col} fontSize={sel?14:12} fontWeight="800" style={{pointerEvents:'none'}}>{extLbl}</text>
@@ -1160,7 +1161,7 @@ visible={prog.length > 0}
 
 {/* SOUND TRAY */}
 
-  <div style={{position:'fixed',bottom:0,left:0,right:0,zIndex:90,background:'rgba(8,8,20,0.94)',backdropFilter:'blur(22px)',borderTop:'1px solid rgba(255,255,255,0.08)',padding:'6px 10px',display:'flex',alignItems:'center',gap:8}}>
+  <div style={{position:'fixed',bottom:0,left:0,right:0,zIndex:90,background:'rgba(6,6,16,0.97)',backdropFilter:'blur(28px)',borderTop:`2px solid ${tabs.find(t=>t.k===screen)?.c||'#00F0C8'}35`,padding:'6px 10px',display:'flex',alignItems:'center',gap:8}}>
     <span style={{fontSize:9,color:'rgba(255,255,255,0.3)',fontWeight:700,textTransform:'uppercase',letterSpacing:0.8,flexShrink:0}}>Sound</span>
     <div style={{display:'flex',background:'rgba(255,255,255,0.06)',borderRadius:50,padding:2,border:'1px solid rgba(255,255,255,0.1)'}}>
       {[{v:'underwater',l:'🌊',d:'R&B'},{v:'cinematic',l:'🎬',d:'Trap'}].map(o=><button key={o.v} onClick={()=>setInst(o.v)} style={{background:inst===o.v?'rgba(78,205,196,0.22)':'transparent',border:'none',borderRadius:50,padding:'6px 9px',cursor:'pointer',color:inst===o.v?'#4ECDC4':'rgba(255,255,255,0.4)',fontWeight:inst===o.v?700:500,fontSize:10,transition:'all 0.15s',display:'flex',alignItems:'center',gap:3,whiteSpace:'nowrap'}}><span>{o.l}</span><span>{o.d}</span></button>)}
@@ -1169,15 +1170,17 @@ visible={prog.length > 0}
       {[{v:'analog-pad',l:'🎹',t:'Pad',xpReq:25},{v:'rhodes',l:'✨',t:'Rhodes',xpReq:50},{v:'midpad',l:'🌙',t:'Mid',xpReq:100}].map(o=>{const unlocked=xp>=o.xpReq;return<button key={o.v} onClick={()=>{if(unlocked)setInst(o.v);}} style={{background:inst===o.v&&unlocked?'rgba(199,125,255,0.2)':'rgba(255,255,255,0.04)',border:`1px solid ${inst===o.v&&unlocked?'rgba(199,125,255,0.45)':'rgba(255,255,255,0.08)'}`,borderRadius:8,padding:'5px 7px',cursor:unlocked?'pointer':'default',color:unlocked?(inst===o.v?'#C77DFF':'rgba(255,255,255,0.55)'):'rgba(255,255,255,0.2)',fontSize:10,display:'flex',flexDirection:'column',alignItems:'center',gap:1,opacity:unlocked?1:0.6,flexShrink:0}}><span style={{fontSize:12}}>{unlocked?o.l:'🔒'}</span><span style={{fontSize:7,lineHeight:1}}>{unlocked?o.t:`${o.xpReq}xp`}</span></button>;})}
     </div>
     <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
-      <div style={{fontSize:9,color:'rgba(199,125,255,0.7)',fontWeight:700}}>{xp}<span style={{fontSize:7,color:'rgba(255,255,255,0.25)',marginLeft:1}}>xp</span></div>
+      <div style={{fontSize:10,fontWeight:900,background:'linear-gradient(135deg,#D946EF,#FF4D6D)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',filter:'drop-shadow(0 0 6px rgba(217,70,239,0.6))'}}>{xp}<span style={{fontSize:7,WebkitTextFillColor:'rgba(199,125,255,0.55)',marginLeft:1}}>xp</span></div>
       <div style={{fontSize:11,fontWeight:700,color:'#4ECDC4',minWidth:40,textAlign:'right'}}>{bpm}<span style={{fontSize:8,color:'rgba(255,255,255,0.3)',fontWeight:500,marginLeft:2}}>bpm</span></div>
     </div>
   </div>
 
   <style>{`
     @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes pulse{0%,100%{box-shadow:0 0 12px rgba(255,107,107,0.5)}50%{box-shadow:0 0 22px rgba(255,107,107,0.9)}}
-    @keyframes swapPulse{0%,100%{box-shadow:0 0 22px rgba(255,215,0,0.9),0 0 44px rgba(255,215,0,0.35)}50%{box-shadow:0 0 32px rgba(255,215,0,1),0 0 60px rgba(255,215,0,0.55)}}
+    @keyframes orbFloat{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.85;transform:scale(1.04)}}
+    @keyframes tabPop{0%{transform:scale(1)}50%{transform:scale(1.14)}100%{transform:scale(1)}}
+    @keyframes pulse{0%,100%{box-shadow:0 0 14px rgba(255,77,109,0.6)}50%{box-shadow:0 0 28px rgba(255,77,109,1),0 0 50px rgba(255,77,109,0.4)}}
+    @keyframes swapPulse{0%,100%{box-shadow:0 0 24px rgba(255,215,0,1),0 0 48px rgba(255,215,0,0.5)}50%{box-shadow:0 0 38px rgba(255,215,0,1),0 0 72px rgba(255,215,0,0.7)}}
     @keyframes svgRingPulse{0%,100%{stroke-opacity:0.45}50%{stroke-opacity:1}}
     @keyframes floatPulse{0%,100%{box-shadow:0 4px 28px rgba(78,205,196,0.25)}50%{box-shadow:0 4px 36px rgba(78,205,196,0.4)}}
     @keyframes metrPulse{0%{transform:scale(1)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
@@ -1185,9 +1188,9 @@ visible={prog.length > 0}
     button:active{transform:scale(0.97)!important}
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:3px}
-    input[type=range]{-webkit-appearance:none;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;outline:none}
-    input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;background:#4ECDC4;border-radius:50%;cursor:pointer;box-shadow:0 0 8px rgba(78,205,196,0.5)}
-    input[type=range]::-moz-range-thumb{width:18px;height:18px;background:#4ECDC4;border-radius:50%;cursor:pointer;border:none}
+    input[type=range]{-webkit-appearance:none;height:4px;background:linear-gradient(90deg,rgba(0,240,200,0.2),rgba(255,77,109,0.1));border-radius:2px;outline:none}
+    input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;background:linear-gradient(135deg,#00F0C8,#4ECDC4);border-radius:50%;cursor:pointer;box-shadow:0 0 12px rgba(0,240,200,0.7)}
+    input[type=range]::-moz-range-thumb{width:18px;height:18px;background:linear-gradient(135deg,#00F0C8,#4ECDC4);border-radius:50%;cursor:pointer;border:none;box-shadow:0 0 10px rgba(0,240,200,0.6)}
   `}</style>
 
 </div>
