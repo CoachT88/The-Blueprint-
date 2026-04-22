@@ -56,8 +56,8 @@ playClick(hi,st){this.init();const t=st||(this.ctx.currentTime+0.15);const o=thi
 countIn(bpm,beats,cb){this.init();const d=60/bpm;const t0=this.ctx.currentTime;for(let i=0;i<beats;i++)this.playClick(i===0,t0+i*d);const id=setTimeout(cb,beats*d*1000);this.tids.push(id);}
 playInterval(a,b,dur=1.8) { this.init(); const t=this.ctx.currentTime+0.15; this.playNote(a,dur,0.4,t); this.playNote(b,dur,0.4,t+0.01); }
 playMelodicInterval(a,b,dur=0.8) { this.init(); const t=this.ctx.currentTime+0.15; this.playNote(a,dur,0.45,t); this.playNote(b,dur,0.45,t+dur*0.7); }
-playProgression(cl,bpm=72,cb,beats=4,stg=0.018) {this.init(); this.stop(); this.isPlaying=true; const d=(60/bpm)*beats;cl.forEach((n,i)=>{ const t=setTimeout(()=>{if(!this.isPlaying)return; if(n)this.playChord(n,d*0.88,stg); if(cb)cb(i);},i*d*1000); this.tids.push(t); });this.tids.push(setTimeout(()=>{this.isPlaying=false; if(cb)cb(-1);},cl.length*d*1000));}
-playLoop(cl,bpm=72,cb,beats=4,stg=0.018) {this.init(); this.stop(); this.isPlaying=true; const d=(60/bpm)*beats; const tot=cl.length*d*1000;const go=()=>{ if(!this.isPlaying) return;cl.forEach((n,i)=>{ this.tids.push(setTimeout(()=>{if(!this.isPlaying)return; if(n)this.playChord(n,d*0.88,stg); if(cb)cb(i);},i*d*1000)); });this.tids.push(setTimeout(()=>{if(this.isPlaying)go();},tot));};go();}
+playProgression(cl,bpm=72,cb,beats=4,stg=0.018,beatPat=null){this.init();this.stop();this.isPlaying=true;let acc=0;cl.forEach((n,i)=>{const b=beatPat?beatPat[i%beatPat.length]:beats;const d=(60/bpm)*b;this.tids.push(setTimeout(()=>{if(!this.isPlaying)return;if(n)this.playChord(n,d*0.88,stg);if(cb)cb(i);},acc*1000));acc+=d;});this.tids.push(setTimeout(()=>{this.isPlaying=false;if(cb)cb(-1);},acc*1000));}
+playLoop(cl,bpm=72,cb,beats=4,stg=0.018,beatPat=null){this.init();this.stop();this.isPlaying=true;const go=()=>{if(!this.isPlaying)return;let acc=0;cl.forEach((n,i)=>{const b=beatPat?beatPat[i%beatPat.length]:beats;const d=(60/bpm)*b;this.tids.push(setTimeout(()=>{if(!this.isPlaying)return;if(n)this.playChord(n,d*0.88,stg);if(cb)cb(i);},acc*1000));acc+=d;});this.tids.push(setTimeout(()=>{if(this.isPlaying)go();},acc*1000));};go();}
 stop() { this.isPlaying=false; this.tids.forEach(t=>clearTimeout(t)); this.tids=[]; }
 absoluteStop(){this.isPlaying=false;this.tids.forEach(t=>clearTimeout(t));this.tids=[];const now=this.ctx?this.ctx.currentTime:0;this.noteEnvs.forEach(e=>{try{e.gain.cancelScheduledValues(now);e.gain.setTargetAtTime(0,now,0.003);setTimeout(()=>{try{e.disconnect();}catch(x){}},80);}catch(x){}});this.noteEnvs=[];if(this.mg&&this.ctx){try{this.mg.gain.cancelScheduledValues(now);this.mg.gain.setValueAtTime(0,now);this.mg.gain.linearRampToValueAtTime(0.32,now+0.12);}catch(x){}}}
 play808(n,dur=2.0,vel=0.85,st=null){this.init(); const base=typeof n==='number'?n:this.noteToFreq((typeof n==='string'&&!/\d/.test(n))?n+'2':n); const t=st||(this.ctx.currentTime+0.15);const o=this.ctx.createOscillator(),g=this.ctx.createGain(),lp=this.ctx.createBiquadFilter();o.type='sine'; o.frequency.setValueAtTime(base*2.5,t); o.frequency.exponentialRampToValueAtTime(base,t+0.06);lp.type='lowpass'; lp.frequency.value=180; lp.Q.value=0.5;g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vel*0.95,t+0.008); g.gain.exponentialRampToValueAtTime(vel*0.5,t+0.25); g.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(lp); lp.connect(g); g.connect(this.mg);o.start(t); o.stop(t+dur+0.1);}
@@ -130,19 +130,19 @@ function ctip(act,d){if(act==='add'&&d.prog){const p=d.prog;if(p.length===2){con
 
 const LES=[{id:1,t:'Major vs Minor',b:'Major: wide 3rd = bright. Minor: lowered 3rd = emotional. One note changes everything.',ch:['C','Am'],c:'basics'},{id:2,t:'What is Tension?',b:'Tension = unfinished. Dominant chords contain a tritone that creates maximum pull toward resolution.',ch:['G','C'],c:'basics'},{id:3,t:'Resolution = Landing',b:'V→I is the strongest resolution. That satisfied "ahhh" when tension releases.',ch:['G','C'],c:'basics'},{id:4,t:'Power of the 3rd',b:'The 3rd defines the mood. C major (C-E-G) → lower E to Eb → C minor. Completely different world.',ch:['C','Am'],c:'intermediate'},{id:5,t:'Borrowed Chords',b:"Bb in C major sounds dramatic because it doesn't belong. Musical accent — stands out beautifully.",ch:['C','Bb'],c:'intermediate'},{id:6,t:'Voice Leading',b:'C→Am shares 2 notes (C and E stay). Shared notes = smooth, connected movement.',ch:['C','Am'],c:'intermediate'},{id:7,t:'The Tritone',b:'6 semitones apart — maximum instability. Appears in dominant 7ths. Engine of Western harmony.',ch:['G','C'],c:'advanced'},{id:8,t:'Scale Degrees',b:'Each note has personality. Root=home, 5th=anchor, 7th=desperate pull. Learn these and craft melodies intentionally.',ch:['C','G'],c:'advanced'},{id:9,t:'Cadences',b:'V→I = period. IV→I = exhale. Ending on V = question mark. Control how sections breathe.',ch:['G','C'],c:'advanced'}];
 const RHY=[{n:'Spacious',d:'4 bars per chord — slow, breathing',b:60,beats:8,stg:0.032},{n:'Standard',d:'2 bars per chord — most common',b:90,beats:4,stg:0.018},{n:'Ballad',d:'2 bars, slow tempo — expressive',b:68,beats:4,stg:0.026},{n:'Driving',d:'1 bar per chord — forward momentum',b:116,beats:2,stg:0.010},{n:'Half-Time',d:'4 bars, heavy — hip-hop/trap feel',b:75,beats:8,stg:0.038}];
-const RHYTHM_FLOATS=[
-  {n:'Dark Ballad',e:'🌙',b:60,beats:4,stg:0.026,tag:'Slow'},
-  {n:'Lo-fi',e:'☕',b:76,beats:4,stg:0.022,tag:'Chill'},
-  {n:'R&B',e:'💜',b:85,beats:4,stg:0.018,tag:'Smooth'},
-  {n:'Hip-Hop',e:'🎤',b:92,beats:4,stg:0.018,tag:'Bounce'},
-  {n:'Afrobeats',e:'🌍',b:105,beats:4,stg:0.016,tag:'Groove'},
-  {n:'Pop',e:'⭐',b:118,beats:4,stg:0.016,tag:'Drive'},
-  {n:'Trap',e:'🔥',b:140,beats:4,stg:0.014,tag:'Hard'},
-  {n:'Drill',e:'⚡',b:148,beats:2,stg:0.012,tag:'Dark'},
-  {n:'Waltz',e:'🌹',b:100,beats:3,stg:0.018,tag:'3/4'},
-  {n:'Dancehall',e:'🌴',b:96,beats:4,stg:0.016,tag:'Island'},
-  {n:'Jersey Club',e:'🏙',b:130,beats:4,stg:0.014,tag:'Club'},
-  {n:'Amapiano',e:'🎹',b:112,beats:4,stg:0.016,tag:'Deep'},
+const RHYTHM_PATTERNS=[
+  {n:'Even',        pat:[4,4,4,4],   tag:'Standard', desc:'All chords equal length'},
+  {n:'Long Short',  pat:[3,1,3,1],   tag:'Bounce',   desc:'Sustain then quick hit'},
+  {n:'Build',       pat:[1,1,2,4],   tag:'Rise',     desc:'Each chord gets longer'},
+  {n:'Fall',        pat:[4,2,1,1],   tag:'Drop',     desc:'Starts long, ends quick'},
+  {n:'Pump',        pat:[2,2,4,4],   tag:'Drive',    desc:'Two short into two long'},
+  {n:'Clave',       pat:[3,3,2],     tag:'Afro',     desc:'3-3-2 African clave feel'},
+  {n:'Soca',        pat:[2,4,2,4],   tag:'Island',   desc:'Quick bounce then hold'},
+  {n:'Trap Hit',    pat:[4,4,2,1,1], tag:'Trap',     desc:'Hold then rapid fire'},
+  {n:'Gallop',      pat:[2,1,2,1],   tag:'Energy',   desc:'Forward driving gallop'},
+  {n:'Stutter',     pat:[1,1,1,5],   tag:'Wild',     desc:'Three quick then breathe'},
+  {n:'Lopsided',    pat:[5,3],       tag:'Odd',      desc:'Long-ish and shorter pair'},
+  {n:'Waltz',       pat:[3,2,1],     tag:'3/4',      desc:'Waltz-style triplet arc'},
 ];
 function ml(ch,cx,cy,r){return ch.map((c,i)=>{const a=(i/ch.length)*Math.PI*2-Math.PI/2;return{c,x:cx+Math.cos(a)*r,y:cy+Math.sin(a)*r};});}
 function tensionLevel(f,t){if(!f||!t)return 0;try{const v=vl(f,t);return Math.min(5,Math.round(v.tm/2));}catch(e){return 0;}}
@@ -510,32 +510,55 @@ return(<>
 // ═══════════════════════════════════════════════════════════════
 // FLOATING RHYTHM COMPONENT
 // ═══════════════════════════════════════════════════════════════
-function FloatingRhythm({bpm,beats,onApply}){
+function BeatBlocks({pat,active,small}){
+const maxB=Math.max(...pat);
+return(
+  <div style={{display:'flex',gap:small?2:3,alignItems:'flex-end',height:small?10:14}}>
+    {pat.map((b,i)=>(
+      <div key={i} style={{
+        width: small?b*5+1:b*7+2,
+        height: small?Math.max(3,b*2):Math.max(4,b*3+2),
+        borderRadius:2,
+        background:active
+          ?`hsl(${38+i*12},100%,${55+b*4}%)`
+          :`rgba(255,255,255,${0.15+b/maxB*0.3})`,
+        transition:'all 0.2s',
+        flexShrink:0,
+      }}/>
+    ))}
+  </div>
+);}
+
+function FloatingRhythm({rhythmPat,onApply}){
 const[open,setOpen]=useState(false);
-const cur=RHYTHM_FLOATS.find(p=>p.b===bpm&&p.beats===beats)||null;
+const cur=rhythmPat?RHYTHM_PATTERNS.find(p=>p.pat.join()===rhythmPat.join())||null:null;
 return(<>
   {open&&(
-    <div style={{position:'fixed',bottom:185,left:14,zIndex:300,background:'rgba(8,8,20,0.97)',backdropFilter:'blur(24px)',border:`1.5px solid ${cur?'rgba(255,183,71,0.45)':'rgba(255,255,255,0.12)'}`,borderRadius:18,padding:'12px',boxShadow:'0 4px 32px rgba(0,0,0,0.7)',width:258,animation:'fadeIn 0.2s'}}>
-      <div style={{fontSize:9,color:'rgba(255,255,255,0.3)',fontWeight:800,textTransform:'uppercase',letterSpacing:1,marginBottom:10}}>Rhythm Presets</div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
-        {RHYTHM_FLOATS.map((p,i)=>{
-          const active=p.b===bpm&&p.beats===beats;
+    <div style={{position:'fixed',bottom:185,left:14,zIndex:300,background:'rgba(8,8,20,0.97)',backdropFilter:'blur(24px)',border:`1.5px solid ${cur?'rgba(255,183,71,0.5)':'rgba(255,255,255,0.12)'}`,borderRadius:18,padding:'12px 12px 10px',boxShadow:'0 4px 32px rgba(0,0,0,0.7)',width:266,animation:'fadeIn 0.2s'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+        <span style={{fontSize:9,color:'rgba(255,255,255,0.3)',fontWeight:800,textTransform:'uppercase',letterSpacing:1}}>Chord Rhythm</span>
+        {cur&&<button onClick={()=>{onApply(null);setOpen(false);}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',cursor:'pointer',fontSize:9}}>Clear</button>}
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:4}}>
+        {RHYTHM_PATTERNS.map((p,i)=>{
+          const active=cur?.n===p.n;
           return(
-            <button key={i} onClick={()=>{onApply(p);setOpen(false);}} style={{background:active?'rgba(255,183,71,0.2)':'rgba(255,255,255,0.04)',border:`1px solid ${active?'rgba(255,183,71,0.55)':'rgba(255,255,255,0.08)'}`,borderRadius:10,padding:'7px 8px',cursor:'pointer',textAlign:'left',display:'flex',alignItems:'center',gap:6,transition:'all 0.15s',boxShadow:active?'0 0 10px rgba(255,183,71,0.3)':'none'}}>
-              <span style={{fontSize:14,flexShrink:0}}>{p.e}</span>
-              <div>
-                <div style={{fontSize:10,fontWeight:700,color:active?'#FFB347':'rgba(255,255,255,0.7)',lineHeight:1.2}}>{p.n}</div>
-                <div style={{fontSize:8,color:'rgba(255,255,255,0.3)',marginTop:1}}>{p.b} · {p.tag}</div>
+            <button key={i} onClick={()=>{onApply(p.pat);setOpen(false);}} style={{background:active?'rgba(255,183,71,0.18)':'rgba(255,255,255,0.03)',border:`1px solid ${active?'rgba(255,183,71,0.55)':'rgba(255,255,255,0.07)'}`,borderRadius:10,padding:'7px 10px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,transition:'all 0.15s',boxShadow:active?'0 0 12px rgba(255,183,71,0.25)':'none'}}>
+              <div style={{textAlign:'left',flexShrink:0}}>
+                <div style={{fontSize:11,fontWeight:700,color:active?'#FFB347':'rgba(255,255,255,0.75)',lineHeight:1.2}}>{p.n}</div>
+                <div style={{fontSize:8,color:'rgba(255,255,255,0.28)',marginTop:1}}>{p.pat.join('-')} · {p.tag}</div>
               </div>
+              <BeatBlocks pat={p.pat} active={active}/>
             </button>
           );
         })}
       </div>
     </div>
   )}
-  <button onClick={()=>setOpen(v=>!v)} style={{position:'fixed',bottom:130,left:14,zIndex:300,background:open?'rgba(255,183,71,0.2)':'rgba(10,10,26,0.88)',border:`1.5px solid ${open?'rgba(255,183,71,0.65)':'rgba(255,255,255,0.1)'}`,borderRadius:'50%',width:44,height:44,color:open?'#FFB347':'rgba(255,255,255,0.4)',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',backdropFilter:'blur(12px)',boxShadow:open?'0 0 18px rgba(255,183,71,0.45)':'0 2px 8px rgba(0,0,0,0.4)',transition:'all 0.2s',gap:1}}>
-    <span style={{fontSize:15,lineHeight:1}}>{cur?.e||'♩'}</span>
-    <span style={{fontSize:7,fontWeight:700,lineHeight:1,opacity:0.7}}>{bpm}</span>
+  <button onClick={()=>setOpen(v=>!v)} style={{position:'fixed',bottom:130,left:14,zIndex:300,background:open||cur?'rgba(255,183,71,0.18)':'rgba(10,10,26,0.88)',border:`1.5px solid ${open?'rgba(255,183,71,0.65)':cur?'rgba(255,183,71,0.4)':'rgba(255,255,255,0.1)'}`,borderRadius:'50%',width:44,height:44,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',backdropFilter:'blur(12px)',boxShadow:open?'0 0 18px rgba(255,183,71,0.45)':cur?'0 0 10px rgba(255,183,71,0.3)':'0 2px 8px rgba(0,0,0,0.4)',transition:'all 0.2s',gap:2,padding:0}}>
+    {cur
+      ?<BeatBlocks pat={cur.pat} active={true} small={true}/>
+      :<span style={{fontSize:14,color:'rgba(255,255,255,0.4)'}}>♩</span>}
   </button>
 </>);}
 
@@ -638,6 +661,7 @@ const[takes,setTakes]=useState([]);
 const[recElapsed,setRecElapsed]=useState(0);
 const[replayChord,setReplayChord]=useState(null);
 const[recChordCount,setRecChordCount]=useState(0);
+const[rhythmPat,setRhythmPat]=useState(null);// null = even
 const isRecording=useRef(false);
 const recEventsRef=useRef([]);
 const recStartRef=useRef(null);
@@ -684,8 +708,8 @@ const remC=useCallback(i=>{setProg(p=>p.filter((_,j)=>j!==i));setSwapIdx(cur=>{i
 const selectSlot=useCallback((i,c)=>{if(swapTid.current)clearTimeout(swapTid.current);if(swapIdx===i){setSwapIdx(null);swapTid.current=null;return;}setUndoProg(prog);setSwapIdx(i);swapTid.current=setTimeout(()=>setSwapIdx(null),5000);if(c!=='REST'){const lbl=extChordLabel(k,c,ext);audio.playChord(cn(pc(lbl).r,pc(lbl).t,3));}},[swapIdx,k,ext,prog]);
 const warpKey=useCallback((ghostChordBase,fromKeyName)=>{const pk=KEYS[fromKeyName];if(!pk)return;audio.playChord(cn(pc(ghostChordBase).r,pc(ghostChordBase).t,3));setOriginalKey(cur=>cur===null?sk:cur);setSk(fromKeyName);setSch(ghostChordBase);setKmf(pk.m);setProg(p=>[...p,ghostChordBase]);if(toastTid.current)clearTimeout(toastTid.current);setKeyToast(`Key shifted to ${fromKeyName} — tap 🏠 to return`);toastTid.current=setTimeout(()=>setKeyToast(null),3500);},[sk]);
 const returnHome=useCallback(()=>{if(!originalKey)return;const ok=KEYS[originalKey];if(!ok)return;setSk(originalKey);setSch(null);setKmf(ok.m);setOriginalKey(null);if(toastTid.current)clearTimeout(toastTid.current);setKeyToast(`Returned to ${originalKey}`);toastTid.current=setTimeout(()=>setKeyToast(null),2500);},[originalKey]);
-const playP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(ch=>ch==='REST'?null:cn(pc(ch).r,pc(ch).t,3));audio.playProgression(n,b,i=>setPi(i),bt,s);const t=ctip('play',{prog});if(t)setTimeout(()=>setTip(t),2000);},[prog,bpm,beats,stg]);
-const loopP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(ch=>ch==='REST'?null:cn(pc(ch).r,pc(ch).t,3));setProgLooping(true);audio.playLoop(n,b,i=>{setPi(i);},bt,s);},[prog,bpm,beats,stg]);
+const playP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(ch=>ch==='REST'?null:cn(pc(ch).r,pc(ch).t,3));audio.playProgression(n,b,i=>setPi(i),bt,s,rhythmPat);const t=ctip('play',{prog});if(t)setTimeout(()=>setTip(t),2000);},[prog,bpm,beats,stg,rhythmPat]);
+const loopP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(ch=>ch==='REST'?null:cn(pc(ch).r,pc(ch).t,3));setProgLooping(true);audio.playLoop(n,b,i=>{setPi(i);},bt,s,rhythmPat);},[prog,bpm,beats,stg,rhythmPat]);
 const saveI=useCallback(()=>{if(!prog.length)return;setSaved(p=>[...p,{id:Date.now(),emo,k:sk,prog:[...prog],date:new Date().toLocaleDateString()}]);if(!dr.current.includes('fs'))setDisc(d=>[...d,'fs']);setXp(x=>x+2);const today=new Date().toISOString().slice(0,10);setStreak(s=>{const diff=s.lastDate?Math.round((new Date(today)-new Date(s.lastDate))/86400000):null;const cnt=diff===1?(s.count||0)+1:diff===0?s.count||1:1;return{count:cnt,lastDate:today};});},[prog,emo,sk]);
 const selEmo=useCallback(e=>{setEmo(e);if(EMO[e].ks[0])setSk(EMO[e].ks[0]);setSch(null);setScreen('emotion');},[]);
 const stopAll=useCallback(()=>{audio.absoluteStop();setPa(false);setPi(-1);setPRow(-1);setProgLooping(false);},[]);
@@ -903,7 +927,7 @@ visible={prog.length > 0}
 />
 
 {/* FLOATING RHYTHM */}
-<FloatingRhythm bpm={bpm} beats={beats} onApply={p=>{setBpm(p.b);setBeats(p.beats);setStg(p.stg);if(progLooping)loopP(p.b,p.beats,p.stg);}} />
+<FloatingRhythm rhythmPat={rhythmPat} onApply={p=>{setRhythmPat(p);if(progLooping){const n=prog.map(ch=>ch==='REST'?null:cn(pc(ch).r,pc(ch).t,3));audio.playLoop(n,bpm,i=>setPi(i),beats,stg,p);}}} />
 
 {/* KEY WARP TOAST */}
 {keyToast&&<div style={{position:'fixed',top:80,left:'50%',transform:'translateX(-50%)',background:'rgba(78,205,196,0.95)',color:'#0a0a1a',borderRadius:12,padding:'10px 20px',fontSize:12,fontWeight:700,zIndex:300,boxShadow:'0 4px 20px rgba(0,0,0,0.5)',whiteSpace:'nowrap',animation:'fadeIn 0.3s',backdropFilter:'blur(10px)'}}>{keyToast}</div>}
