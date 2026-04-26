@@ -762,6 +762,10 @@ const selectSlot=useCallback((i,c)=>{if(swapTid.current)clearTimeout(swapTid.cur
 const warpKey=useCallback((ghostChordBase,fromKeyName)=>{const pk=KEYS[fromKeyName];if(!pk)return;audio.playChord(cn(pc(ghostChordBase).r,pc(ghostChordBase).t,3));setOriginalKey(cur=>cur===null?sk:cur);setSk(fromKeyName);setSch(ghostChordBase);setKmf(pk.m);setProg(p=>[...p,ghostChordBase]);if(toastTid.current)clearTimeout(toastTid.current);setKeyToast(`Key shifted to ${fromKeyName} — tap 🏠 to return`);toastTid.current=setTimeout(()=>setKeyToast(null),3500);},[sk]);
 const returnHome=useCallback(()=>{if(!originalKey)return;const ok=KEYS[originalKey];if(!ok)return;setSk(originalKey);setSch(null);setKmf(ok.m);setOriginalKey(null);if(toastTid.current)clearTimeout(toastTid.current);setKeyToast(`Returned to ${originalKey}`);toastTid.current=setTimeout(()=>setKeyToast(null),2500);},[originalKey]);
 const resolveNotes=useCallback(ch=>{if(ch==='REST')return null;if(ch.startsWith('note:'))return[ch.slice(5)+'4'];return cn(pc(ch).r,pc(ch).t,3);},[]);
+
+// Pattern recognition for repetition teaching
+const progPattern=useMemo(()=>{const seen=new Map();const L='ABCDEFGHIJKLMNOP';let idx=0;return prog.map(c=>{if(!c||c==='REST')return null;if(!seen.has(c))seen.set(c,L[idx++]||'?');return seen.get(c);});},[prog]);
+const patternTip=useMemo(()=>{const ls=progPattern.filter(Boolean);if(ls.length<3)return null;const u=new Set(ls);const s=ls.join('');const pat=ls.join(' ');if(u.size===1)return{pat,msg:'Hypnotic loop — simple and powerful'};if(u.size===ls.length)return{pat,msg:'All different — repeat one chord for a hook'};if(s==='ABAB')return{pat,msg:'Loop pattern — great for verses and choruses'};if(s==='AABA')return{pat,msg:'Classic hook — the most common song structure'};if(s==='ABAC')return{pat,msg:'Returns home — familiar with surprise'};if(s==='ABCA')return{pat,msg:'Bookend — same start and end feels complete'};if(s==='AAAB')return{pat,msg:'Build-up — the new chord hits harder after repetition'};if(s==='ABBA')return{pat,msg:'Mirror — symmetrical and satisfying'};if(ls.slice(1).includes(ls[0]))return{pat,msg:`"${ls[0]}" is your anchor — listeners will feel home`};return{pat,msg:'Repetition forming — this is how hooks are born'};},[progPattern]);
 const playP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(resolveNotes);const pat=rhythmPat?rhythmPat.map(sec=>sec*b/60):null;audio.playProgression(n,b,i=>setPi(i),bt,s,pat);const t=ctip('play',{prog});if(t)setTimeout(()=>setTip(t),2000);},[prog,bpm,beats,stg,rhythmPat,resolveNotes]);
 const loopP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(resolveNotes);const pat=rhythmPat?rhythmPat.map(sec=>sec*b/60):null;setProgLooping(true);audio.playLoop(n,b,i=>{setPi(i);},bt,s,pat);},[prog,bpm,beats,stg,rhythmPat,resolveNotes]);
 // Restart loop at new BPM whenever tempo changes while looping
@@ -865,6 +869,13 @@ return (
     {dragging !== null && <button onClick={cancelDrag} style={{ ...S.btn('rgba(255,107,107,0.2)', '#FF6B6B', 'rgba(255,107,107,0.4)'), padding: '3px 9px', fontSize: 10, flexShrink: 0 }}>Cancel</button>}
   </div>
 
+  {/* Pattern tip */}
+  {patternTip&&<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:8,padding:'6px 10px',background:'rgba(78,205,196,0.06)',borderRadius:8,border:'1px solid rgba(78,205,196,0.15)'}}>
+    <span style={{fontSize:13,fontWeight:900,letterSpacing:4,color:'#4ECDC4',flexShrink:0}}>{patternTip.pat}</span>
+    <span style={{fontSize:9,color:'rgba(255,255,255,0.35)',flexShrink:0}}>—</span>
+    <span style={{fontSize:9,color:'rgba(255,255,255,0.5)',lineHeight:1.3}}>{patternTip.msg}</span>
+  </div>}
+
   {/* 4×4 grid */}
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 10 }}>
     {Array.from({ length: 16 }, (_, i) => {
@@ -903,6 +914,7 @@ return (
               boxShadow: isDragSource ? '0 8px 28px rgba(255,215,0,0.6)' : isActive ? '0 0 20px rgba(255,215,0,0.8),0 0 40px rgba(255,215,0,0.3)' : isPlaying ? `0 0 18px ${cc(c)}a0,0 0 36px ${cc(c)}40` : 'none',
               transform: isDragSource ? 'scale(1.08) rotate(2deg)' : isPlaying && !isActive ? 'scale(1.05)' : undefined,
             }}>
+            {progPattern[i]&&<div style={{position:'absolute',top:3,left:5,fontSize:8,fontWeight:900,color:isDragSource||isActive?'rgba(255,215,0,0.6)':'rgba(78,205,196,0.5)',lineHeight:1,letterSpacing:0}}>{progPattern[i]}</div>}
             <div style={{ fontSize: 11, fontWeight: 800, color: isDragSource ? '#FFD700' : isActive ? '#FFD700' : cc(c), textAlign: 'center', lineHeight: 1.2 }}>{c}</div>
             <div style={{ fontSize: 7, color: isActive ? 'rgba(255,215,0,0.55)' : 'rgba(255,255,255,0.25)', marginTop: 2 }}>{i + 1}</div>
             {dragging === null && isActive && <div style={{ fontSize: 7, color: '#FFD700', marginTop: 1 }}>←tap</div>}
