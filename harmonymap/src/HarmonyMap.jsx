@@ -758,7 +758,7 @@ const returnHome=useCallback(()=>{if(!originalKey)return;const ok=KEYS[originalK
 const playP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(ch=>ch==='REST'?null:cn(pc(ch).r,pc(ch).t,3));audio.playProgression(n,b,i=>setPi(i),bt,s,rhythmPat);const t=ctip('play',{prog});if(t)setTimeout(()=>setTip(t),2000);},[prog,bpm,beats,stg,rhythmPat]);
 const loopP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(ch=>ch==='REST'?null:cn(pc(ch).r,pc(ch).t,3));setProgLooping(true);audio.playLoop(n,b,i=>{setPi(i);},bt,s,rhythmPat);},[prog,bpm,beats,stg,rhythmPat]);
 const saveI=useCallback(()=>{if(!prog.length)return;setSaved(p=>[...p,{id:Date.now(),emo,k:sk,prog:[...prog],date:new Date().toLocaleDateString()}]);if(!dr.current.includes('fs'))setDisc(d=>[...d,'fs']);setXp(x=>x+2);const today=new Date().toISOString().slice(0,10);setStreak(s=>{const diff=s.lastDate?Math.round((new Date(today)-new Date(s.lastDate))/86400000):null;const cnt=diff===1?(s.count||0)+1:diff===0?s.count||1:1;return{count:cnt,lastDate:today};});},[prog,emo,sk]);
-const selEmo=useCallback(e=>{setEmo(e);if(EMO[e].ks[0])setSk(EMO[e].ks[0]);setSch(null);setScreen('emotion');},[]);
+const selEmo=useCallback(e=>{const entry=EMO[e];setEmo(e);const fk=entry.ks[0];if(fk){setSk(fk);setKmf(KEYS[fk]?.m||'major');}setSch(null);if(entry.pr?.[0]?.ch)setProg(entry.pr[0].ch);const pb=parseInt(entry.tp);if(pb)setBpm(pb);setScreen('chordmap');},[]);
 const stopAll=useCallback(()=>{audio.absoluteStop();setPa(false);setPi(-1);setPRow(-1);setProgLooping(false);},[]);
 const newEar=useCallback(()=>{setEa(null);const c=earGen(et);setEc(c);if(c)setTimeout(()=>{if(c.pt==='chord')audio.playChord(c.pd);else if(c.pt==='melodic')audio.playMelodicInterval(c.pd[0],c.pd[1]);else if(c.pt==='two'){audio.playChord(c.pd[0],1.3);setTimeout(()=>audio.playChord(c.pd[1],1.3),1500);}},300);},[et]);
 const replayEar=useCallback(()=>{if(!ec)return;if(ec.pt==='chord')audio.playChord(ec.pd);else if(ec.pt==='melodic')audio.playMelodicInterval(ec.pd[0],ec.pd[1]);else if(ec.pt==='two'){audio.playChord(ec.pd[0],1.3);setTimeout(()=>audio.playChord(ec.pd[1],1.3),1500);}},[ec]);
@@ -1086,6 +1086,17 @@ visible={prog.length > 0}
 
 {/* ═══ CHORD MAP ═══ */}
 {screen==='chordmap'&&<div style={{padding:'14px',maxWidth:600,margin:'0 auto'}}>
+
+  {/* ── MOOD STRIP ── */}
+  {emo&&em&&<div style={{display:'flex',alignItems:'center',gap:10,background:`${em.co[0]}18`,border:`1px solid ${em.co[0]}35`,borderRadius:12,padding:'10px 14px',marginBottom:12,animation:'fadeIn 0.3s'}}>
+    <span style={{fontSize:18,lineHeight:1}}>{em.l}</span>
+    <div style={{flex:1,minWidth:0}}>
+      <div style={{fontSize:11,fontWeight:700,color:em.co[0]}}>{em.l}</div>
+      <div style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginTop:1}}>{em.fl} · {em.tp} BPM</div>
+    </div>
+    <button onClick={()=>setScreen('emotion')} style={{...S.btn(`${em.co[0]}25`,em.co[0],`${em.co[0]}45`),padding:'5px 10px',fontSize:10,flexShrink:0,fontWeight:700}}>More progressions</button>
+    <button onClick={()=>setEmo(null)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',cursor:'pointer',fontSize:16,padding:0,lineHeight:1,flexShrink:0}}>×</button>
+  </div>}
 
   {/* ── KEY SELECTOR ── */}
   <div style={{marginBottom:12}}>
