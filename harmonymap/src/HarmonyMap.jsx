@@ -720,6 +720,7 @@ const recElapsedTid=useRef(null);
 const replayTids=useRef([]);
 const lastTapTimeRef=useRef(null);
 const[bpm,setBpm]=useState(90);const[beats,setBeats]=useState(4);const[stg,setStg]=useState(0.018);
+const{metrOn,toggleMetro}=useMetronome(bpm,setBpm);
 const[inst,setInst]=useState('underwater');
 useEffect(()=>{audio.setInstrument(inst);},[inst]);
 useEffect(()=>{const warmup=()=>{audio.init();};document.addEventListener('touchstart',warmup,{once:true,passive:true,capture:true});return()=>document.removeEventListener('touchstart',warmup,{capture:true});},[]);
@@ -996,8 +997,6 @@ visible={prog.length > 0}
   onReplay={replayTake}
 />
 
-{/* FLOATING METRONOME */}
-<FloatingMetronome bpm={bpm} onBpmChange={setBpm}/>
 
 {/* KEY WARP TOAST */}
 {keyToast&&<div style={{position:'fixed',top:80,left:'50%',transform:'translateX(-50%)',background:'rgba(78,205,196,0.95)',color:'#0a0a1a',borderRadius:12,padding:'10px 20px',fontSize:12,fontWeight:700,zIndex:300,boxShadow:'0 4px 20px rgba(0,0,0,0.5)',whiteSpace:'nowrap',animation:'fadeIn 0.3s',backdropFilter:'blur(10px)'}}>{keyToast}</div>}
@@ -1388,6 +1387,7 @@ visible={prog.length > 0}
     <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
       <div style={{fontSize:10,fontWeight:900,background:'linear-gradient(135deg,#D946EF,#FF4D6D)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',filter:'drop-shadow(0 0 6px rgba(217,70,239,0.6))'}}>{xp}<span style={{fontSize:7,WebkitTextFillColor:'rgba(199,125,255,0.55)',marginLeft:1}}>xp</span></div>
       <div style={{fontSize:11,fontWeight:700,color:'#4ECDC4',minWidth:40,textAlign:'right'}}>{bpm}<span style={{fontSize:8,color:'rgba(255,255,255,0.3)',fontWeight:500,marginLeft:2}}>bpm</span></div>
+      <button onClick={toggleMetro} style={{width:34,height:34,borderRadius:'50%',background:metrOn?'rgba(255,183,71,0.2)':'rgba(255,255,255,0.06)',border:`1.5px solid ${metrOn?'rgba(255,183,71,0.6)':'rgba(255,255,255,0.12)'}`,color:metrOn?'#FFB347':'rgba(255,255,255,0.35)',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:metrOn?'0 0 12px rgba(255,183,71,0.35)':'none',transition:'all 0.2s'}}>♩</button>
     </div>
   </div>
 
