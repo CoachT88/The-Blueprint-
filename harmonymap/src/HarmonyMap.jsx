@@ -668,7 +668,7 @@ Recording... release to stop
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 export default function HarmonyMap(){
-const[screen,setScreen]=useState('home');
+const[screen,setScreen]=useState('chordmap');
 const[emo,setEmo]=useState(null);
 const[sk,setSk]=useState('C major');
 const[sch,setSch]=useState(null);
@@ -963,16 +963,13 @@ return (
 );
 }, [prog, pi, progLooping, swapIdx, dragging, dragOver, bpm, beats, stg, k, ext, undoProg, blueprint, streak, xp, clearSwap, cancelDrag, onLongPressStart, onLongPressEnd, onDragEnter, onDrop, selectSlot, remC, addC, playP, loopP, saveI, stopAll]);
 
-const tabs=[{k:'home',i:'⌂',l:'Home',c:'#FF4D6D'},{k:'chordmap',i:'◉',l:'Map',c:'#00F0C8'},{k:'melody',i:'♪',l:'Melody',c:'#C77DFF'},{k:'ear',i:'👂',l:'Ear',c:'#FFB347'},{k:'intervals',i:'↕',l:'Intervals',c:'#38BDF8'},{k:'learn',i:'✦',l:'Learn',c:'#A3E635'},{k:'mix',i:'🎚',l:'Mix',c:'#FF5252'},{k:'saved',i:'♡',l:'Saved',c:'#FB923C'}];
+const tabs=[{k:'chordmap',i:'◉',l:'Map',c:'#00F0C8'},{k:'home',i:'✦',l:'Explore',c:'#FF4D6D'},{k:'ear',i:'👂',l:'Train',c:'#FFB347'},{k:'saved',i:'♡',l:'Studio',c:'#C77DFF'}];
 const isAudioActive = pa || progLooping || pi >= 0 || pRow >= 0;
 
 return(
 
 <div style={{width:'100%',minHeight:'100vh',background:em?em.gr:'linear-gradient(135deg,#0d0d24,#1a0a38,#060f26)',color:'#F2F2F2',fontFamily:"'Segoe UI','SF Pro Display',-apple-system,sans-serif",position:'relative',overflow:'hidden',transition:'background 0.8s'}}>
 <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:`radial-gradient(ellipse at 15% 12%,${em?em.co[0]+'40':'#FF4D6D40'} 0%,transparent 52%),radial-gradient(ellipse at 85% 80%,${em?em.co[1]+'32':'#00F0C830'} 0%,transparent 52%),radial-gradient(ellipse at 55% 45%,${em?em.co[0]+'1e':'#D946EF24'} 0%,transparent 48%)`,pointerEvents:'none',zIndex:0,animation:'orbFloat 14s ease-in-out infinite'}}/>
-
-{/* FLOATING STOP */}
-<button onClick={stopAll} style={{position:'fixed',bottom:76,right:14,zIndex:200,background:isAudioActive?'linear-gradient(135deg,#FF4444,#CC0000)':'rgba(40,40,50,0.82)',border:`1.5px solid ${isAudioActive?'rgba(255,80,80,0.7)':'rgba(255,255,255,0.1)'}`,borderRadius:'50%',width:44,height:44,color:isAudioActive?'#fff':'rgba(255,255,255,0.3)',cursor:'pointer',fontSize:13,fontWeight:900,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:isAudioActive?'0 4px 18px rgba(255,60,60,0.55)':'0 2px 8px rgba(0,0,0,0.4)',animation:isAudioActive?'pulse 1.8s ease-in-out infinite':undefined,transition:'background 0.3s,border 0.3s,color 0.3s',backdropFilter:'blur(12px)'}}>■</button>
 
 {/* FLOATING PLAYBAR */}
 <FloatingPlaybar
@@ -982,9 +979,6 @@ onPlay={() => playP()} onLoop={() => loopP()} onStop={stopAll}
 visible={prog.length > 0}
 />
 
-{/* FLOATING METRONOME */}
-<FloatingMetronome bpm={bpm} onBpmChange={setBpm} />
-
 {/* FLOATING RECORDER */}
 <FloatingRecorder
   recState={recState} takes={takes} setTakes={setTakes}
@@ -992,9 +986,6 @@ visible={prog.length > 0}
   onStart={startRec} onStop={stopRec} onStopReplay={stopReplay}
   onReplay={replayTake}
 />
-
-{/* FLOATING RHYTHM */}
-<FloatingRhythm rhythmPat={rhythmPat} onApply={p=>{setRhythmPat(p);if(progLooping){const n=prog.map(ch=>ch==='REST'?null:cn(pc(ch).r,pc(ch).t,3));audio.playLoop(n,bpm,i=>setPi(i),beats,stg,p);}}} />
 
 {/* KEY WARP TOAST */}
 {keyToast&&<div style={{position:'fixed',top:80,left:'50%',transform:'translateX(-50%)',background:'rgba(78,205,196,0.95)',color:'#0a0a1a',borderRadius:12,padding:'10px 20px',fontSize:12,fontWeight:700,zIndex:300,boxShadow:'0 4px 20px rgba(0,0,0,0.5)',whiteSpace:'nowrap',animation:'fadeIn 0.3s',backdropFilter:'blur(10px)'}}>{keyToast}</div>}
@@ -1096,10 +1087,6 @@ visible={prog.length > 0}
 {/* ═══ CHORD MAP ═══ */}
 {screen==='chordmap'&&<div style={{padding:'14px',maxWidth:600,margin:'0 auto'}}>
 
-  <div style={{background:'rgba(78,205,196,0.08)',border:'1px solid rgba(78,205,196,0.2)',borderRadius:12,padding:'10px 12px',marginBottom:12,fontSize:11,color:'rgba(255,255,255,0.65)',lineHeight:1.5}}>
-    <strong style={{color:'#4ECDC4'}}>How to use:</strong> Tap any chord on the map to hear it and add it to your progression. Long-press grid slots to drag & reorder.
-  </div>
-
   {/* ── KEY SELECTOR ── */}
   <div style={{marginBottom:12}}>
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
@@ -1156,18 +1143,6 @@ visible={prog.length > 0}
     </div>
   </div>}
 
-  {/* Legend */}
-  <div style={{display:'flex',gap:10,padding:'10px 4px',marginTop:4,flexWrap:'wrap'}}>
-    <div style={{display:'flex',alignItems:'center',gap:7,background:'rgba(255,215,0,0.08)',border:'1px solid rgba(255,215,0,0.25)',borderRadius:8,padding:'6px 10px',flex:1}}>
-      <svg width="32" height="10" style={{flexShrink:0}}><line x1="0" y1="5" x2="32" y2="5" stroke="#FFD700" strokeWidth="3.5"/></svg>
-      <span style={{fontSize:10,color:'rgba(255,255,255,0.7)',lineHeight:1.3}}><strong style={{color:'#FFD700'}}>Strong move</strong><br/>Most emotional, hits hardest</span>
-    </div>
-    <div style={{display:'flex',alignItems:'center',gap:7,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:8,padding:'6px 10px',flex:1}}>
-      <svg width="32" height="10" style={{flexShrink:0}}><line x1="0" y1="5" x2="32" y2="5" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeDasharray="5 4"/></svg>
-      <span style={{fontSize:10,color:'rgba(255,255,255,0.55)',lineHeight:1.3}}><strong style={{color:'rgba(255,255,255,0.6)'}}>Smooth move</strong><br/>Works well, softer change</span>
-    </div>
-  </div>
-
   {/* ── PROGRESSION GRID — NOW DIRECTLY BELOW THE MAP ── */}
   <ProgGrid />
 
@@ -1211,68 +1186,6 @@ visible={prog.length > 0}
     </div>
   </div>}
 
-  {/* ── Tempo + Rhythm ── */}
-  <div style={{...S.card(),marginTop:14,marginBottom:14}}>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-      <div style={{...S.lbl,marginBottom:0}}>Tempo</div>
-      <div style={{fontSize:18,fontWeight:800,color:'#4ECDC4'}}>{bpm} <span style={{fontSize:10,color:'rgba(255,255,255,0.4)',fontWeight:600}}>BPM</span></div>
-    </div>
-    <input type="range" min="40" max="200" value={bpm} onChange={e=>setBpm(parseInt(e.target.value))} style={{width:'100%',marginBottom:10}}/>
-    <div style={{display:'flex',justifyContent:'space-between',fontSize:8,color:'rgba(255,255,255,0.3)',marginTop:-6,marginBottom:10}}><span>40</span><span>120</span><span>200</span></div>
-    <div style={S.lbl}>Rhythm Feel</div>
-    <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{RHY.map((r,i)=><button key={i} onClick={()=>{setSr(i);setBpm(r.b);setBeats(r.beats);setStg(r.stg);if(prog.length>0)playP(r.b,r.beats,r.stg);}} style={{...S.btn(sr===i?'rgba(255,255,255,0.12)':'rgba(255,255,255,0.04)',sr===i?'#fff':'rgba(255,255,255,0.5)'),padding:'6px 10px',fontSize:10,textAlign:'left'}}><div style={{fontWeight:700}}>{r.n}</div><div style={{fontSize:8,opacity:0.5,marginTop:1}}>{r.b} BPM · {r.beats} beats</div></button>)}</div>
-    {sr!==null&&<div style={{marginTop:6,fontSize:10,color:'rgba(255,255,255,0.4)'}}>{RHY[sr].d}</div>}
-    <div style={{marginTop:8,display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
-      <div style={{fontSize:9,color:'rgba(255,255,255,0.35)'}}>Beats per chord:</div>
-      {[1,2,4,8].map(b=><button key={b} onClick={()=>setBeats(b)} style={{...S.btn(beats===b?'rgba(78,205,196,0.2)':'rgba(255,255,255,0.04)',beats===b?'#4ECDC4':'rgba(255,255,255,0.5)'),padding:'3px 9px',fontSize:10}}>{b}</button>)}
-    </div>
-  </div>
-
-  {/* ── Presets ── */}
-  <div style={{marginBottom:14}}>
-    <div style={S.lbl}>Presets for {sk}</div>
-    {ps.map((p,i)=><button key={i} onClick={()=>setProg(p.ch)} style={{...S.card(),display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',width:'100%',textAlign:'left'}}>
-      <div><span style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,0.7)'}}>{p.n}</span><span style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginLeft:8}}>{p.f}</span></div>
-      <span style={{fontSize:11,color:'rgba(255,255,255,0.3)'}}>{p.ch.join(' → ')}</span>
-    </button>)}
-  </div>
-
-  {/* ── Genre Progressions ── */}
-  <div style={{marginBottom:14}}>
-    <div style={S.lbl}>Progressions by Genre</div>
-    <p style={{fontSize:10,color:'rgba(255,255,255,0.35)',margin:'0 0 10px'}}>Pick a genre. Every progression plays at the right tempo and feel for that style.</p>
-    <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:14}}>
-      {GENRE_KEYS.map(gk=>{const g=GENRES[gk];return(
-        <button key={gk} onClick={()=>setGenre(genre===gk?null:gk)} style={{background:genre===gk?g.color+'25':'rgba(255,255,255,0.04)',border:`1.5px solid ${genre===gk?g.color+'60':'rgba(255,255,255,0.08)'}`,borderRadius:10,padding:'6px 12px',cursor:'pointer',textAlign:'left',transition:'all 0.2s'}}>
-          <div style={{fontSize:11,fontWeight:700,color:genre===gk?g.color:'rgba(255,255,255,0.6)'}}>{g.n}</div>
-          <div style={{fontSize:8,color:'rgba(255,255,255,0.3)',marginTop:1}}>{g.tempo} BPM</div>
-        </button>);})}
-    </div>
-    {genre&&GENRES[genre]&&(
-      <div>
-        <div style={{...S.card(GENRES[genre].color+'30'),background:GENRES[genre].color+'08'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
-            <div><h3 style={{fontSize:18,fontWeight:800,color:GENRES[genre].color,margin:'0 0 2px'}}>{GENRES[genre].n}</h3><div style={{fontSize:11,color:'rgba(255,255,255,0.5)'}}>{GENRES[genre].desc}</div></div>
-            <span style={{fontSize:10,color:'rgba(255,255,255,0.3)',background:'rgba(255,255,255,0.06)',borderRadius:6,padding:'3px 8px'}}>{GENRES[genre].tempo} BPM</span>
-          </div>
-          <div style={{fontSize:10,color:'rgba(255,255,255,0.5)',lineHeight:1.6,marginTop:6,background:'rgba(0,0,0,0.15)',borderRadius:8,padding:'8px 10px'}}>💡 {GENRES[genre].tips}</div>
-        </div>
-        {GENRES[genre].progs.map((p,pi2)=>{const ch=k?p.g(k.ch):[];return(
-          <div key={pi2} style={S.card()}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-              <div><span style={{fontSize:14,fontWeight:700,color:GENRES[genre].color}}>{p.n}</span><span style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginLeft:8}}>{p.d}</span></div>
-              <span style={{fontSize:9,color:'rgba(255,255,255,0.25)',background:'rgba(255,255,255,0.05)',borderRadius:4,padding:'2px 6px'}}>{p.bpm} BPM</span>
-            </div>
-            <div style={{display:'flex',gap:5,marginBottom:6,flexWrap:'wrap'}}>{ch.map((c,j)=>(<span key={j} style={{fontSize:12,fontWeight:600,color:cc(c),background:cc(c)+'15',borderRadius:6,padding:'3px 8px',border:`1px solid ${cc(c)}30`}}>{c}</span>))}</div>
-            <div style={{fontSize:10,color:'rgba(255,255,255,0.5)',lineHeight:1.5,marginBottom:8}}>{p.w}</div>
-            <div style={{display:'flex',gap:6}}>
-              <button onClick={()=>{if(ch.length){setProg(ch);setSr(null);}}} style={S.btn(GENRES[genre].color+'20',GENRES[genre].color,GENRES[genre].color+'40')}>Use this</button>
-              <button onClick={()=>{if(ch.length)audio.playProgression(ch.map(s=>genreNotes(s,genre)),p.bpm,i=>setPi(i),beats,stg);}} style={S.btn()}>▶ Play at {p.bpm}</button>
-            </div>
-          </div>);})}
-      </div>)}
-    {!genre&&(<div style={{textAlign:'center',padding:'20px',color:'rgba(255,255,255,0.25)',fontSize:11}}>Select a genre above to see its signature progressions.</div>)}
-  </div>
 </div>}
 
 {/* ═══ MELODY LAB ═══ */}
