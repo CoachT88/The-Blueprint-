@@ -1995,6 +1995,22 @@ function resetSession(){
     session.exerciseIndex=0;session.setIndex=1;session.directionalIndex=0;session.xp=0;
     session.recoveryQueue=null;session.recoveryQueuePos=0;
     session.girthRound=1;session.girthTotalRounds=3;
+    _releaseWakeLock();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCREEN WAKE LOCK — keeps screen on while a timer is actively counting
+// ═══════════════════════════════════════════════════════════════════════════
+let _wakeLock=null;
+async function _acquireWakeLock(){
+    if(!('wakeLock' in navigator)||_wakeLock)return;
+    try{_wakeLock=await navigator.wakeLock.request('screen');_wakeLock.addEventListener('release',()=>{_wakeLock=null;});}catch(e){}
+}
+function _releaseWakeLock(){if(_wakeLock){_wakeLock.release().catch(()=>{});_wakeLock=null;}}
+// Call after any timer state change — acquires if any timer is running, releases if none are.
+function _syncWakeLock(){
+    const active=(session.timer?.isRunning())||(session.warmupTimer?.isRunning());
+    if(active)_acquireWakeLock();else _releaseWakeLock();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2548,12 +2564,12 @@ function resetWarmupUI(){document.getElementById('warmup-timer').innerText='10:0
 function toggleWarmup(){
     const btn=document.getElementById('warmup-btn');
     if(!session.warmupTimer){
-        session.warmupTimer=createTimer(600,rem=>{const m=Math.floor(rem/60).toString().padStart(2,'0'),s=(rem%60).toString().padStart(2,'0');document.getElementById('warmup-timer').innerText=`${m}:${s}`},()=>{btn.innerText='Complete!';haptic([80,40,80,40,200]);setTimeout(()=>nextStep(),800)});
-        session.warmupTimer.start();btn.innerText='Pause';
-    }else if(session.warmupTimer.isRunning()){session.warmupTimer.pause();btn.innerText='Resume'}
-    else{session.warmupTimer.resume();btn.innerText='Pause'}
+        session.warmupTimer=createTimer(600,rem=>{const m=Math.floor(rem/60).toString().padStart(2,'0'),s=(rem%60).toString().padStart(2,'0');document.getElementById('warmup-timer').innerText=`${m}:${s}`},()=>{btn.innerText='Complete!';haptic([80,40,80,40,200]);_syncWakeLock();setTimeout(()=>nextStep(),800)});
+        session.warmupTimer.start();btn.innerText='Pause';_syncWakeLock();
+    }else if(session.warmupTimer.isRunning()){session.warmupTimer.pause();btn.innerText='Resume';_syncWakeLock();}
+    else{session.warmupTimer.resume();btn.innerText='Pause';_syncWakeLock();}
 }
-function stopWarmup(){if(session.warmupTimer){session.warmupTimer.cancel();session.warmupTimer=null}resetWarmupUI()}
+function stopWarmup(){if(session.warmupTimer){session.warmupTimer.cancel();session.warmupTimer=null}resetWarmupUI();_syncWakeLock();}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EXERCISE ENGINE
@@ -2972,7 +2988,7 @@ function startSet(){
             if(activeCue) updateActiveCue(activeCue.text.replace('{DIR}',DIRECTIONALS[session.directionalIndex]));
         }
     },()=>onSetDone());
-    session.timer.start();
+    session.timer.start();_syncWakeLock();
 }
 function pauseResumeSet(){
     if(!session.timer)return;
@@ -2983,6 +2999,7 @@ function pauseResumeSet(){
         stopJelqStrokePacer();
         ic.className='fas fa-play text-4xl text-slate-300';
         if(lbl)lbl.innerText='Resume';
+        _syncWakeLock();
     } else {
         session.timer.resume();
         // Restart pacer if this is a Wet Jelq set
@@ -2990,13 +3007,14 @@ function pauseResumeSet(){
         if(ex.title==='Wet Jelq') startJelqStrokePacer();
         ic.className='fas fa-pause text-4xl text-slate-300';
         if(lbl)lbl.innerText='Pause';
+        _syncWakeLock();
     }
 }
 function onSetDone(){
     stopJelqStrokePacer();
     document.getElementById('ex-pause-btn').style.display='none';
     setFocusedMode(false);
-    session.timer=null;
+    session.timer=null;_syncWakeLock();
     haptic([60,30,60]);
     const ex=getCurEx();
     if(ex.isDirectional&&session.directionalIndex<DIRECTIONALS.length-1){session.directionalIndex++;document.getElementById('ex-timer').innerText=fmtDuration(ex.duration);updateExUI();}
@@ -3088,13 +3106,13 @@ function startRest(){
     },()=>{
         ov.classList.add('hidden');
         stopBoxBreathing();
-        session.timer=null;session.setIndex++;updateExUI();haptic([100]);
+        session.timer=null;_syncWakeLock();session.setIndex++;updateExUI();haptic([100]);
     });
-    session.timer.start();
+    session.timer.start();_syncWakeLock();
 }
 function skipRest(){
     if(session.timer){session.timer.cancel();session.timer=null}
-    stopBoxBreathing();
+    stopBoxBreathing();_syncWakeLock();
     document.getElementById('rest-overlay').classList.add('hidden');
     session.setIndex++;updateExUI();
 }
@@ -3148,11 +3166,11 @@ function startGirthRoundRest(){
         document.getElementById('rest-timer').innerText=rem;
         if(arc) arc.style.strokeDashoffset=String((1-(rem/restDur))*circumference);
     },()=>{
-        ov.classList.add('hidden');stopBoxBreathing();session.timer=null;
+        ov.classList.add('hidden');stopBoxBreathing();session.timer=null;_syncWakeLock();
         session.exerciseIndex=0;session.setIndex=1;session.directionalIndex=0;
         updateExUI();haptic([100]);
     });
-    session.timer.start();
+    session.timer.start();_syncWakeLock();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -4177,9 +4195,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
         if(!session) showAuthScreen();
     }
 
-    // Save on tab hide (catches closed browser mid-session) — use flush, not debounce
+    // Save on tab hide; re-acquire wake lock when screen comes back on mid-timer
     document.addEventListener('visibilitychange',()=>{
         if(document.visibilityState==='hidden') _flushSaveNow();
+        else _syncWakeLock(); // wake lock is auto-released on hide; reclaim it if a timer is still running
     });
 });
 </script>
