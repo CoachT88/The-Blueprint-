@@ -1496,7 +1496,14 @@ visible={prog.length > 0}
     </div>
     <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
       <div style={{fontSize:10,fontWeight:900,background:'linear-gradient(135deg,#D946EF,#FF4D6D)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',filter:'drop-shadow(0 0 6px rgba(217,70,239,0.6))'}}>{xp}<span style={{fontSize:7,WebkitTextFillColor:'rgba(199,125,255,0.55)',marginLeft:1}}>xp</span></div>
-      <div style={{fontSize:11,fontWeight:700,color:'#F5A623',minWidth:40,textAlign:'right'}}>{bpm}<span style={{fontSize:8,color:'rgba(255,255,255,0.3)',fontWeight:500,marginLeft:2}}>bpm</span></div>
+      <div style={{display:'flex',alignItems:'center',gap:3,flexShrink:0}}>
+        <button onClick={()=>setBpm(b=>Math.max(40,b-1))} style={{width:20,height:20,borderRadius:'50%',background:'rgba(255,255,255,0.07)',border:'none',color:'rgba(255,255,255,0.5)',cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>−</button>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center'}}>
+          <input type="number" min="40" max="200" value={bpmInput} onChange={e=>setBpmInput(e.target.value)} onBlur={()=>{const v=Math.max(40,Math.min(200,parseInt(bpmInput)||90));setBpm(v);setBpmInput(String(v));}} onKeyDown={e=>{if(e.key==='Enter'){const v=Math.max(40,Math.min(200,parseInt(bpmInput)||90));setBpm(v);setBpmInput(String(v));e.target.blur();}}} style={{fontSize:13,fontWeight:800,color:'#F5A623',width:38,textAlign:'center',background:'transparent',border:'none',outline:'none',WebkitAppearance:'none',MozAppearance:'textfield',cursor:'text'}}/>
+          <span style={{fontSize:7,color:'rgba(255,255,255,0.3)',fontWeight:500,marginTop:-2}}>bpm</span>
+        </div>
+        <button onClick={()=>setBpm(b=>Math.min(200,b+1))} style={{width:20,height:20,borderRadius:'50%',background:'rgba(255,255,255,0.07)',border:'none',color:'rgba(255,255,255,0.5)',cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>+</button>
+      </div>
       <button onClick={toggleMetro} style={{width:34,height:34,borderRadius:'50%',background:metrOn?'rgba(255,183,71,0.2)':'rgba(255,255,255,0.06)',border:`1.5px solid ${metrOn?'rgba(255,183,71,0.6)':'rgba(255,255,255,0.12)'}`,color:metrOn?'#FFB347':'rgba(255,255,255,0.35)',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:metrOn?'0 0 12px rgba(255,183,71,0.35)':'none',transition:'all 0.2s'}}>♩</button>
     </div>
   </div>
