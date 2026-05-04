@@ -740,7 +740,7 @@ const dailyTid=useRef(null);
 useEffect(()=>{if(!dailyActive)return;dailyTid.current=setInterval(()=>setDailySecs(s=>s>0?s-1:0),1000);return()=>clearInterval(dailyTid.current);},[dailyActive]);
 useEffect(()=>{if(!dailyActive||dailySecs!==0)return;clearInterval(dailyTid.current);setDailyActive(false);setDailyDone(true);setDailyAvail(false);setXp(x=>x+10);try{localStorage.setItem('harmonymap_daily',JSON.stringify({date:new Date().toISOString().slice(0,10)}));}catch(e){};},[dailyActive,dailySecs]);
 const clearSwap=useCallback(()=>{setSwapIdx(null);if(swapTid.current){clearTimeout(swapTid.current);swapTid.current=null;}},[]);
-useEffect(()=>{const onKey=(e)=>{if((e.ctrlKey||e.metaKey)&&e.key==='z'&&undoProg){setProg(undoProg);setUndoProg(null);clearSwap();}};document.addEventListener('keydown',onKey);return()=>document.removeEventListener('keydown',onKey);},[undoProg,clearSwap]);
+useEffect(()=>{const onKey=(e)=>{if((e.ctrlKey||e.metaKey)&&e.key==='z'&&undoProg){autoCaptureRef.current=[];setProg(undoProg);setUndoProg(null);clearSwap();}};document.addEventListener('keydown',onKey);return()=>document.removeEventListener('keydown',onKey);},[undoProg,clearSwap]);
 const dr=useRef([]);dr.current=disc;
 const k=KEYS[sk],em=emo?EMO[emo]:null;
 const ps=useMemo(()=>presets(sk),[sk]);
@@ -826,7 +826,7 @@ useEffect(()=>{
 // Restart loop at new BPM whenever tempo changes while looping
 useEffect(()=>{if(progLooping)loopP();},[bpm,beats]);// eslint-disable-line react-hooks/exhaustive-deps
 const saveI=useCallback(()=>{if(!prog.length)return;setSaved(p=>[...p,{id:Date.now(),emo,k:sk,prog:[...prog],date:new Date().toLocaleDateString()}]);if(!dr.current.includes('fs'))setDisc(d=>[...d,'fs']);setXp(x=>x+2);const today=new Date().toISOString().slice(0,10);setStreak(s=>{const diff=s.lastDate?Math.round((new Date(today)-new Date(s.lastDate))/86400000):null;const cnt=diff===1?(s.count||0)+1:diff===0?s.count||1:1;return{count:cnt,lastDate:today};});},[prog,emo,sk]);
-const selEmo=useCallback(e=>{const entry=EMO[e];setEmo(e);const fk=entry.ks[0];if(fk){setSk(fk);setKmf(KEYS[fk]?.m||'major');}setSch(null);if(entry.pr?.[0]?.ch)setProg(entry.pr[0].ch);const pb=parseInt(entry.tp);if(pb)setBpm(pb);setScreen('chordmap');},[]);
+const selEmo=useCallback(e=>{const entry=EMO[e];setEmo(e);const fk=entry.ks[0];if(fk){setSk(fk);setKmf(KEYS[fk]?.m||'major');}setSch(null);if(entry.pr?.[0]?.ch){autoCaptureRef.current=[];setProg(entry.pr[0].ch);}const pb=parseInt(entry.tp);if(pb)setBpm(pb);setScreen('chordmap');},[]);
 const stopAll=useCallback(()=>{audio.absoluteStop();setPa(false);setPi(-1);setPRow(-1);setProgLooping(false);},[]);
 const newEar=useCallback(()=>{setEa(null);const c=earGen(et);setEc(c);if(c)setTimeout(()=>{if(c.pt==='chord')audio.playChord(c.pd);else if(c.pt==='melodic')audio.playMelodicInterval(c.pd[0],c.pd[1]);else if(c.pt==='two'){audio.playChord(c.pd[0],1.3);setTimeout(()=>audio.playChord(c.pd[1],1.3),1500);}},300);},[et]);
 const replayEar=useCallback(()=>{if(!ec)return;if(ec.pt==='chord')audio.playChord(ec.pd);else if(ec.pt==='melodic')audio.playMelodicInterval(ec.pd[0],ec.pd[1]);else if(ec.pt==='two'){audio.playChord(ec.pd[0],1.3);setTimeout(()=>audio.playChord(ec.pd[1],1.3),1500);}},[ec]);
@@ -1033,7 +1033,7 @@ return (
       <button onClick={() => addC('REST')} style={{ ...S.btn(), padding: '8px 10px', fontSize: 11 }}>𝄽 Rest</button>
       <button onClick={saveI} style={S.btn('rgba(255,215,0,0.15)', '#FFD700', 'rgba(255,215,0,0.3)')}>♡ Save</button>
       {undoProg && <button onClick={() => { setProg(undoProg); setUndoProg(null); clearSwap(); }} style={S.btn('rgba(245,166,35,0.12)', '#F5A623', 'rgba(245,166,35,0.3)')}>↩ Undo</button>}
-      <button onClick={() => { stopAll(); setProg([]); setRhythmPat(null); lastTapTimeRef.current=null; setUndoProg(null); clearSwap(); setBlueprint(null); }} style={S.btn()}>Clear</button>
+      <button onClick={() => { stopAll(); setProg([]); setRhythmPat(null); autoCaptureRef.current=[]; lastTapTimeRef.current=null; setUndoProg(null); clearSwap(); setBlueprint(null); }} style={S.btn()}>Clear</button>
     </div>
     {prog.filter(c => c && c !== 'REST').length >= 4 && <div style={{ marginBottom: 6 }}>
       {!blueprint
@@ -1064,7 +1064,7 @@ return(
 prog={prog} bpm={bpm} sk={sk}
 progLooping={progLooping} pi={pi}
 onPlay={() => playP()} onLoop={() => loopP()} onStop={stopAll}
-onClear={() => { stopAll(); setProg([]); setRhythmPat(null); lastTapTimeRef.current=null; setUndoProg(null); }}
+onClear={() => { stopAll(); setProg([]); setRhythmPat(null); autoCaptureRef.current=[]; lastTapTimeRef.current=null; setUndoProg(null); }}
 visible={prog.length > 0}
 />
 
@@ -1151,7 +1151,7 @@ visible={prog.length > 0}
     <p style={{fontSize:11,color:'rgba(255,255,255,0.5)',margin:'0 0 10px',lineHeight:1.4}}>{p.d}</p>
     <div style={{display:'flex',gap:8}}>
       <button onClick={()=>{audio.playProgression(p.ch.map(s=>cn(pc(s).r,pc(s).t,3)),parseInt(em.tp)||72,idx=>{setPi(idx);setPRow(idx===-1?-1:ri);});}} style={{...S.btn('rgba(255,255,255,0.1)','#fff','rgba(255,255,255,0.2)'),padding:'10px 18px',fontSize:13}}>▶ Listen</button>
-      <button onClick={()=>{setProg(p.ch);setScreen('chordmap');}} style={{...S.btn(em.co[0]+'30',em.co[0],em.co[0]+'50'),padding:'10px 18px',fontSize:13,fontWeight:800}}>Use this → Map</button>
+      <button onClick={()=>{autoCaptureRef.current=[];setProg(p.ch);setScreen('chordmap');}} style={{...S.btn(em.co[0]+'30',em.co[0],em.co[0]+'50'),padding:'10px 18px',fontSize:13,fontWeight:800}}>Use this → Map</button>
     </div>
   </div>)}
   <div style={S.card()}>
@@ -1476,7 +1476,7 @@ visible={prog.length > 0}
     <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:6}}>{idea.prog.map((c,i)=><span key={i} style={{background:cc(c)+'18',color:cc(c),border:`1px solid ${cc(c)}35`,borderRadius:7,padding:'4px 10px',fontSize:13,fontWeight:700}}>{c}</span>)}</div>
     <div style={{display:'flex',gap:6}}>
       <button onClick={()=>{audio.playProgression(idea.prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3)),bpm,i=>{setPi(i);setPRow(-1);});}} style={S.btn()}>▶ Play</button>
-      <button onClick={()=>{setProg(idea.prog);setSk(idea.k||sk);setSch(null);setScreen('chordmap');}} style={S.btn()}>Edit →</button>
+      <button onClick={()=>{autoCaptureRef.current=[];setProg(idea.prog);setSk(idea.k||sk);setSch(null);setScreen('chordmap');}} style={S.btn()}>Edit →</button>
       <button onClick={()=>{const txt=[`🎵 HarmonyMap Sketch`,`Key: ${idea.k}`,`${idea.prog.join(' → ')}`,idea.date].join('\n');try{navigator.clipboard.writeText(txt);setTip('Copied!');}catch(e){}}} style={S.btn()}>📋 Copy</button>
     </div>
   </div>;})}
