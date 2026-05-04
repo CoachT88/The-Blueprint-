@@ -719,6 +719,8 @@ const recStartRef=useRef(null);
 const recElapsedTid=useRef(null);
 const replayTids=useRef([]);
 const lastTapTimeRef=useRef(null);
+const autoCaptureRef=useRef([]);
+const[showSettings,setShowSettings]=useState(false);
 const[bpm,setBpm]=useState(90);const[beats,setBeats]=useState(4);const[stg,setStg]=useState(0.018);
 const[bpmInput,setBpmInput]=useState('90');
 useEffect(()=>{setBpmInput(String(bpm));},[bpm]);
@@ -757,13 +759,14 @@ audio.playProgression(n, bpm, i => setPi(i), beats, stg);
 }, [prog, bpm, beats, stg])
 );
 
-const playC=useCallback(s=>{if(s==='REST')return;const lbl=extChordLabel(k,s,ext);if(lbl.startsWith('note:')){audio.playNote(lbl.slice(5)+'4',1.0,0.45);}else{audio.playChord(cn(pc(lbl).r,pc(lbl).t,3));}setSch(s);if(isRecording.current){recEventsRef.current.push({chord:lbl,mapChord:s,t:Date.now()-recStartRef.current});setRecChordCount(n=>n+1);};if(swapIdx!==null){setProg(p=>{const n=[...p];n[swapIdx]=lbl;return n;});if(swapTid.current)clearTimeout(swapTid.current);swapTid.current=setTimeout(()=>setSwapIdx(null),5000);}else{setProg(p=>{if(p.length>=16)return p;const n=[...p,lbl];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});const t=ctip('sel',{ch:s});if(t)setTip(t);}},[k,ext,swapIdx]);
+const playC=useCallback(s=>{if(s==='REST')return;const lbl=extChordLabel(k,s,ext);if(lbl.startsWith('note:')){audio.playNote(lbl.slice(5)+'4',1.0,0.45);}else{audio.playChord(cn(pc(lbl).r,pc(lbl).t,3));}setSch(s);if(isRecording.current){recEventsRef.current.push({chord:lbl,mapChord:s,t:Date.now()-recStartRef.current});setRecChordCount(n=>n+1);};if(swapIdx!==null){setProg(p=>{const n=[...p];n[swapIdx]=lbl;return n;});if(swapTid.current)clearTimeout(swapTid.current);swapTid.current=setTimeout(()=>setSwapIdx(null),5000);}else{autoCaptureRef.current=[...autoCaptureRef.current,Date.now()];setProg(p=>{if(p.length>=16)return p;const n=[...p,lbl];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});const t=ctip('sel',{ch:s});if(t)setTip(t);}},[k,ext,swapIdx]);
 const addC=useCallback(s=>{setProg(p=>{if(p.length>=16)return p;const n=[...p,s];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});},[]);
-const remC=useCallback(i=>{setProg(p=>p.filter((_,j)=>j!==i));setRhythmPat(p=>p?p.filter((_,j)=>j!==i):null);setSwapIdx(cur=>{if(cur===null)return null;if(cur===i){if(swapTid.current){clearTimeout(swapTid.current);swapTid.current=null;}return null;}return cur>i?cur-1:cur;});},[]);
+const remC=useCallback(i=>{autoCaptureRef.current=autoCaptureRef.current.filter((_,j)=>j!==i);setProg(p=>p.filter((_,j)=>j!==i));setRhythmPat(p=>p?p.filter((_,j)=>j!==i):null);setSwapIdx(cur=>{if(cur===null)return null;if(cur===i){if(swapTid.current){clearTimeout(swapTid.current);swapTid.current=null;}return null;}return cur>i?cur-1:cur;});},[]);
 const selectSlot=useCallback((i,c)=>{if(swapTid.current)clearTimeout(swapTid.current);if(swapIdx===i){setSwapIdx(null);swapTid.current=null;return;}setUndoProg(prog);setSwapIdx(i);swapTid.current=setTimeout(()=>setSwapIdx(null),5000);if(c!=='REST'){if(c.startsWith('note:')){audio.playNote(c.slice(5)+'4',1.0,0.45);}else{const lbl=extChordLabel(k,c,ext);audio.playChord(cn(pc(lbl).r,pc(lbl).t,3));}}},[swapIdx,k,ext,prog]);
 const warpKey=useCallback((ghostChordBase,fromKeyName)=>{const pk=KEYS[fromKeyName];if(!pk)return;audio.playChord(cn(pc(ghostChordBase).r,pc(ghostChordBase).t,3));setOriginalKey(cur=>cur===null?sk:cur);setSk(fromKeyName);setSch(ghostChordBase);setKmf(pk.m);setProg(p=>[...p,ghostChordBase]);if(toastTid.current)clearTimeout(toastTid.current);setKeyToast(`Key shifted to ${fromKeyName} — tap 🏠 to return`);toastTid.current=setTimeout(()=>setKeyToast(null),3500);},[sk]);
 const returnHome=useCallback(()=>{if(!originalKey)return;const ok=KEYS[originalKey];if(!ok)return;setSk(originalKey);setSch(null);setKmf(ok.m);setOriginalKey(null);if(toastTid.current)clearTimeout(toastTid.current);setKeyToast(`Returned to ${originalKey}`);toastTid.current=setTimeout(()=>setKeyToast(null),2500);},[originalKey]);
 const resolveNotes=useCallback(ch=>{if(ch==='REST')return null;if(ch.startsWith('note:'))return[ch.slice(5)+'4'];return cn(pc(ch).r,pc(ch).t,3);},[]);
+const getAutoRhythm=useCallback(()=>{const ts=autoCaptureRef.current;if(ts.length<2)return null;const last=ts.length-1;return ts.map((t,i)=>{if(i===last)return Math.max(0.5,(ts[last]-ts[last-1])/1000);return Math.max(0.25,Math.min(8,(ts[i+1]-t)/1000));});},[]);
 
 // Pattern recognition for repetition teaching
 const progPattern=useMemo(()=>{const seen=new Map();const L='ABCDEFGHIJKLMNOP';let idx=0;return prog.map(c=>{if(!c||c==='REST')return null;if(!seen.has(c))seen.set(c,L[idx++]||'?');return seen.get(c);});},[prog]);
@@ -780,8 +783,9 @@ const patternGuide=useMemo(()=>{
   if(named)return{type:'named',name:named.name,icon:named.icon,pattern:ls.slice(0,4).join(' '),tip:named.tip};
   return{type:'custom',pattern:ls.join(' '),tip:'Your own pattern — repeat it to lock in the feel'};
 },[prog,progPattern]);
-const playP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(resolveNotes);const pat=rhythmPat?rhythmPat.map(sec=>sec*b/60):null;audio.playProgression(n,b,i=>setPi(i),bt,s,pat);const t=ctip('play',{prog});if(t)setTimeout(()=>setTip(t),2000);},[prog,bpm,beats,stg,rhythmPat,resolveNotes]);
-const loopP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(resolveNotes);const pat=rhythmPat?rhythmPat.map(sec=>sec*b/60):null;setProgLooping(true);audio.playLoop(n,b,i=>{setPi(i);},bt,s,pat);},[prog,bpm,beats,stg,rhythmPat,resolveNotes]);
+const nextTapChord=useMemo(()=>{if(!patternGuide||patternGuide.type!=='almost')return null;const sug=patternGuide.sugs[0];if(!sug)return null;const m=sug.action.match(/^Tap (\S+)/);return m?m[1]:null;},[patternGuide]);
+const playP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(resolveNotes);const raw=rhythmPat||getAutoRhythm();const pat=raw?raw.map(sec=>sec*b/60):null;audio.playProgression(n,b,i=>setPi(i),bt,s,pat);const t=ctip('play',{prog});if(t)setTimeout(()=>setTip(t),2000);},[prog,bpm,beats,stg,rhythmPat,getAutoRhythm,resolveNotes]);
+const loopP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(resolveNotes);const raw=rhythmPat||getAutoRhythm();const pat=raw?raw.map(sec=>sec*b/60):null;setProgLooping(true);audio.playLoop(n,b,i=>{setPi(i);},bt,s,pat);},[prog,bpm,beats,stg,rhythmPat,getAutoRhythm,resolveNotes]);
 // Restart loop at new BPM whenever tempo changes while looping
 useEffect(()=>{if(progLooping)loopP();},[bpm,beats]);// eslint-disable-line react-hooks/exhaustive-deps
 const saveI=useCallback(()=>{if(!prog.length)return;setSaved(p=>[...p,{id:Date.now(),emo,k:sk,prog:[...prog],date:new Date().toLocaleDateString()}]);if(!dr.current.includes('fs'))setDisc(d=>[...d,'fs']);setXp(x=>x+2);const today=new Date().toISOString().slice(0,10);setStreak(s=>{const diff=s.lastDate?Math.round((new Date(today)-new Date(s.lastDate))/86400000):null;const cnt=diff===1?(s.count||0)+1:diff===0?s.count||1:1;return{count:cnt,lastDate:today};});},[prog,emo,sk]);
@@ -1127,139 +1131,115 @@ visible={prog.length > 0}
 </div>}
 
 {/* ═══ CHORD MAP ═══ */}
-{screen==='chordmap'&&<div style={{padding:'14px',maxWidth:600,margin:'0 auto'}}>
+{screen==='chordmap'&&<div style={{padding:'12px 14px',maxWidth:600,margin:'0 auto'}}>
 
-  {/* ── MOOD STRIP ── */}
-  {emo&&em&&<div style={{display:'flex',alignItems:'center',gap:10,background:`${em.co[0]}18`,border:`1px solid ${em.co[0]}35`,borderRadius:12,padding:'10px 14px',marginBottom:12,animation:'fadeIn 0.3s'}}>
-    <span style={{fontSize:18,lineHeight:1}}>{em.l}</span>
-    <div style={{flex:1,minWidth:0}}>
-      <div style={{fontSize:11,fontWeight:700,color:em.co[0]}}>{em.l}</div>
-      <div style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginTop:1}}>{em.fl} · {em.tp} BPM</div>
+  {/* ── TOP BAR: mode + key pills + settings ── */}
+  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
+    <div style={{display:'flex',background:'rgba(255,255,255,0.06)',borderRadius:8,padding:2,flexShrink:0}}>
+      <button onClick={()=>{setKmf('major');if(KEYS[sk]?.m==='minor'){const r=RELATIVE[sk]||'C major';setSk(r);setSch(null);}}} style={{background:kmf==='major'?'rgba(255,107,107,0.22)':'transparent',border:'none',borderRadius:6,padding:'5px 10px',cursor:'pointer',color:kmf==='major'?'#FF6B6B':'rgba(255,255,255,0.38)',fontWeight:700,fontSize:11,transition:'all 0.15s'}}>Maj</button>
+      <button onClick={()=>{setKmf('minor');if(KEYS[sk]?.m==='major'){const r=RELATIVE[sk]||'A minor';setSk(r);setSch(null);}}} style={{background:kmf==='minor'?'rgba(78,205,196,0.22)':'transparent',border:'none',borderRadius:6,padding:'5px 10px',cursor:'pointer',color:kmf==='minor'?'#4ECDC4':'rgba(255,255,255,0.38)',fontWeight:700,fontSize:11,transition:'all 0.15s'}}>Min</button>
     </div>
-    <button onClick={()=>setScreen('emotion')} style={{...S.btn(`${em.co[0]}25`,em.co[0],`${em.co[0]}45`),padding:'5px 10px',fontSize:10,flexShrink:0,fontWeight:700}}>More progressions</button>
-    <button onClick={()=>setEmo(null)} style={{background:'none',border:'none',color:'rgba(255,255,255,0.3)',cursor:'pointer',fontSize:16,padding:0,lineHeight:1,flexShrink:0}}>×</button>
+    <div style={{flex:1,display:'flex',gap:4,overflowX:'auto',scrollbarWidth:'none'}}>
+      {(kmf==='major'?MAJOR_COF:MINOR_COF).map(kk=>{const root=kk.replace(' major','').replace(' minor','');const active=sk===kk;const ac=kmf==='major'?'255,107,107':'78,205,196';return<button key={kk} onClick={()=>{setSk(kk);setSch(null);}} style={{flexShrink:0,background:active?`rgba(${ac},0.18)`:'rgba(255,255,255,0.04)',border:`1.5px solid ${active?`rgba(${ac},0.55)`:'rgba(255,255,255,0.06)'}`,borderRadius:7,padding:'5px 8px',cursor:'pointer',color:active?`rgb(${ac})`:'rgba(255,255,255,0.42)',fontWeight:active?800:500,fontSize:11,boxShadow:active?`0 0 8px rgba(${ac},0.4)`:'none',transition:'all 0.15s'}}>{root}{kmf==='minor'?'m':''}</button>;})}
+    </div>
+    {emo&&em&&<button onClick={()=>setScreen('emotion')} style={{flexShrink:0,background:`${em.co[0]}18`,border:`1px solid ${em.co[0]}30`,borderRadius:8,padding:'5px 9px',cursor:'pointer',color:em.co[0],fontSize:10,fontWeight:700}}>{em.l}</button>}
+    <button onClick={()=>setShowSettings(s=>!s)} style={{width:34,height:34,borderRadius:'50%',background:showSettings?'rgba(255,183,71,0.15)':'rgba(255,255,255,0.06)',border:`1.5px solid ${showSettings?'rgba(255,183,71,0.5)':'rgba(255,255,255,0.1)'}`,color:showSettings?'#FFB347':'rgba(255,255,255,0.4)',cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.2s'}}>⚙</button>
+  </div>
+
+  {/* ── SETTINGS DRAWER ── */}
+  {showSettings&&<div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:14,padding:'12px 14px',marginBottom:12,animation:'fadeIn 0.2s'}}>
+    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+      <span style={{fontSize:10,color:'rgba(255,255,255,0.4)',fontWeight:700,letterSpacing:1}}>BPM</span>
+      <button onClick={()=>setBpm(b=>Math.max(40,b-5))} style={{width:28,height:28,borderRadius:'50%',background:'rgba(255,255,255,0.07)',border:'none',color:'rgba(255,255,255,0.6)',cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
+      <input type="number" min="40" max="200" value={bpmInput} onChange={e=>setBpmInput(e.target.value)} onBlur={()=>{const v=Math.max(40,Math.min(200,parseInt(bpmInput)||90));setBpm(v);setBpmInput(String(v));}} onKeyDown={e=>{if(e.key==='Enter'){const v=Math.max(40,Math.min(200,parseInt(bpmInput)||90));setBpm(v);setBpmInput(String(v));e.target.blur();}}} style={{fontSize:20,fontWeight:900,color:'#4ECDC4',width:52,textAlign:'center',background:'transparent',border:'none',outline:'none',WebkitAppearance:'none',MozAppearance:'textfield'}}/>
+      <button onClick={()=>setBpm(b=>Math.min(200,b+5))} style={{width:28,height:28,borderRadius:'50%',background:'rgba(255,255,255,0.07)',border:'none',color:'rgba(255,255,255,0.6)',cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
+      <button onClick={()=>setBpm(b=>Math.max(40,b-1))} style={{marginLeft:4,background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'3px 7px',cursor:'pointer',color:'rgba(255,255,255,0.4)',fontSize:10}}>−1</button>
+      <button onClick={()=>setBpm(b=>Math.min(200,b+1))} style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:6,padding:'3px 7px',cursor:'pointer',color:'rgba(255,255,255,0.4)',fontSize:10}}>+1</button>
+    </div>
+    <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:ghostChords.length>0||originalKey?10:0}}>
+      {[{v:'triad',l:'Triads'},{v:'7ths',l:'7ths'},{v:'sus2',l:'Sus2'},{v:'sus4',l:'Sus4'},{v:'power',l:'⚡ 5th'},{v:'note',l:'♪ Notes'}].map(o=><button key={o.v} onClick={()=>setExt(o.v)} style={{background:ext===o.v?'rgba(255,255,255,0.14)':'rgba(255,255,255,0.04)',border:`1px solid ${ext===o.v?'rgba(255,255,255,0.28)':'rgba(255,255,255,0.07)'}`,borderRadius:8,padding:'5px 10px',cursor:'pointer',color:ext===o.v?'#fff':'rgba(255,255,255,0.45)',fontWeight:ext===o.v?700:500,fontSize:11,transition:'all 0.15s'}}>{o.l}</button>)}
+    </div>
+    {ghostChords.length>0&&<div style={{marginTop:8}}>
+      <div style={{fontSize:9,color:'rgba(199,125,255,0.65)',fontWeight:700,letterSpacing:1,marginBottom:6}}>BORROWED CHORDS</div>
+      <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+        {ghostChords.map((g,i)=><button key={i} onClick={()=>{setShowSettings(false);warpKey(g.chord,g.fromKey);}} style={{background:'rgba(199,125,255,0.08)',border:'1px dashed rgba(199,125,255,0.4)',borderRadius:8,padding:'6px 12px',cursor:'pointer',color:'#C77DFF',fontWeight:700,fontSize:13,textAlign:'center'}}>
+          {g.chord}<div style={{fontSize:8,color:'rgba(199,125,255,0.5)',marginTop:1,fontWeight:500}}>{g.fromKey.replace(' major','maj').replace(' minor','min')}</div>
+        </button>)}
+      </div>
+    </div>}
+    {originalKey&&<button onClick={returnHome} style={{marginTop:8,...S.btn('rgba(78,205,196,0.12)','#4ECDC4','rgba(78,205,196,0.35)'),fontSize:10,padding:'5px 12px'}}>🏠 Return to {originalKey}</button>}
   </div>}
 
-  {/* ── KEY SELECTOR ── */}
-  <div style={{marginBottom:12}}>
-    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
-      <div style={{...S.lbl,marginBottom:0}}>Choose a Key</div>
-      {originalKey&&<button onClick={returnHome} style={{...S.btn('rgba(78,205,196,0.15)','#4ECDC4','rgba(78,205,196,0.4)'),padding:'4px 10px',fontSize:10,fontWeight:700}}>🏠 {originalKey.replace(' major','').replace(' minor','m')}</button>}
-    </div>
-    <div style={{display:'flex',gap:0,marginBottom:8,background:'rgba(255,255,255,0.05)',borderRadius:10,padding:3}}>
-      <button onClick={()=>{setKmf('major');if(KEYS[sk]?.m==='minor'){const r=RELATIVE[sk]||'C major';setSk(r);setSch(null);}}} style={{flex:1,background:kmf==='major'?'rgba(255,107,107,0.18)':'transparent',border:'none',borderRadius:8,padding:'8px 6px',cursor:'pointer',color:kmf==='major'?'#FF6B6B':'rgba(255,255,255,0.4)',fontWeight:700,fontSize:12,transition:'all 0.15s'}}>Major — Bright, open</button>
-      <button onClick={()=>{setKmf('minor');if(KEYS[sk]?.m==='major'){const r=RELATIVE[sk]||'A minor';setSk(r);setSch(null);}}} style={{flex:1,background:kmf==='minor'?'rgba(78,205,196,0.18)':'transparent',border:'none',borderRadius:8,padding:'8px 6px',cursor:'pointer',color:kmf==='minor'?'#4ECDC4':'rgba(255,255,255,0.4)',fontWeight:700,fontSize:12,transition:'all 0.15s'}}>Minor — Deep, emotional</button>
-    </div>
-    <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:4}}>
-      {(kmf==='major'?MAJOR_COF:MINOR_COF).map(kk=>{const root=kk.replace(' major','').replace(' minor','');const active=sk===kk;const ac=kmf==='major'?'255,107,107':'78,205,196';return<button key={kk} onClick={()=>{setSk(kk);setSch(null);}} style={{...S.btn(active?`rgba(${ac},0.2)`:'rgba(255,255,255,0.04)',active?`rgb(${ac})`:'rgba(255,255,255,0.5)'),padding:'7px 2px',fontSize:11,fontWeight:active?800:500,textAlign:'center',boxShadow:active?`0 0 10px rgba(${ac},0.45)`:'none',border:`1.5px solid ${active?`rgba(${ac},0.55)`:'rgba(255,255,255,0.06)'}`,transition:'all 0.15s'}}>{root}{kmf==='minor'?'m':''}</button>;})}
-    </div>
-    <div style={{marginTop:4,fontSize:8,color:'rgba(255,255,255,0.42)',textAlign:'center',lineHeight:1.4}}>Circle of Fifths order — neighboring keys share the most notes</div>
-  </div>
-
-  {/* ── CHORD EXTENSION ── */}
-  <div style={{marginBottom:10}}>
-    <div style={{display:'flex',gap:0,marginBottom:4,background:'rgba(255,255,255,0.05)',borderRadius:50,padding:3,border:'1px solid rgba(255,255,255,0.08)'}}>
-      {[{v:'triad',l:'Triads',d:'3 notes'},{v:'7ths',l:'7ths',d:'4 notes'},{v:'sus2',l:'Sus2',d:'open'},{v:'sus4',l:'Sus4',d:'lifted'}].map(o=><button key={o.v} onClick={()=>setExt(o.v)} style={{flex:1,background:ext===o.v?'rgba(255,255,255,0.14)':'transparent',border:'none',borderRadius:50,padding:'7px 2px',cursor:'pointer',color:ext===o.v?'#fff':'rgba(255,255,255,0.45)',fontWeight:ext===o.v?700:500,fontSize:11,transition:'all 0.15s',boxShadow:ext===o.v?'0 1px 6px rgba(0,0,0,0.35)':'none'}}>{o.l}</button>)}
-    </div>
-    <div style={{display:'flex',gap:4}}>
-      <button onClick={()=>setExt('power')} style={{flex:1,background:ext==='power'?'rgba(255,107,107,0.18)':'rgba(255,255,255,0.04)',border:`1px solid ${ext==='power'?'rgba(255,107,107,0.5)':'rgba(255,255,255,0.08)'}`,borderRadius:50,padding:'7px 8px',cursor:'pointer',color:ext==='power'?'#FF6B6B':'rgba(255,255,255,0.45)',fontWeight:ext==='power'?700:500,fontSize:11,transition:'all 0.15s'}}>⚡ Power (root+5th)</button>
-      <button onClick={()=>setExt('note')} style={{flex:1,background:ext==='note'?'rgba(78,205,196,0.18)':'rgba(255,255,255,0.04)',border:`1px solid ${ext==='note'?'rgba(78,205,196,0.5)':'rgba(255,255,255,0.08)'}`,borderRadius:50,padding:'7px 8px',cursor:'pointer',color:ext==='note'?'#4ECDC4':'rgba(255,255,255,0.45)',fontWeight:ext==='note'?700:500,fontSize:11,transition:'all 0.15s'}}>♪ Notes (melody)</button>
-    </div>
-  </div>
-
-  {/* ── BPM STRIP ── */}
-  <div style={{display:'flex',alignItems:'center',gap:0,marginBottom:12,background:'rgba(255,255,255,0.05)',borderRadius:50,padding:'3px 3px 3px 14px',border:'1px solid rgba(255,255,255,0.08)'}}>
-    <span style={{flex:1,fontSize:11,color:'rgba(255,255,255,0.45)',fontWeight:600,letterSpacing:1}}>BPM</span>
-    <input type="number" min="40" max="200" value={bpmInput} onChange={e=>setBpmInput(e.target.value)} onBlur={()=>{const v=Math.max(40,Math.min(200,parseInt(bpmInput)||90));setBpm(v);setBpmInput(String(v));}} onKeyDown={e=>{if(e.key==='Enter'){const v=Math.max(40,Math.min(200,parseInt(bpmInput)||90));setBpm(v);setBpmInput(String(v));e.target.blur();}}} style={{fontSize:18,fontWeight:800,color:'#4ECDC4',width:52,textAlign:'center',background:'transparent',border:'none',outline:'none',WebkitAppearance:'none',MozAppearance:'textfield'}}/>
-    <button onClick={()=>setBpm(b=>Math.max(40,b-1))} style={{width:38,height:38,borderRadius:'50%',background:'rgba(255,255,255,0.07)',border:'none',color:'rgba(255,255,255,0.7)',cursor:'pointer',fontSize:18,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',transition:'background 0.15s'}}>−</button>
-    <button onClick={()=>setBpm(b=>Math.min(200,b+1))} style={{width:38,height:38,borderRadius:'50%',background:'rgba(255,255,255,0.07)',border:'none',color:'rgba(255,255,255,0.7)',cursor:'pointer',fontSize:18,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',transition:'background 0.15s'}}>+</button>
-  </div>
-
-  {/* ── SVG CHORD MAP ── */}
-  <div style={{background:'rgba(0,0,0,0.4)',borderRadius:22,padding:14,border:'1px solid rgba(255,255,255,0.06)'}}>
-    <svg viewBox="0 0 400 400" style={{width:'100%',height:'auto'}}>
-      <rect x="0" y="0" width="400" height="400" fill="transparent" onClick={()=>{if(swapIdx!==null)clearSwap();}}/>
-      {k&&gcon(k.ch,k.m).map((c,i)=>{const ly=ml(k.ch,200,200,140);const f=ly.find(n=>n.c===c.f),t=ly.find(n=>n.c===c.t);if(!f||!t)return null;const h=sch&&(c.f===sch||c.t===sch);const isStrong=c.st==='strong';
+  {/* ── SVG CHORD MAP (hero) ── */}
+  <div style={{background:'rgba(0,0,0,0.45)',borderRadius:22,padding:10,border:'1px solid rgba(255,255,255,0.06)',marginBottom:12}}>
+    <svg viewBox="0 0 400 430" style={{width:'100%',height:'auto'}}>
+      <rect x="0" y="0" width="400" height="430" fill="transparent" onClick={()=>{if(swapIdx!==null)clearSwap();}}/>
+      {k&&gcon(k.ch,k.m).map((c,i)=>{const ly=ml(k.ch,200,200,148);const f=ly.find(n=>n.c===c.f),t=ly.find(n=>n.c===c.t);if(!f||!t)return null;const h=sch&&(c.f===sch||c.t===sch);const isStrong=c.st==='strong';
         return<line key={i} x1={f.x} y1={f.y} x2={t.x} y2={t.y} stroke={h?(isStrong?'#FFD700':cc(sch)):isStrong?'rgba(255,215,0,0.45)':'rgba(255,255,255,0.11)'} strokeWidth={h?(isStrong?4:2.5):isStrong?2.5:1} strokeDasharray={isStrong?'none':'5 5'} style={{transition:'all 0.3s',filter:h&&isStrong?'drop-shadow(0 0 4px #FFD700)':'none'}}/>;
       })}
-      {k&&ml(k.ch,200,200,140).map((nd,ni)=>{const col=cc(nd.c),sel=sch===nd.c,extLbl=extChordLabel(k,nd.c,ext),isNoteMode=ext==='note',displayLbl=isNoteMode?extLbl.slice(5):extLbl,ip=prog.includes(extLbl)||prog.includes(nd.c),fn=k.m==='minor'?FNm:FNM;const fnParts=fn[ni].split(' (');const fnName=fnParts[0];const fnRN=fnParts[1]?.slice(0,-1);const bnRank=bestNext.indexOf(nd.c);const isBestNext=bnRank!==-1&&!isNoteMode;
+      {k&&ml(k.ch,200,200,148).map((nd,ni)=>{const col=cc(nd.c),sel=sch===nd.c,extLbl=extChordLabel(k,nd.c,ext),isNoteMode=ext==='note',displayLbl=isNoteMode?extLbl.slice(5):extLbl,ip=prog.includes(extLbl)||prog.includes(nd.c),fn=k.m==='minor'?FNm:FNM;const fnParts=fn[ni].split(' (');const fnName=fnParts[0];const fnRN=fnParts[1]?.slice(0,-1);const bnRank=bestNext.indexOf(nd.c);const isBestNext=bnRank!==-1&&!isNoteMode;
+        const isNextTap=nextTapChord&&(nd.c===nextTapChord||extLbl===nextTapChord);
         return<g key={ni} onClick={()=>playC(nd.c)} style={{cursor:'pointer'}}>
-          {isBestNext&&<circle cx={nd.x} cy={nd.y} r={44} fill="none" stroke={col} strokeWidth={bnRank===0?3.5:2.5} strokeOpacity={bnRank===0?0.9:0.65} style={{animation:'svgRingPulse 1.4s ease-in-out infinite',animationDelay:`${bnRank*0.4}s`}}/>}
+          {isNextTap&&<circle cx={nd.x} cy={nd.y} r={48} fill="none" stroke="#FFB347" strokeWidth={3} style={{animation:'svgRingPulse 0.9s ease-in-out infinite'}}/>}
+          {isBestNext&&!isNextTap&&<circle cx={nd.x} cy={nd.y} r={44} fill="none" stroke={col} strokeWidth={bnRank===0?3.5:2.5} strokeOpacity={bnRank===0?0.9:0.65} style={{animation:'svgRingPulse 1.4s ease-in-out infinite',animationDelay:`${bnRank*0.4}s`}}/>}
           <circle cx={nd.x} cy={nd.y} r={sel?38:30} fill={col+(sel?'30':'10')} stroke={col+(sel?'80':'35')} strokeWidth={sel?2:1} style={{transition:'all 0.3s'}}/>
-          <circle cx={nd.x} cy={nd.y} r={sel?28:23} fill={col+(sel?'30':'15')} stroke={col} strokeWidth={sel?3:1.5} style={{transition:'all 0.3s',filter:sel?`drop-shadow(0 0 12px ${col}90)`:'none'}}/>
+          <circle cx={nd.x} cy={nd.y} r={sel?28:23} fill={col+(sel?'30':'15')} stroke={col} strokeWidth={sel?3:1.5} style={{transition:'all 0.3s',filter:sel?`drop-shadow(0 0 12px ${col}90)`:isNextTap?`drop-shadow(0 0 8px #FFB34780)`:'none'}}/>
           {ip&&<circle cx={nd.x} cy={nd.y} r={32} fill="none" stroke="#FFD700" strokeWidth={2.5} strokeDasharray="4 3"/>}
           <text x={nd.x} y={nd.y+1} textAnchor="middle" dominantBaseline="middle" fill={sel?'#fff':col} fontSize={sel?14:12} fontWeight="800" style={{pointerEvents:'none'}}>{displayLbl}</text>
           <text x={nd.x} y={nd.y+(sel?47:39)} textAnchor="middle" fill="rgba(255,255,255,0.78)" fontSize="7" fontWeight="600" style={{pointerEvents:'none'}}>{fnName}</text>
           {!isNoteMode&&<text x={nd.x} y={nd.y+(sel?55:47)} textAnchor="middle" fill="rgba(255,215,0,0.72)" fontSize="6" style={{pointerEvents:'none'}}>{fnRN&&`(${fnRN})`}</text>}
           <text x={nd.x} y={nd.y+(sel?63:55)} textAnchor="middle" fill="rgba(255,255,255,0.50)" fontSize="6" style={{pointerEvents:'none'}}>{extChordNotes(k,nd.c,ext).join('·')}</text>
         </g>;})}
-      <text x="200" y="192" textAnchor="middle" fill={swapIdx!==null?'#FFD700':'rgba(255,255,255,0.35)'} fontSize="12" fontWeight="700">{sk}</text>
-      <text x="200" y="208" textAnchor="middle" fill={swapIdx!==null?'rgba(255,215,0,0.6)':'rgba(255,255,255,0.22)'} fontSize="8">{swapIdx!==null?`replacing slot ${swapIdx+1}`:ext==='note'?'Tap a note':'Tap a chord'}</text>
+      <text x="200" y="195" textAnchor="middle" fill={swapIdx!==null?'#FFD700':'rgba(255,255,255,0.35)'} fontSize="12" fontWeight="700">{sk}</text>
+      <text x="200" y="211" textAnchor="middle" fill={swapIdx!==null?'rgba(255,215,0,0.6)':'rgba(255,255,255,0.22)'} fontSize="8">{swapIdx!==null?`replacing slot ${swapIdx+1}`:ext==='note'?'Tap a note':'Tap a chord'}</text>
+      {/* Pattern hint at bottom of map */}
+      {patternGuide&&patternGuide.type==='almost'&&patternGuide.sugs[0]&&(()=>{const s=patternGuide.sugs[0];return<>
+        <text x="200" y="388" textAnchor="middle" fill="rgba(255,183,71,0.55)" fontSize="8" fontWeight="600" style={{pointerEvents:'none'}}>ONE MORE CHORD</text>
+        <text x="200" y="404" textAnchor="middle" fill="#FFB347" fontSize="10" fontWeight="800" style={{pointerEvents:'none'}}>{s.icon} {s.action} → {s.name}</text>
+      </>;})()}
+      {patternGuide&&patternGuide.type==='building'&&patternGuide.steps[0]&&<>
+        <text x="200" y="388" textAnchor="middle" fill="rgba(78,205,196,0.5)" fontSize="8" fontWeight="600" style={{pointerEvents:'none'}}>NEXT</text>
+        <text x="200" y="404" textAnchor="middle" fill="rgba(78,205,196,0.8)" fontSize="10" style={{pointerEvents:'none'}}>{patternGuide.steps[0].action}</text>
+      </>}
+      {patternGuide&&patternGuide.type==='start'&&<text x="200" y="400" textAnchor="middle" fill="rgba(255,255,255,0.18)" fontSize="9" style={{pointerEvents:'none'}}>Tap any chord — it becomes your A</text>}
+      {patternGuide&&patternGuide.type==='named'&&<>
+        <text x="200" y="386" textAnchor="middle" fill="rgba(78,205,196,0.55)" fontSize="8" fontWeight="700" style={{pointerEvents:'none'}}>{patternGuide.icon} {patternGuide.name.toUpperCase()}</text>
+        <text x="200" y="402" textAnchor="middle" fill="rgba(78,205,196,0.75)" fontSize="10" letterSpacing="4" fontWeight="900" style={{pointerEvents:'none'}}>{patternGuide.pattern}</text>
+      </>}
     </svg>
   </div>
 
-  {/* Ghost Chords */}
-  {ghostChords.length>0&&<div style={{background:'rgba(199,125,255,0.06)',border:'1px dashed rgba(199,125,255,0.4)',borderRadius:14,padding:'12px 14px',marginTop:10}}>
-    <div style={{...S.lbl,color:'rgba(199,125,255,0.85)',marginBottom:6}}>Ghost Chords — Borrowed from parallel key</div>
-    <div style={{fontSize:10,color:'rgba(255,255,255,0.4)',marginBottom:10,lineHeight:1.5}}>Outside your key but they blend. Tap one to hear it and shift the map.</div>
-    <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-      {ghostChords.map((g,i)=><button key={i} onClick={()=>warpKey(g.chord,g.fromKey)} style={{background:'rgba(199,125,255,0.12)',border:'1px dashed rgba(199,125,255,0.55)',borderRadius:10,padding:'10px 16px',cursor:'pointer',color:'#C77DFF',fontWeight:700,fontSize:14,textAlign:'center',transition:'all 0.2s'}}>
-        <div>{g.chord}</div>
-        <div style={{fontSize:9,color:'rgba(199,125,255,0.65)',marginTop:3,fontWeight:500}}>from {g.fromKey.replace(' major','maj').replace(' minor','min')}</div>
-      </button>)}
-    </div>
+  {/* ── PROGRESSION STRIP ── */}
+  <div style={{display:'flex',gap:5,overflowX:'auto',scrollbarWidth:'none',marginBottom:10,paddingBottom:2,minHeight:58}}>
+    {prog.length===0
+      ?<div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.18)',fontSize:11,background:'rgba(255,255,255,0.02)',borderRadius:12,border:'1px dashed rgba(255,255,255,0.06)'}}>Your chords appear here</div>
+      :prog.map((c,i)=><div key={i} style={{position:'relative',flexShrink:0}}>
+        <div onClick={()=>selectSlot(i,c)} style={{background:cc(c)+'22',border:`${pi===i?2:1.5}px solid ${swapIdx===i?'#FFD700':pi===i?cc(c):cc(c)+'45'}`,borderRadius:10,padding:'7px 11px',cursor:'pointer',boxShadow:pi===i?`0 0 14px ${cc(c)}80`:swapIdx===i?'0 0 18px rgba(255,215,0,0.7)':'none',animation:swapIdx===i?'swapPulse 1.2s ease-in-out infinite':undefined,transform:pi===i?'scale(1.06)':undefined,transition:'all 0.15s',minWidth:46,textAlign:'center'}}>
+          {progPattern[i]&&<div style={{fontSize:7,fontWeight:900,color:'rgba(78,205,196,0.5)',lineHeight:1,marginBottom:1}}>{progPattern[i]}</div>}
+          <div style={{fontSize:13,fontWeight:800,color:cc(c),lineHeight:1.2}}>{c}</div>
+          <div style={{fontSize:7,color:'rgba(255,255,255,0.18)',marginTop:1}}>{i+1}</div>
+        </div>
+        <button onClick={e=>{e.stopPropagation();remC(i);}} style={{position:'absolute',top:-4,right:-4,background:'rgba(255,50,50,0.85)',border:'none',borderRadius:'50%',width:14,height:14,color:'#fff',fontSize:7,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',zIndex:2,lineHeight:1}}>×</button>
+      </div>)
+    }
+    {prog.length>0&&prog.length<16&&<div style={{flexShrink:0,width:40,display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.1)',fontSize:20,fontWeight:200}}>+</div>}
+  </div>
+
+  {/* ── CONTROLS ── */}
+  {prog.length>0&&<div style={{display:'flex',gap:6,marginBottom:10}}>
+    <button onClick={()=>playP()} style={{...S.btn('linear-gradient(135deg,#4ECDC4,#44B09E)','#fff','transparent'),border:'none',flex:1}}>▶ Play</button>
+    <button onClick={progLooping?stopAll:()=>loopP()} style={{...S.btn(progLooping?'rgba(255,107,107,0.18)':'rgba(199,125,255,0.15)',progLooping?'#FF6B6B':'#C77DFF',progLooping?'rgba(255,107,107,0.4)':'rgba(199,125,255,0.3)'),flex:1}}>{progLooping?'■ Stop':'↺ Loop'}</button>
+    <button onClick={saveI} style={{...S.btn('rgba(255,215,0,0.12)','#FFD700','rgba(255,215,0,0.3)'),padding:'8px 12px'}}>♡</button>
+    <button onClick={()=>{stopAll();setProg([]);setRhythmPat(null);autoCaptureRef.current=[];lastTapTimeRef.current=null;setUndoProg(null);clearSwap();setBlueprint(null);}} style={{...S.btn(),padding:'8px 12px'}}>✕</button>
   </div>}
 
-  {/* ── PROGRESSION GRID — NOW DIRECTLY BELOW THE MAP ── */}
-  <ProgGrid />
+  {/* Rhythm capture indicator */}
+  {autoCaptureRef.current.length>1&&<div style={{fontSize:9,color:'rgba(78,205,196,0.5)',textAlign:'center',marginBottom:8,fontWeight:600,letterSpacing:0.5}}>● rhythm captured — play to hear your timing</div>}
 
-  {/* Chord / Note detail */}
-  {sch&&ext==='note'&&(()=>{const ni=k?.ch.indexOf(sch);const noteName=ni!==-1&&k?.sc?k.sc[ni]:pc(sch).r;const fn=(k?.m==='minor'?FNm:FNM)[ni]||'';const deg=['1st','2nd','3rd','4th','5th','6th','7th'][ni]||'';return(<div style={{...S.card(cc(sch)+'30'),marginTop:4,animation:'fadeIn 0.3s'}}>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
-      <div><h3 style={{fontSize:32,fontWeight:800,color:cc(sch),margin:'0 0 2px'}}>{noteName}</h3><div style={{fontSize:11,color:'rgba(255,255,255,0.55)'}}>{deg} degree · {fn.split(' (')[0]}</div></div>
-      <button onClick={()=>addC('note:'+noteName)} style={S.btn(cc(sch)+'25',cc(sch),cc(sch)+'50')}>+ Add</button>
-    </div>
-    <div style={{fontSize:11,color:'rgba(255,255,255,0.5)',lineHeight:1.6,background:'rgba(0,0,0,0.2)',borderRadius:8,padding:'8px 10px'}}>
-      {ni===0?'The root — your tonal home. Always safe, always resolves.':ni===1?'Creates tension over the tonic. Use for suspense.':ni===2?'The third — defines major/minor mood.':ni===3?'The fourth — lifts and opens. Relaxed tension.':ni===4?'The fifth — powerful and stable. Pure energy.':ni===5?'The sixth — emotional and bittersweet.':'The seventh — floats just below resolution.'}
-    </div>
-  </div>);})()}
-  {sch&&ext!=='note'&&<div style={{...S.card(cc(sch)+'30'),marginTop:4,animation:'fadeIn 0.3s'}}>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
-      <div>
-        <h3 style={{fontSize:26,fontWeight:800,color:cc(sch),margin:'0 0 2px'}}>{extChordLabel(k,sch,ext)}</h3>
-        <div style={{fontSize:11,color:'rgba(255,255,255,0.55)'}}>{ql(sch)} · {(k?.m==='minor'?FNm:FNM)[k?.ch.indexOf(sch)]||'Borrowed'}</div>
-      </div>
-      <button onClick={()=>addC(extChordLabel(k,sch,ext))} style={S.btn(cc(sch)+'25',cc(sch),cc(sch)+'50')}>+ Add</button>
-    </div>
-    <div style={{marginBottom:10}}><div style={{...S.lbl,marginBottom:4}}>Notes</div><div style={{display:'flex',gap:5}}>{extChordNotes(k,sch,ext).map((n,i)=><span key={i} style={{background:cc(sch)+'12',border:`1px solid ${cc(sch)}25`,borderRadius:6,padding:'3px 9px',fontSize:12,fontWeight:600,color:cc(sch)}}>{n}</span>)}</div></div>
-    {CE[sch]&&<div style={{background:'rgba(255,255,255,0.03)',borderRadius:10,padding:10,marginBottom:10}}><div style={{fontSize:12,fontWeight:600,color:'rgba(255,255,255,0.75)',marginBottom:3}}>Feels: {CE[sch].f}</div><div style={{fontSize:11,color:'rgba(255,255,255,0.55)',lineHeight:1.4}}>{CE[sch].r}</div></div>}
-    <div style={S.lbl}>Where it goes next — tap to hear, + to add</div>
-    <div style={{display:'flex',flexDirection:'column',gap:6}}>
-      {k&&gcon(k.ch,k.m).filter(c=>c.f===sch).map((c,i)=>{const m=mf(c.f,c.t),v=vl(c.f,c.t);const tLbl=extChordLabel(k,c.t,ext);return<div key={i} style={{background:'rgba(255,255,255,0.04)',border:`1px solid ${cc(c.t)}25`,borderRadius:10,padding:'10px 12px',display:'flex',gap:8,alignItems:'center'}}>
-        <button onClick={()=>playC(c.t)} style={{flex:1,background:'none',border:'none',cursor:'pointer',textAlign:'left',padding:0}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-            <div><span style={{fontSize:14,fontWeight:700,color:cc(c.t)}}>{tLbl}</span><span style={{fontSize:10,color:'rgba(255,255,255,0.5)',marginLeft:8}}>{m.e} {m.l}</span></div>
-            <span style={{fontSize:9,color:'rgba(255,255,255,0.45)',background:'rgba(255,255,255,0.05)',borderRadius:4,padding:'2px 5px'}}>{v.sm.toLowerCase()}</span>
-          </div>
-          <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>{v.mv.map((mv,j)=><span key={j} style={{fontSize:9,color:mv.s?'#4ECDC480':'#FFB34780',background:mv.s?'#4ECDC408':'#FFB34708',borderRadius:3,padding:'1px 5px'}}>{mv.s?`${mv.f} stays`:`${mv.f}→${mv.t}`}</span>)}</div>
-        </button>
-        <button onClick={()=>addC(tLbl)} style={{...S.btn(cc(c.t)+'20',cc(c.t),cc(c.t)+'40'),flexShrink:0,padding:'6px 10px',fontSize:12,fontWeight:800}}>+ Add</button>
-      </div>;})}
-    </div>
-    <div style={{marginTop:12}}>
-      <button onClick={()=>setSv(!sv)} style={{...S.btn('rgba(255,255,255,0.05)','rgba(255,255,255,0.6)','rgba(255,255,255,0.1)'),width:'100%',fontSize:11,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <span>Different ways to play this chord</span><span style={{transform:sv?'rotate(90deg)':'none',transition:'transform 0.2s'}}>▶</span>
-      </button>
-      {sv&&<div style={{marginTop:8,animation:'fadeIn 0.3s'}}>
-        <div style={{fontSize:10,color:'rgba(255,255,255,0.35)',marginBottom:8,lineHeight:1.5}}>The same chord can feel completely different depending on how you arrange the notes.</div>
-        <div style={{display:'flex',flexDirection:'column',gap:6}}>
-          {gvoi(sch).map((v,i)=><button key={i} onClick={()=>audio.playChord(v.notes,2.0)} style={{background:'rgba(255,255,255,0.04)',border:`1px solid ${cc(sch)}20`,borderRadius:10,padding:'10px 12px',cursor:'pointer',textAlign:'left',width:'100%'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div><span style={{fontSize:12,fontWeight:700,color:cc(sch)}}>{v.n}</span><span style={{fontSize:10,color:'rgba(255,255,255,0.35)',marginLeft:8}}>{v.d}</span></div><span style={{fontSize:11,color:'rgba(255,255,255,0.25)'}}>▶</span></div>
-            <div style={{display:'flex',gap:4,marginTop:4}}>{v.notes.map((n,j)=><span key={j} style={{fontSize:9,color:cc(sch)+'80',background:cc(sch)+'10',borderRadius:3,padding:'1px 5px'}}>{n}</span>)}</div>
-          </button>)}
-        </div>
-      </div>}
-    </div>
+  {/* Swap mode banner */}
+  {swapIdx!==null&&dragging===null&&<div style={{background:'rgba(255,215,0,0.08)',border:'1px solid rgba(255,215,0,0.3)',borderRadius:10,padding:'8px 12px',marginBottom:8,display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,animation:'fadeIn 0.2s'}}>
+    <span style={{fontSize:11,color:'#FFD700',fontWeight:600}}>Tap a chord on the map to replace slot {swapIdx+1}</span>
+    <button onClick={clearSwap} style={{...S.btn('rgba(255,215,0,0.18)','#FFD700','rgba(255,215,0,0.4)'),padding:'3px 10px',fontSize:10}}>Done</button>
   </div>}
 
 </div>}
