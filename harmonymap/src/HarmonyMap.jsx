@@ -1326,7 +1326,7 @@ visible={prog.length > 0}
   </div>}
 
   {/* Rhythm capture indicator */}
-  {autoCaptureRef.current.length>1&&<div style={{fontSize:9,color:'rgba(245,166,35,0.5)',textAlign:'center',marginBottom:8,fontWeight:600,letterSpacing:0.5}}>● rhythm captured — play to hear your timing</div>}
+  {prog.length>1&&<div style={{fontSize:9,color:'rgba(245,166,35,0.6)',textAlign:'center',marginBottom:8,fontWeight:600,letterSpacing:0.5}}>● rhythm captured — play to hear your timing</div>}
 
   {/* Swap mode banner */}
   {swapIdx!==null&&dragging===null&&<div style={{background:'rgba(255,215,0,0.08)',border:'1px solid rgba(255,215,0,0.3)',borderRadius:10,padding:'8px 12px',marginBottom:8,display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,animation:'fadeIn 0.2s'}}>
@@ -1492,7 +1492,7 @@ visible={prog.length > 0}
       {[{v:'underwater',l:'🌊',d:'R&B'},{v:'cinematic',l:'🎬',d:'Trap'}].map(o=><button key={o.v} onClick={()=>setInst(o.v)} style={{background:inst===o.v?'rgba(245,166,35,0.22)':'transparent',border:'none',borderRadius:50,padding:'6px 9px',cursor:'pointer',color:inst===o.v?'#F5A623':'rgba(255,255,255,0.4)',fontWeight:inst===o.v?700:500,fontSize:10,transition:'all 0.15s',display:'flex',alignItems:'center',gap:3,whiteSpace:'nowrap'}}><span>{o.l}</span><span>{o.d}</span></button>)}
     </div>
     <div style={{display:'flex',gap:4,alignItems:'center'}}>
-      {[{v:'analog-pad',l:'🎹',t:'Pad',xpReq:25},{v:'rhodes',l:'✨',t:'Rhodes',xpReq:50},{v:'midpad',l:'🌙',t:'Mid',xpReq:100}].map(o=>{const unlocked=xp>=o.xpReq;return<button key={o.v} onClick={()=>{if(unlocked)setInst(o.v);}} style={{background:inst===o.v&&unlocked?'rgba(199,125,255,0.2)':'rgba(255,255,255,0.04)',border:`1px solid ${inst===o.v&&unlocked?'rgba(199,125,255,0.45)':'rgba(255,255,255,0.08)'}`,borderRadius:8,padding:'5px 7px',cursor:unlocked?'pointer':'default',color:unlocked?(inst===o.v?'#C77DFF':'rgba(255,255,255,0.55)'):'rgba(255,255,255,0.2)',fontSize:10,display:'flex',flexDirection:'column',alignItems:'center',gap:1,opacity:unlocked?1:0.6,flexShrink:0}}><span style={{fontSize:12}}>{unlocked?o.l:'🔒'}</span><span style={{fontSize:7,lineHeight:1}}>{unlocked?o.t:`${o.xpReq}xp`}</span></button>;})}
+      {[{v:'analog-pad',l:'🎹',t:'Pad',xpReq:25},{v:'rhodes',l:'✨',t:'Rhodes',xpReq:50},{v:'midpad',l:'🌙',t:'Mid',xpReq:100}].map(o=>{const unlocked=xp>=o.xpReq;if(!unlocked)return null;return<button key={o.v} onClick={()=>setInst(o.v)} style={{background:inst===o.v?'rgba(199,125,255,0.2)':'rgba(255,255,255,0.04)',border:`1px solid ${inst===o.v?'rgba(199,125,255,0.45)':'rgba(255,255,255,0.08)'}`,borderRadius:8,padding:'5px 7px',cursor:'pointer',color:inst===o.v?'#C77DFF':'rgba(255,255,255,0.55)',fontSize:10,display:'flex',flexDirection:'column',alignItems:'center',gap:1,flexShrink:0}}><span style={{fontSize:12}}>{o.l}</span><span style={{fontSize:7,lineHeight:1}}>{o.t}</span></button>;})}
     </div>
     <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
       <div style={{fontSize:10,fontWeight:900,background:'linear-gradient(135deg,#D946EF,#FF4D6D)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',filter:'drop-shadow(0 0 6px rgba(217,70,239,0.6))'}}>{xp}<span style={{fontSize:7,WebkitTextFillColor:'rgba(199,125,255,0.55)',marginLeft:1}}>xp</span></div>
