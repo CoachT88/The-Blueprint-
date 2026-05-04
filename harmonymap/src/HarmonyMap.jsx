@@ -768,6 +768,22 @@ const returnHome=useCallback(()=>{if(!originalKey)return;const ok=KEYS[originalK
 const resolveNotes=useCallback(ch=>{if(ch==='REST')return null;if(ch.startsWith('note:'))return[ch.slice(5)+'4'];return cn(pc(ch).r,pc(ch).t,3);},[]);
 const getAutoRhythm=useCallback(()=>{const ts=autoCaptureRef.current;if(ts.length<2)return null;const last=ts.length-1;return ts.map((t,i)=>{if(i===last)return Math.max(0.5,(ts[last]-ts[last-1])/1000);return Math.max(0.25,Math.min(8,(ts[i+1]-t)/1000));});},[]);
 
+// Hook note: the single best melody starting note for the selected chord
+const hookNoteData=useMemo(()=>{
+  if(!sch||sch==='REST')return null;
+  const {r,t}=pc(sch);const notes=cn(r,t,4);
+  const s=n=>n?n.replace(/\d$/,''):'';
+  if(t==='major')return{n:s(notes[1]),why:'The bright note — this is where major chords feel alive. Start here and your melody will sound confident.',color:'#FF6B6B'};
+  if(t==='minor')return{n:s(notes[1]),why:'The emotional note — the note that makes minor chords feel deep. Every R&B and sad melody leans on this.',color:'#00FFD0'};
+  if(t==='dom7'||t==='dominant')return{n:s(notes[3]||notes[0]),why:'The bluesy note — it creates tension that wants to resolve. Land on it and let it pull.',color:'#FF9500'};
+  if(t==='maj7')return{n:s(notes[3]||notes[1]),why:'The dreamy note — floats just above resolution. Neo-soul and jazz love this sound.',color:'#FF3D6A'};
+  if(t==='min7')return{n:s(notes[3]||notes[1]),why:'The soulful note — where R&B and soul live. Smooth and unresolved in the best way.',color:'#00FFD0'};
+  if(t==='sus2')return{n:s(notes[1]),why:'The open note — airy and suspended. Works over any genre when you want space.',color:'#29D4FF'};
+  if(t==='sus4')return{n:s(notes[1]),why:'The lifted note — wants to fall back down. Great for building tension before a chorus.',color:'#29D4FF'};
+  if(t==='dim')return{n:s(notes[0]),why:'Tense ground — lean on this briefly and escape quickly to the next chord. The tension is the point.',color:'#E040FB'};
+  return{n:s(notes[0]),why:'The root — always safe, always sounds right. If in doubt, start here.',color:'#fff'};
+},[sch]);
+
 // Pattern recognition for repetition teaching
 const progPattern=useMemo(()=>{const seen=new Map();const L='ABCDEFGHIJKLMNOP';let idx=0;return prog.map(c=>{if(!c||c==='REST')return null;if(!seen.has(c))seen.set(c,L[idx++]||'?');return seen.get(c);});},[prog]);
 const patternGuide=useMemo(()=>{
@@ -1224,6 +1240,11 @@ visible={prog.length > 0}
           <circle cx={nd.x} cy={nd.y} r={sel?38:30} fill={col+(sel?'30':'10')} stroke={col+(sel?'80':'35')} strokeWidth={sel?2:1} style={{transition:'all 0.3s'}}/>
           <circle cx={nd.x} cy={nd.y} r={sel?28:23} fill={col+(sel?'30':'15')} stroke={col} strokeWidth={sel?3:1.5} style={{transition:'all 0.3s',filter:sel?`drop-shadow(0 0 12px ${col}90)`:isNextTap?`drop-shadow(0 0 8px #FFB34780)`:'none'}}/>
           {ip&&<circle cx={nd.x} cy={nd.y} r={32} fill="none" stroke="#FFD700" strokeWidth={2.5} strokeDasharray="4 3"/>}
+          {sel&&hookNoteData&&ext!=='note'&&<>
+            <circle cx={nd.x+38} cy={nd.y-26} r={13} fill={hookNoteData.color+'22'} stroke={hookNoteData.color+'80'} strokeWidth={1.5} style={{pointerEvents:'none',filter:`drop-shadow(0 0 6px ${hookNoteData.color}60)`}}/>
+            <text x={nd.x+38} y={nd.y-25} textAnchor="middle" dominantBaseline="middle" fill={hookNoteData.color} fontSize="9" fontWeight="900" style={{pointerEvents:'none'}}>{hookNoteData.n}</text>
+            <text x={nd.x+38} y={nd.y-11} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="5" style={{pointerEvents:'none'}}>hum</text>
+          </>}
           <text x={nd.x} y={nd.y+1} textAnchor="middle" dominantBaseline="middle" fill={sel?'#fff':col} fontSize={sel?14:12} fontWeight="800" style={{pointerEvents:'none'}}>{displayLbl}</text>
           <text x={nd.x} y={nd.y+(sel?47:39)} textAnchor="middle" fill="rgba(255,255,255,0.78)" fontSize="7" fontWeight="600" style={{pointerEvents:'none'}}>{fnName}</text>
           {!isNoteMode&&<text x={nd.x} y={nd.y+(sel?55:47)} textAnchor="middle" fill="rgba(255,215,0,0.72)" fontSize="6" style={{pointerEvents:'none'}}>{fnRN&&`(${fnRN})`}</text>}
@@ -1248,6 +1269,20 @@ visible={prog.length > 0}
       </>}
     </svg>
   </div>
+
+  {/* ── HOOK NOTE CARD ── */}
+  {sch&&hookNoteData&&ext!=='note'&&<div style={{background:`${hookNoteData.color}10`,border:`1px solid ${hookNoteData.color}30`,borderRadius:14,padding:'11px 14px',marginBottom:10,animation:'fadeIn 0.25s',display:'flex',alignItems:'flex-start',gap:12}}>
+    <div style={{flexShrink:0,textAlign:'center'}}>
+      <div style={{width:36,height:36,borderRadius:'50%',background:`${hookNoteData.color}18`,border:`2px solid ${hookNoteData.color}70`,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:`0 0 12px ${hookNoteData.color}40`}}>
+        <span style={{fontSize:16,fontWeight:900,color:hookNoteData.color}}>{hookNoteData.n}</span>
+      </div>
+      <div style={{fontSize:7,color:'rgba(255,255,255,0.3)',marginTop:3,fontWeight:600}}>HUM THIS</div>
+    </div>
+    <div style={{flex:1}}>
+      <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.85)',marginBottom:4,lineHeight:1.3}}>Start your melody on <span style={{color:hookNoteData.color}}>{hookNoteData.n}</span> over {sch}</div>
+      <div style={{fontSize:10,color:'rgba(255,255,255,0.5)',lineHeight:1.5}}>{hookNoteData.why}</div>
+    </div>
+  </div>}
 
   {/* ── PATTERN EXPLANATION ── */}
   {patternGuide&&patternGuide.type==='named'&&<div style={{background:'rgba(245,166,35,0.07)',border:'1px solid rgba(245,166,35,0.2)',borderRadius:14,padding:'12px 14px',marginBottom:10,animation:'fadeIn 0.3s'}}>
