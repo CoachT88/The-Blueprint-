@@ -728,6 +728,18 @@ const{metrOn,toggleMetro}=useMetronome(bpm,setBpm);
 const[inst,setInst]=useState('underwater');
 useEffect(()=>{audio.setInstrument(inst);},[inst]);
 useEffect(()=>{const warmup=()=>{audio.init();};document.addEventListener('touchstart',warmup,{once:true,passive:true,capture:true});return()=>document.removeEventListener('touchstart',warmup,{capture:true});},[]);
+// Resume AudioContext and restart loop when tab comes back to foreground
+const progLoopingRef=useRef(false);
+useEffect(()=>{progLoopingRef.current=progLooping;},[progLooping]);
+useEffect(()=>{
+  const onVisible=()=>{
+    if(document.visibilityState!=='visible')return;
+    if(audio.ctx&&audio.ctx.state==='suspended')audio.ctx.resume();
+    if(progLoopingRef.current)setTimeout(()=>loopP(),80);
+  };
+  document.addEventListener('visibilitychange',onVisible);
+  return()=>document.removeEventListener('visibilitychange',onVisible);
+},[loopP]);
 useEffect(()=>{try{const s=localStorage.getItem('harmonymap_saved');if(s)setSaved(JSON.parse(s));const st=localStorage.getItem('harmonymap_settings');if(st){const o=JSON.parse(st);if(o.bpm)setBpm(o.bpm);if(o.beats)setBeats(o.beats);if(o.stg!=null)setStg(o.stg);if(o.sk)setSk(o.sk);if(['underwater','cinematic','analog-pad'].includes(o.inst))setInst(o.inst);}const sk2=localStorage.getItem('harmonymap_streak');if(sk2)setStreak(JSON.parse(sk2));const xp2=localStorage.getItem('harmonymap_xp');if(xp2)setXp(parseInt(xp2)||0);const today=new Date().toISOString().slice(0,10);const dl=localStorage.getItem('harmonymap_daily');if(!dl||JSON.parse(dl).date!==today)setDailyAvail(true);}catch(e){}},[]);
 useEffect(()=>{try{localStorage.setItem('harmonymap_saved',JSON.stringify(saved));}catch(e){}},[saved]);
 useEffect(()=>{try{localStorage.setItem('harmonymap_streak',JSON.stringify(streak));}catch(e){}},[streak]);
@@ -1177,9 +1189,27 @@ visible={prog.length > 0}
       {k&&gcon(k.ch,k.m).map((c,i)=>{const ly=ml(k.ch,200,200,148);const f=ly.find(n=>n.c===c.f),t=ly.find(n=>n.c===c.t);if(!f||!t)return null;const h=sch&&(c.f===sch||c.t===sch);const isStrong=c.st==='strong';
         return<line key={i} x1={f.x} y1={f.y} x2={t.x} y2={t.y} stroke={h?(isStrong?'#FFD700':cc(sch)):isStrong?'rgba(255,215,0,0.45)':'rgba(255,255,255,0.11)'} strokeWidth={h?(isStrong?4:2.5):isStrong?2.5:1} strokeDasharray={isStrong?'none':'5 5'} style={{transition:'all 0.3s',filter:h&&isStrong?'drop-shadow(0 0 4px #FFD700)':'none'}}/>;
       })}
+      {/* ── History trail: glowing amber path through tapped chords ── */}
+      {k&&prog.filter(c=>c&&c!=='REST').length>=2&&(()=>{
+        const layout=ml(k.ch,200,200,148);
+        const trail=prog.filter(c=>c&&c!=='REST').map(chord=>layout.find(nd=>{const lbl=extChordLabel(k,nd.c,ext);return nd.c===chord||lbl===chord;})).filter(Boolean);
+        const steps=trail.slice(0,-1).map((from,i)=>{
+          const to=trail[i+1];if(!to||from===to)return null;
+          const dx=to.x-from.x,dy=to.y-from.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<1)return null;
+          const mx=(from.x+to.x)/2,my=(from.y+to.y)/2;
+          const px=-dy/dist*18,py=dx/dist*18;
+          const age=(i+1)/trail.length;
+          return<path key={i} d={`M${from.x},${from.y} Q${mx+px},${my+py} ${to.x},${to.y}`} fill="none"
+            stroke="#F5A623" strokeWidth={0.6+age*2} strokeOpacity={0.08+age*0.38} strokeLinecap="round" style={{pointerEvents:'none'}}/>;
+        });
+        const latest=trail[trail.length-1];
+        return<>{steps}{latest&&<circle cx={latest.x} cy={latest.y} r={6} fill="#F5A623" fillOpacity={0.3} style={{pointerEvents:'none',animation:'svgRingPulse 1.2s ease-in-out infinite'}}/>}</>;
+      })()}
       {k&&ml(k.ch,200,200,148).map((nd,ni)=>{const col=cc(nd.c),sel=sch===nd.c,extLbl=extChordLabel(k,nd.c,ext),isNoteMode=ext==='note',displayLbl=isNoteMode?extLbl.slice(5):extLbl,ip=prog.includes(extLbl)||prog.includes(nd.c),fn=k.m==='minor'?FNm:FNM;const fnParts=fn[ni].split(' (');const fnName=fnParts[0];const fnRN=fnParts[1]?.slice(0,-1);const bnRank=bestNext.indexOf(nd.c);const isBestNext=bnRank!==-1&&!isNoteMode;
         const isNextTap=nextTapChord&&(nd.c===nextTapChord||extLbl===nextTapChord);
+        const isHome=ni===0;
         return<g key={ni} onClick={()=>playC(nd.c)} style={{cursor:'pointer'}}>
+          {isHome&&<circle cx={nd.x} cy={nd.y} r={sel?45:37} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={1} strokeDasharray="3 5"/>}
           {isNextTap&&<circle cx={nd.x} cy={nd.y} r={48} fill="none" stroke="#FFB347" strokeWidth={3} style={{animation:'svgRingPulse 0.9s ease-in-out infinite'}}/>}
           {isBestNext&&!isNextTap&&<circle cx={nd.x} cy={nd.y} r={44} fill="none" stroke={col} strokeWidth={bnRank===0?3.5:2.5} strokeOpacity={bnRank===0?0.9:0.65} style={{animation:'svgRingPulse 1.4s ease-in-out infinite',animationDelay:`${bnRank*0.4}s`}}/>}
           <circle cx={nd.x} cy={nd.y} r={sel?38:30} fill={col+(sel?'30':'10')} stroke={col+(sel?'80':'35')} strokeWidth={sel?2:1} style={{transition:'all 0.3s'}}/>
@@ -1189,6 +1219,7 @@ visible={prog.length > 0}
           <text x={nd.x} y={nd.y+(sel?47:39)} textAnchor="middle" fill="rgba(255,255,255,0.78)" fontSize="7" fontWeight="600" style={{pointerEvents:'none'}}>{fnName}</text>
           {!isNoteMode&&<text x={nd.x} y={nd.y+(sel?55:47)} textAnchor="middle" fill="rgba(255,215,0,0.72)" fontSize="6" style={{pointerEvents:'none'}}>{fnRN&&`(${fnRN})`}</text>}
           <text x={nd.x} y={nd.y+(sel?63:55)} textAnchor="middle" fill="rgba(255,255,255,0.50)" fontSize="6" style={{pointerEvents:'none'}}>{extChordNotes(k,nd.c,ext).join('·')}</text>
+          {isHome&&!sel&&<text x={nd.x} y={nd.y+(sel?71:63)} textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="5" fontWeight="700" style={{pointerEvents:'none'}}>HOME</text>}
         </g>;})}
       <text x="200" y="195" textAnchor="middle" fill={swapIdx!==null?'#FFD700':'rgba(255,255,255,0.35)'} fontSize="12" fontWeight="700">{sk}</text>
       <text x="200" y="211" textAnchor="middle" fill={swapIdx!==null?'rgba(255,215,0,0.6)':'rgba(255,255,255,0.22)'} fontSize="8">{swapIdx!==null?`replacing slot ${swapIdx+1}`:ext==='note'?'Tap a note':'Tap a chord'}</text>
