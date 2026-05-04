@@ -774,14 +774,23 @@ const patternGuide=useMemo(()=>{
   const ls=progPattern.filter(Boolean);
   const ltc={};
   prog.forEach((c,i)=>{if(c&&c!=='REST'&&progPattern[i]&&!ltc[progPattern[i]])ltc[progPattern[i]]=c.startsWith('note:')?c.slice(5):c;});
-  const NM={'ABAB':{name:'Loop',icon:'↺',tip:'The most common structure in pop music'},'AABA':{name:'Classic Hook',icon:'✦',tip:'Used in the majority of hit songs'},'ABAC':{name:'Story Arc',icon:'→',tip:'Returns home with a twist each time'},'ABCA':{name:'Bookend',icon:'⟨⟩',tip:'Same start and end feels complete'},'AAAB':{name:'Build-Up',icon:'△',tip:'The new chord hits harder after repetition'},'ABBA':{name:'Mirror',icon:'⇄',tip:'Symmetrical and deeply satisfying'},'AAAA':{name:'Mantra',icon:'○',tip:'Hypnotic simplicity — repetition IS the hook'},'ABCD':{name:'All New',icon:'?',tip:'Too varied — repeat one chord to create a hook'}};
+  const NM={
+    'ABAB':{name:'Loop',icon:'↺',tip:"You're going around in a circle — the same two chords keep trading off. This is how most pop and R&B songs are built.",ex:'Think: verse-chorus-verse-chorus'},
+    'AABA':{name:'Classic Hook',icon:'✦',tip:"Home chord three times, then something new — the new chord feels huge because you earned it with repetition. Literally the most-used structure in hit songs.",ex:'Think: "Somewhere Over the Rainbow"'},
+    'ABAC':{name:'Story Arc',icon:'→',tip:"You start the same way each time but land in a different place. It sounds like someone telling a story — familiar opening, surprise ending.",ex:'Think: a repeated question with different answers'},
+    'ABCA':{name:'Bookend',icon:'⟨⟩',tip:"Your first chord comes back at the end, like closing a book where you started. The listener feels like the journey is complete.",ex:'Think: leaving home, adventuring, then coming home'},
+    'AAAB':{name:'Build-Up',icon:'△',tip:"Same chord three times in a row builds tension — then the new chord hits like a release. The longer you wait, the bigger the payoff.",ex:'Think: a record scratch before the drop'},
+    'ABBA':{name:'Mirror',icon:'⇄',tip:"The second half reverses the first — like a reflection. It feels balanced and resolved, almost mathematical in its satisfaction.",ex:'Think: walking up stairs and back down'},
+    'AAAA':{name:'Mantra',icon:'○',tip:"One chord on repeat. This isn't boring — the groove, rhythm, and melody carry the song. The chord becomes a hypnotic foundation.",ex:'Think: most of Kendrick, a lot of Drake'},
+    'ABCD':{name:'All New',icon:'×',tip:"Every chord is different so nothing feels like home. It's hard for the listener to follow or sing along. Repeat at least one chord to create a hook.",ex:'Tip: go back and tap your first chord again'}
+  };
   if(ls.length===0)return{type:'start',msg:'Tap any chord — it becomes your A'};
   if(ls.length===1)return{type:'building',current:'A _ _ _',steps:[{action:`Tap ${ltc['A']} again`,result:'A A _ _',hint:'builds a mantra'},{action:'Tap a different chord',result:'A B _ _',hint:'adds contrast'}]};
   if(ls.length===2){const[a,b]=ls;if(a===b)return{type:'building',current:'A A _ _',steps:[{action:`Tap something new (B)`,result:'A A B _',hint:'then A = AABA classic hook'},{action:`Tap ${ltc['A']} again`,result:'A A A _',hint:'building a mantra'}]};return{type:'building',current:'A B _ _',steps:[{action:`Tap ${ltc['A']} (A)`,result:'A B A _',hint:'sets up a hook or loop'},{action:`Tap ${ltc['B']} (B)`,result:'A B B _',hint:'doubles down on B'}]};}
   if(ls.length===3){const sugs=[];['A','B','C','D'].forEach(n=>{const c=[...ls,n].join('');if(NM[c]){const ch=ltc[n];sugs.push({action:ch?`Tap ${ch} (${n})`:`Tap new chord (${n})`,result:[...ls,n].join(' '),name:NM[c].name,icon:NM[c].icon});}});return{type:'almost',current:ls.join(' ')+' _',sugs:sugs.slice(0,3)};}
   const named=NM[ls.slice(0,4).join('')];
-  if(named)return{type:'named',name:named.name,icon:named.icon,pattern:ls.slice(0,4).join(' '),tip:named.tip};
-  return{type:'custom',pattern:ls.join(' '),tip:'Your own pattern — repeat it to lock in the feel'};
+  if(named)return{type:'named',name:named.name,icon:named.icon,pattern:ls.slice(0,4).join(' '),tip:named.tip,ex:named.ex};
+  return{type:'custom',pattern:ls.join(' '),tip:'Your own pattern — keep looping it until it feels inevitable'};
 },[prog,progPattern]);
 const nextTapChord=useMemo(()=>{if(!patternGuide||patternGuide.type!=='almost')return null;const sug=patternGuide.sugs[0];if(!sug)return null;const m=sug.action.match(/^Tap (\S+)/);return m?m[1]:null;},[patternGuide]);
 const playP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(resolveNotes);const raw=rhythmPat||getAutoRhythm();const pat=raw?raw.map(sec=>sec*b/60):null;audio.playProgression(n,b,i=>setPi(i),bt,s,pat);const t=ctip('play',{prog});if(t)setTimeout(()=>setTip(t),2000);},[prog,bpm,beats,stg,rhythmPat,getAutoRhythm,resolveNotes]);
@@ -1239,6 +1248,23 @@ visible={prog.length > 0}
       </>}
     </svg>
   </div>
+
+  {/* ── PATTERN EXPLANATION ── */}
+  {patternGuide&&patternGuide.type==='named'&&<div style={{background:'rgba(245,166,35,0.07)',border:'1px solid rgba(245,166,35,0.2)',borderRadius:14,padding:'12px 14px',marginBottom:10,animation:'fadeIn 0.3s'}}>
+    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+      <span style={{fontSize:20,lineHeight:1}}>{patternGuide.icon}</span>
+      <div>
+        <div style={{fontSize:13,fontWeight:900,color:'#F5A623',lineHeight:1}}>{patternGuide.name}</div>
+        <div style={{fontSize:9,letterSpacing:4,color:'rgba(245,166,35,0.55)',fontWeight:800,marginTop:2}}>{patternGuide.pattern}</div>
+      </div>
+    </div>
+    <div style={{fontSize:12,color:'rgba(255,255,255,0.65)',lineHeight:1.6,marginBottom:6}}>{patternGuide.tip}</div>
+    {patternGuide.ex&&<div style={{fontSize:10,color:'rgba(245,166,35,0.6)',fontStyle:'italic'}}>{patternGuide.ex}</div>}
+  </div>}
+  {patternGuide&&patternGuide.type==='custom'&&prog.filter(c=>c&&c!=='REST').length>=4&&<div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:14,padding:'10px 14px',marginBottom:10}}>
+    <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.35)',letterSpacing:2,marginBottom:4}}>YOUR PATTERN</div>
+    <div style={{fontSize:12,color:'rgba(255,255,255,0.5)',lineHeight:1.5}}>{patternGuide.tip}</div>
+  </div>}
 
   {/* ── PROGRESSION STRIP ── */}
   <div style={{display:'flex',gap:5,overflowX:'auto',scrollbarWidth:'none',marginBottom:10,paddingBottom:2,minHeight:58}}>
