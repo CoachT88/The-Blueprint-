@@ -720,6 +720,7 @@ const recElapsedTid=useRef(null);
 const replayTids=useRef([]);
 const lastTapTimeRef=useRef(null);
 const autoCaptureRef=useRef([]);
+const[captureCount,setCaptureCount]=useState(0);
 const[showSettings,setShowSettings]=useState(false);
 const[bpm,setBpm]=useState(90);const[beats,setBeats]=useState(4);const[stg,setStg]=useState(0.018);
 const[bpmInput,setBpmInput]=useState('90');
@@ -740,7 +741,7 @@ const dailyTid=useRef(null);
 useEffect(()=>{if(!dailyActive)return;dailyTid.current=setInterval(()=>setDailySecs(s=>s>0?s-1:0),1000);return()=>clearInterval(dailyTid.current);},[dailyActive]);
 useEffect(()=>{if(!dailyActive||dailySecs!==0)return;clearInterval(dailyTid.current);setDailyActive(false);setDailyDone(true);setDailyAvail(false);setXp(x=>x+10);try{localStorage.setItem('harmonymap_daily',JSON.stringify({date:new Date().toISOString().slice(0,10)}));}catch(e){};},[dailyActive,dailySecs]);
 const clearSwap=useCallback(()=>{setSwapIdx(null);if(swapTid.current){clearTimeout(swapTid.current);swapTid.current=null;}},[]);
-useEffect(()=>{const onKey=(e)=>{if((e.ctrlKey||e.metaKey)&&e.key==='z'&&undoProg){autoCaptureRef.current=[];setProg(undoProg);setUndoProg(null);clearSwap();}};document.addEventListener('keydown',onKey);return()=>document.removeEventListener('keydown',onKey);},[undoProg,clearSwap]);
+useEffect(()=>{const onKey=(e)=>{if((e.ctrlKey||e.metaKey)&&e.key==='z'&&undoProg){autoCaptureRef.current=[];setCaptureCount(0);setProg(undoProg);setUndoProg(null);clearSwap();}};document.addEventListener('keydown',onKey);return()=>document.removeEventListener('keydown',onKey);},[undoProg,clearSwap]);
 const dr=useRef([]);dr.current=disc;
 const k=KEYS[sk],em=emo?EMO[emo]:null;
 const ps=useMemo(()=>presets(sk),[sk]);
@@ -759,9 +760,9 @@ audio.playProgression(n, bpm, i => setPi(i), beats, stg);
 }, [prog, bpm, beats, stg])
 );
 
-const playC=useCallback(s=>{if(s==='REST')return;const lbl=extChordLabel(k,s,ext);if(lbl.startsWith('note:')){audio.playNote(lbl.slice(5)+'4',1.0,0.45);}else{audio.playChord(cn(pc(lbl).r,pc(lbl).t,3));}setSch(s);if(isRecording.current){recEventsRef.current.push({chord:lbl,mapChord:s,t:Date.now()-recStartRef.current});setRecChordCount(n=>n+1);};if(swapIdx!==null){setProg(p=>{const n=[...p];n[swapIdx]=lbl;return n;});if(swapTid.current)clearTimeout(swapTid.current);swapTid.current=setTimeout(()=>setSwapIdx(null),5000);}else{autoCaptureRef.current=[...autoCaptureRef.current,Date.now()];setProg(p=>{if(p.length>=16)return p;const n=[...p,lbl];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});const t=ctip('sel',{ch:s});if(t)setTip(t);}},[k,ext,swapIdx]);
+const playC=useCallback(s=>{if(s==='REST')return;const lbl=extChordLabel(k,s,ext);if(lbl.startsWith('note:')){audio.playNote(lbl.slice(5)+'4',1.0,0.45);}else{audio.playChord(cn(pc(lbl).r,pc(lbl).t,3));}setSch(s);if(isRecording.current){recEventsRef.current.push({chord:lbl,mapChord:s,t:Date.now()-recStartRef.current});setRecChordCount(n=>n+1);};if(swapIdx!==null){setProg(p=>{const n=[...p];n[swapIdx]=lbl;return n;});if(swapTid.current)clearTimeout(swapTid.current);swapTid.current=setTimeout(()=>setSwapIdx(null),5000);}else{autoCaptureRef.current=[...autoCaptureRef.current,Date.now()];setCaptureCount(c=>c+1);setProg(p=>{if(p.length>=16)return p;const n=[...p,lbl];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});const t=ctip('sel',{ch:s});if(t)setTip(t);}},[k,ext,swapIdx]);
 const addC=useCallback(s=>{setProg(p=>{if(p.length>=16)return p;const n=[...p,s];const t=ctip('add',{prog:n});if(t)setTip(t);if(!dr.current.includes('fc')&&n.length===1)setDisc(d=>[...d,'fc']);if(!dr.current.includes('fp')&&n.length===4)setDisc(d=>[...d,'fp']);return n;});},[]);
-const remC=useCallback(i=>{autoCaptureRef.current=autoCaptureRef.current.filter((_,j)=>j!==i);setProg(p=>p.filter((_,j)=>j!==i));setRhythmPat(p=>p?p.filter((_,j)=>j!==i):null);setSwapIdx(cur=>{if(cur===null)return null;if(cur===i){if(swapTid.current){clearTimeout(swapTid.current);swapTid.current=null;}return null;}return cur>i?cur-1:cur;});},[]);
+const remC=useCallback(i=>{autoCaptureRef.current=autoCaptureRef.current.filter((_,j)=>j!==i);setCaptureCount(c=>Math.max(0,c-1));setProg(p=>p.filter((_,j)=>j!==i));setRhythmPat(p=>p?p.filter((_,j)=>j!==i):null);setSwapIdx(cur=>{if(cur===null)return null;if(cur===i){if(swapTid.current){clearTimeout(swapTid.current);swapTid.current=null;}return null;}return cur>i?cur-1:cur;});},[]);
 const selectSlot=useCallback((i,c)=>{if(swapTid.current)clearTimeout(swapTid.current);if(swapIdx===i){setSwapIdx(null);swapTid.current=null;return;}setUndoProg(prog);setSwapIdx(i);swapTid.current=setTimeout(()=>setSwapIdx(null),5000);if(c!=='REST'){if(c.startsWith('note:')){audio.playNote(c.slice(5)+'4',1.0,0.45);}else{const lbl=extChordLabel(k,c,ext);audio.playChord(cn(pc(lbl).r,pc(lbl).t,3));}}},[swapIdx,k,ext,prog]);
 const warpKey=useCallback((ghostChordBase,fromKeyName)=>{const pk=KEYS[fromKeyName];if(!pk)return;audio.playChord(cn(pc(ghostChordBase).r,pc(ghostChordBase).t,3));setOriginalKey(cur=>cur===null?sk:cur);setSk(fromKeyName);setSch(ghostChordBase);setKmf(pk.m);setProg(p=>[...p,ghostChordBase]);if(toastTid.current)clearTimeout(toastTid.current);setKeyToast(`Key shifted to ${fromKeyName} — tap 🏠 to return`);toastTid.current=setTimeout(()=>setKeyToast(null),3500);},[sk]);
 const returnHome=useCallback(()=>{if(!originalKey)return;const ok=KEYS[originalKey];if(!ok)return;setSk(originalKey);setSch(null);setKmf(ok.m);setOriginalKey(null);if(toastTid.current)clearTimeout(toastTid.current);setKeyToast(`Returned to ${originalKey}`);toastTid.current=setTimeout(()=>setKeyToast(null),2500);},[originalKey]);
@@ -826,7 +827,7 @@ useEffect(()=>{
 // Restart loop at new BPM whenever tempo changes while looping
 useEffect(()=>{if(progLooping)loopP();},[bpm,beats]);// eslint-disable-line react-hooks/exhaustive-deps
 const saveI=useCallback(()=>{if(!prog.length)return;setSaved(p=>[...p,{id:Date.now(),emo,k:sk,prog:[...prog],date:new Date().toLocaleDateString()}]);if(!dr.current.includes('fs'))setDisc(d=>[...d,'fs']);setXp(x=>x+2);const today=new Date().toISOString().slice(0,10);setStreak(s=>{const diff=s.lastDate?Math.round((new Date(today)-new Date(s.lastDate))/86400000):null;const cnt=diff===1?(s.count||0)+1:diff===0?s.count||1:1;return{count:cnt,lastDate:today};});},[prog,emo,sk]);
-const selEmo=useCallback(e=>{const entry=EMO[e];setEmo(e);const fk=entry.ks[0];if(fk){setSk(fk);setKmf(KEYS[fk]?.m||'major');}setSch(null);if(entry.pr?.[0]?.ch){autoCaptureRef.current=[];setProg(entry.pr[0].ch);}const pb=parseInt(entry.tp);if(pb)setBpm(pb);setScreen('chordmap');},[]);
+const selEmo=useCallback(e=>{const entry=EMO[e];setEmo(e);const fk=entry.ks[0];if(fk){setSk(fk);setKmf(KEYS[fk]?.m||'major');}setSch(null);if(entry.pr?.[0]?.ch){autoCaptureRef.current=[];setCaptureCount(0);setProg(entry.pr[0].ch);}const pb=parseInt(entry.tp);if(pb)setBpm(pb);setScreen('chordmap');},[]);
 const stopAll=useCallback(()=>{audio.absoluteStop();setPa(false);setPi(-1);setPRow(-1);setProgLooping(false);},[]);
 const newEar=useCallback(()=>{setEa(null);const c=earGen(et);setEc(c);if(c)setTimeout(()=>{if(c.pt==='chord')audio.playChord(c.pd);else if(c.pt==='melodic')audio.playMelodicInterval(c.pd[0],c.pd[1]);else if(c.pt==='two'){audio.playChord(c.pd[0],1.3);setTimeout(()=>audio.playChord(c.pd[1],1.3),1500);}},300);},[et]);
 const replayEar=useCallback(()=>{if(!ec)return;if(ec.pt==='chord')audio.playChord(ec.pd);else if(ec.pt==='melodic')audio.playMelodicInterval(ec.pd[0],ec.pd[1]);else if(ec.pt==='two'){audio.playChord(ec.pd[0],1.3);setTimeout(()=>audio.playChord(ec.pd[1],1.3),1500);}},[ec]);
@@ -1033,7 +1034,7 @@ return (
       <button onClick={() => addC('REST')} style={{ ...S.btn(), padding: '8px 10px', fontSize: 11 }}>𝄽 Rest</button>
       <button onClick={saveI} style={S.btn('rgba(255,215,0,0.15)', '#FFD700', 'rgba(255,215,0,0.3)')}>♡ Save</button>
       {undoProg && <button onClick={() => { setProg(undoProg); setUndoProg(null); clearSwap(); }} style={S.btn('rgba(245,166,35,0.12)', '#F5A623', 'rgba(245,166,35,0.3)')}>↩ Undo</button>}
-      <button onClick={() => { stopAll(); setProg([]); setRhythmPat(null); autoCaptureRef.current=[]; lastTapTimeRef.current=null; setUndoProg(null); clearSwap(); setBlueprint(null); }} style={S.btn()}>Clear</button>
+      <button onClick={() => { stopAll(); setProg([]); setSch(null); setRhythmPat(null); autoCaptureRef.current=[]; setCaptureCount(0); lastTapTimeRef.current=null; setUndoProg(null); clearSwap(); setBlueprint(null); }} style={S.btn()}>Clear</button>
     </div>
     {prog.filter(c => c && c !== 'REST').length >= 4 && <div style={{ marginBottom: 6 }}>
       {!blueprint
@@ -1064,7 +1065,7 @@ return(
 prog={prog} bpm={bpm} sk={sk}
 progLooping={progLooping} pi={pi}
 onPlay={() => playP()} onLoop={() => loopP()} onStop={stopAll}
-onClear={() => { stopAll(); setProg([]); setRhythmPat(null); autoCaptureRef.current=[]; lastTapTimeRef.current=null; setUndoProg(null); }}
+onClear={() => { stopAll(); setProg([]); setSch(null); setRhythmPat(null); autoCaptureRef.current=[]; setCaptureCount(0); lastTapTimeRef.current=null; setUndoProg(null); }}
 visible={prog.length > 0}
 />
 
@@ -1151,7 +1152,7 @@ visible={prog.length > 0}
     <p style={{fontSize:11,color:'rgba(255,255,255,0.5)',margin:'0 0 10px',lineHeight:1.4}}>{p.d}</p>
     <div style={{display:'flex',gap:8}}>
       <button onClick={()=>{audio.playProgression(p.ch.map(s=>cn(pc(s).r,pc(s).t,3)),parseInt(em.tp)||72,idx=>{setPi(idx);setPRow(idx===-1?-1:ri);});}} style={{...S.btn('rgba(255,255,255,0.1)','#fff','rgba(255,255,255,0.2)'),padding:'10px 18px',fontSize:13}}>▶ Listen</button>
-      <button onClick={()=>{autoCaptureRef.current=[];setProg(p.ch);setScreen('chordmap');}} style={{...S.btn(em.co[0]+'30',em.co[0],em.co[0]+'50'),padding:'10px 18px',fontSize:13,fontWeight:800}}>Use this → Map</button>
+      <button onClick={()=>{autoCaptureRef.current=[];setCaptureCount(0);setProg(p.ch);setScreen('chordmap');}} style={{...S.btn(em.co[0]+'30',em.co[0],em.co[0]+'50'),padding:'10px 18px',fontSize:13,fontWeight:800}}>Use this → Map</button>
     </div>
   </div>)}
   <div style={S.card()}>
@@ -1215,7 +1216,7 @@ visible={prog.length > 0}
         return<line key={i} x1={f.x} y1={f.y} x2={t.x} y2={t.y} stroke={h?(isStrong?'#FFD700':cc(sch)):isStrong?'rgba(255,215,0,0.45)':'rgba(255,255,255,0.11)'} strokeWidth={h?(isStrong?4:2.5):isStrong?2.5:1} strokeDasharray={isStrong?'none':'5 5'} style={{transition:'all 0.3s',filter:h&&isStrong?'drop-shadow(0 0 4px #FFD700)':'none'}}/>;
       })}
       {/* ── History trail: glowing amber path through tapped chords ── */}
-      {k&&prog.filter(c=>c&&c!=='REST').length>=2&&(()=>{
+      {k&&captureCount>=2&&(()=>{
         const layout=ml(k.ch,200,200,148);
         const trail=prog.filter(c=>c&&c!=='REST').map(chord=>layout.find(nd=>{const lbl=extChordLabel(k,nd.c,ext);return nd.c===chord||lbl===chord;})).filter(Boolean);
         const steps=trail.slice(0,-1).map((from,i)=>{
@@ -1322,11 +1323,11 @@ visible={prog.length > 0}
     <button onClick={()=>playP()} style={{...S.btn('linear-gradient(135deg,#F5A623,#C87D0F)','#fff','transparent'),border:'none',flex:1}}>▶ Play</button>
     <button onClick={progLooping?stopAll:()=>loopP()} style={{...S.btn(progLooping?'rgba(255,107,107,0.18)':'rgba(199,125,255,0.15)',progLooping?'#FF6B6B':'#C77DFF',progLooping?'rgba(255,107,107,0.4)':'rgba(199,125,255,0.3)'),flex:1}}>{progLooping?'■ Stop':'↺ Loop'}</button>
     <button onClick={saveI} style={{...S.btn('rgba(255,215,0,0.12)','#FFD700','rgba(255,215,0,0.3)'),padding:'8px 12px'}}>♡</button>
-    <button onClick={()=>{stopAll();setProg([]);setRhythmPat(null);autoCaptureRef.current=[];lastTapTimeRef.current=null;setUndoProg(null);clearSwap();setBlueprint(null);}} style={{...S.btn(),padding:'8px 12px'}}>✕</button>
+    <button onClick={()=>{stopAll();setProg([]);setSch(null);setRhythmPat(null);autoCaptureRef.current=[];setCaptureCount(0);lastTapTimeRef.current=null;setUndoProg(null);clearSwap();setBlueprint(null);}} style={{...S.btn(),padding:'8px 12px'}}>✕</button>
   </div>}
 
   {/* Rhythm capture indicator */}
-  {prog.length>1&&<div style={{fontSize:9,color:'rgba(245,166,35,0.6)',textAlign:'center',marginBottom:8,fontWeight:600,letterSpacing:0.5}}>● rhythm captured — play to hear your timing</div>}
+  {captureCount>1&&<div style={{fontSize:9,color:'rgba(245,166,35,0.6)',textAlign:'center',marginBottom:8,fontWeight:600,letterSpacing:0.5}}>● rhythm captured — play to hear your timing</div>}
 
   {/* Swap mode banner */}
   {swapIdx!==null&&dragging===null&&<div style={{background:'rgba(255,215,0,0.08)',border:'1px solid rgba(255,215,0,0.3)',borderRadius:10,padding:'8px 12px',marginBottom:8,display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,animation:'fadeIn 0.2s'}}>
@@ -1476,7 +1477,7 @@ visible={prog.length > 0}
     <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:6}}>{idea.prog.map((c,i)=><span key={i} style={{background:cc(c)+'18',color:cc(c),border:`1px solid ${cc(c)}35`,borderRadius:7,padding:'4px 10px',fontSize:13,fontWeight:700}}>{c}</span>)}</div>
     <div style={{display:'flex',gap:6}}>
       <button onClick={()=>{audio.playProgression(idea.prog.map(s=>s==='REST'?null:cn(pc(s).r,pc(s).t,3)),bpm,i=>{setPi(i);setPRow(-1);});}} style={S.btn()}>▶ Play</button>
-      <button onClick={()=>{autoCaptureRef.current=[];setProg(idea.prog);setSk(idea.k||sk);setSch(null);setScreen('chordmap');}} style={S.btn()}>Edit →</button>
+      <button onClick={()=>{autoCaptureRef.current=[];setCaptureCount(0);setProg(idea.prog);setSk(idea.k||sk);setSch(null);setScreen('chordmap');}} style={S.btn()}>Edit →</button>
       <button onClick={()=>{const txt=[`🎵 HarmonyMap Sketch`,`Key: ${idea.k}`,`${idea.prog.join(' → ')}`,idea.date].join('\n');try{navigator.clipboard.writeText(txt);setTip('Copied!');}catch(e){}}} style={S.btn()}>📋 Copy</button>
     </div>
   </div>;})}
