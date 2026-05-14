@@ -62,9 +62,9 @@ export async function onRequestPost({ request, env }) {
 
   if (email) {
     try {
-      if (event === 'membership.went_valid') {
+      if (event === 'membership_activated' || event === 'membership.went_valid') {
         await upsertMember(email, env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-      } else if (event === 'membership.went_invalid') {
+      } else if (event === 'membership_deactivated' || event === 'membership.went_invalid') {
         await deleteMember(email, env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
       }
     } catch (e) {
