@@ -1919,15 +1919,20 @@ async function loadPersisted(){
             if(localData) try{const {_savedAt:_,...rest}=localData;persisted={...DEFAULT_PERSISTED,...rest};}catch(e){}
             return;
         }
-        // If the local backup is strictly newer than the Supabase row, use it — the
-        // last Supabase write may have silently failed (PWA / flaky mobile network).
+        // If the local backup is newer than Supabase, or if a previous write
+        // was locally committed but never confirmed by Supabase (dirty flag),
+        // treat local as the source of truth and re-sync.
         const dbTime=new Date(data.updated_at||0).getTime();
         const localTime=localData?new Date(localData._savedAt||0).getTime():0;
-        if(localTime>dbTime && localData){
+        const hasDirty=!!localStorage.getItem('bp_dirty_'+currentUser.id);
+        if((localTime>dbTime || (hasDirty && localData && localTime>=dbTime)) && localData){
             const {_savedAt:_,...rest}=localData;
             persisted={...DEFAULT_PERSISTED,...rest};
             // Re-sync Supabase with the newer local data
-            try{await sb.from('user_data').upsert(_upsertPayload(),{onConflict:'id'});}catch(e){}
+            try{
+                await sb.from('user_data').upsert(_upsertPayload(),{onConflict:'id'});
+                localStorage.removeItem('bp_dirty_'+currentUser.id);
+            }catch(e){}
         } else {
             persisted = {
                 schedule:       data.schedule        || DEFAULT_PERSISTED.schedule,
@@ -1989,22 +1994,30 @@ function _upsertPayload(){
     return{id:currentUser.id,..._buildSavePayload()};
 }
 function savePersisted(){
-    // Always write to localStorage immediately as backup (with timestamp so loadPersisted can prefer newer source)
-    if(currentUser) try{localStorage.setItem('bp_data_'+currentUser.id,JSON.stringify({...persisted,_savedAt:new Date().toISOString()}));}catch(e){}
-    // Debounce the Supabase write
+    if(currentUser) try{
+        localStorage.setItem('bp_data_'+currentUser.id,JSON.stringify({...persisted,_savedAt:new Date().toISOString()}));
+        localStorage.setItem('bp_dirty_'+currentUser.id,'1'); // cleared only after Supabase confirms
+    }catch(e){}
     clearTimeout(_saveDebounce);
-    _saveDebounce = setTimeout(async()=>{
+    _saveDebounce=setTimeout(async()=>{
         if(!currentUser)return;
-        try{await sb.from('user_data').upsert(_upsertPayload(),{onConflict:'id'});}
-        catch(e){console.error('savePersisted:',e)}
-    }, 800);
+        try{
+            await sb.from('user_data').upsert(_upsertPayload(),{onConflict:'id'});
+            localStorage.removeItem('bp_dirty_'+currentUser.id);
+        }catch(e){console.error('savePersisted:',e)}
+    },800);
 }
 function _flushSaveNow(){
     // Called on visibility hidden — fire Supabase write immediately without debounce
     if(!currentUser)return;
     clearTimeout(_saveDebounce);
-    try{localStorage.setItem('bp_data_'+currentUser.id,JSON.stringify({...persisted,_savedAt:new Date().toISOString()}));}catch(e){}
-    sb.from('user_data').upsert(_upsertPayload(),{onConflict:'id'}).catch(()=>{});
+    try{
+        localStorage.setItem('bp_data_'+currentUser.id,JSON.stringify({...persisted,_savedAt:new Date().toISOString()}));
+        localStorage.setItem('bp_dirty_'+currentUser.id,'1');
+    }catch(e){}
+    sb.from('user_data').upsert(_upsertPayload(),{onConflict:'id'})
+        .then(()=>{if(currentUser)localStorage.removeItem('bp_dirty_'+currentUser.id);})
+        .catch(()=>{});
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
