@@ -1594,7 +1594,9 @@
 // ═══════════════════════════════════════════════════════════════════════════
 const DAY_NAMES=['SUN','MON','TUE','WED','THU','FRI','SAT'];
 const DIRECTIONALS=['OUT','UP','DOWN','LEFT','RIGHT'];
-const LEVELS=[{name:'Recruit',min:0},{name:'Operator',min:250},{name:'Specialist',min:750},{name:'Veteran',min:1500},{name:'Elite',min:3000},{name:'Legend',min:6000}];
+const SESSION_XP={beginner:75,intermediate:100,advanced:140,elite:185,recovery:50};
+const RANK_NAMES=['Recruit','Operator','Specialist','Veteran','Elite','Legend'];
+const LEVEL_XP=(function(){const t=[0];for(let i=1;i<50;i++)t.push(t[i-1]+Math.round(50*Math.pow(i,1.6)));return t;})();
 const DIFFICULTIES=[
     {id:'beginner',     label:'Beginner',     durationMult:.5,  setsOffset:-1, xpMult:.7,  icon:'fa-seedling',         color:'text-emerald-400', activeCls:'diff-beginner'    },
     {id:'intermediate', label:'Intermediate', durationMult:1.0, setsOffset: 0, xpMult:1.0, icon:'fa-dumbbell',         color:'text-blue-400',    activeCls:'diff-intermediate'},
@@ -2521,8 +2523,14 @@ async function analyzeRecovery(){
 // ═══════════════════════════════════════════════════════════════════════════
 // LEVEL SYSTEM
 // ═══════════════════════════════════════════════════════════════════════════
-function getLevelIdx(xp){for(let i=LEVELS.length-1;i>=0;i--)if(xp>=LEVELS[i].min)return i;return 0}
-function getLevelProg(xp){const i=getLevelIdx(xp),c=LEVELS[i],n=LEVELS[i+1];if(!n)return{name:c.name,pct:100,isMax:true};return{name:c.name,pct:Math.round(((xp-c.min)/(n.min-c.min))*100),isMax:false,xpToNext:n.min-xp}}
+function getLevelInfo(xp){
+    let lv=1;for(let i=1;i<LEVEL_XP.length;i++){if(xp>=LEVEL_XP[i])lv=i+1;else break;}lv=Math.min(lv,50);
+    const ri=lv<=10?0:lv<=20?1:lv<=30?2:lv<=40?3:lv<=49?4:5;
+    const rankName=RANK_NAMES[ri];
+    if(lv===50)return{level:50,rankName,pct:100,isMax:true,displayName:'LEGEND · MAX'};
+    const cur=LEVEL_XP[lv-1],nxt=LEVEL_XP[lv];
+    return{level:lv,rankName,pct:Math.round(((xp-cur)/(nxt-cur))*100),isMax:false,xpToNext:nxt-xp,displayName:`${rankName.toUpperCase()} · LVL ${lv}`};
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // NAVIGATION
@@ -2991,7 +2999,7 @@ function startSet(){
     }
     session.timer=createTimer(ex.duration,rem=>{
         document.getElementById('ex-timer').innerText=fmtDuration(rem);
-        session.xp+=Math.round(5*getDiff().xpMult);document.getElementById('live-xp').innerText=`${session.xp} XP`;
+        document.getElementById('live-xp').innerText=`+${session.routineType==='recovery'?SESSION_XP.recovery:(SESSION_XP[getDiff().id]||100)} XP`;
         // Uli: cue stays static. Wet Jelq: pacer interval owns cue updates.
         if(!isUli&&!isWetJelq){
             const activeCue=[...ex.cues].sort((a,b)=>a.time-b.time).find(c=>c.time>=rem);
@@ -3136,7 +3144,7 @@ function advanceEx(){
         if(session.girthRound>=session.girthTotalRounds){
             // Final round complete — go directly to success, no rest
             haptic([100,50,100,50,300]);
-            document.getElementById('success-xp-text').innerText=`+${session.xp} XP EARNED`;
+            document.getElementById('success-xp-text').innerText=`+${SESSION_XP[getDiff().id]||100} XP EARNED`;
             goToStep(5);
             return;
         }
@@ -3156,7 +3164,7 @@ function advanceEx(){
         if(session.exerciseIndex<exs.length-1){session.exerciseIndex++;session.setIndex=1;session.directionalIndex=0;updateExUI();return;}
     }
     haptic([100,50,100,50,300]);
-    document.getElementById('success-xp-text').innerText=`+${session.routineType==='recovery'?50:session.xp} XP EARNED`;
+    document.getElementById('success-xp-text').innerText=`+${session.routineType==='recovery'?SESSION_XP.recovery:(SESSION_XP[getDiff().id]||100)} XP EARNED`;
     goToStep(5);
 }
 
@@ -3277,10 +3285,10 @@ function renderDashboard(){
     document.getElementById('current-date').innerText=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}).toUpperCase();
     document.getElementById('hq-streak').innerText=`${getCurrentStreak()} Day Streak`;
     document.getElementById('hq-xp').innerText=`${persisted.totalXp} XP`;
-    const lvl=getLevelProg(persisted.totalXp);
-    document.getElementById('hq-level-name').innerText=lvl.name.toUpperCase();
+    const lvl=getLevelInfo(persisted.totalXp);
+    document.getElementById('hq-level-name').innerText=lvl.displayName;
     document.getElementById('hq-level-bar').style.width=`${lvl.pct}%`;
-    document.getElementById('hq-level-next').innerText=lvl.isMax?'MAX LEVEL':`${lvl.xpToNext} XP to next rank`;
+    document.getElementById('hq-level-next').innerText=lvl.isMax?'MAX LEVEL':`${lvl.xpToNext} XP to next level`;
     document.getElementById('deload-banner').classList.toggle('hidden',!isDeloadWeek());
     const meas=persisted.measurements||[];
     const last=meas.length?meas[meas.length-1]:null;
@@ -3339,9 +3347,8 @@ function finishSession(){
     const bpel=parseFloat(document.getElementById('input-bpel').value);
     const mseg=parseFloat(document.getElementById('input-mseg').value);
     const note=document.getElementById('session-note-input').value.trim();
-    const earnedXp=(session.routineType==='recovery')?50:session.xp;
+    const earnedXp=session.routineType==='recovery'?SESSION_XP.recovery:(SESSION_XP[getDiff().id]||100);
     persisted.totalXp+=earnedXp;
-    if(session.routineType==='recovery')session.xp=50;
     persisted.completedDays[new Date().getDay()]=true;
     persisted.sessionLog.push({
         date:new Date().toISOString(),
