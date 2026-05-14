@@ -204,6 +204,8 @@
         /* Auth screen */
         #auth-screen{position:fixed;inset:0;background:var(--bg-deep);z-index:99999;display:flex;align-items:center;justify-content:center;padding:2rem}
         #auth-screen.hidden{display:none}
+        #loading-screen{position:fixed;inset:0;background:var(--bg-deep);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.25rem}
+        #loading-screen.hidden{display:none}
         .auth-card{background:linear-gradient(145deg,rgba(30,41,59,.6) 0%,rgba(15,23,42,.9) 100%);border:1px solid rgba(255,255,255,.08);border-top:1px solid rgba(255,255,255,.15);border-radius:2rem;padding:2rem;width:100%;max-width:22rem;backdrop-filter:blur(20px);box-shadow:0 30px 60px -10px rgba(0,0,0,.6)}
         .auth-input{background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.1);border-radius:.875rem;color:#f8fafc;padding:.875rem 1rem;width:100%;outline:none;font-family:inherit;font-size:.9rem;transition:border-color .2s;box-sizing:border-box}
         .auth-input:focus{border-color:rgba(59,130,246,.5)}
@@ -239,7 +241,15 @@
 
 <!-- AUTH SCREEN -->
 
-<div id="auth-screen">
+<div id="loading-screen">
+    <div class="relative">
+        <div class="absolute inset-0 bg-blue-500/20 blur-[40px] rounded-full"></div>
+        <i class="fas fa-fingerprint text-5xl text-blue-400 relative"></i>
+    </div>
+    <i class="fas fa-spinner fa-spin text-slate-600 text-xl"></i>
+</div>
+
+<div id="auth-screen" class="hidden">
     <div class="auth-card">
         <div class="text-center mb-7">
             <div class="relative inline-block mb-4">
@@ -3735,8 +3745,8 @@ async function handlePasswordReset(){
 // ═══════════════════════════════════════════════════════════════════════════
 // AUTH ENGINE
 // ═══════════════════════════════════════════════════════════════════════════
-function showAuthScreen(){document.getElementById('auth-screen').classList.remove('hidden')}
-function hideAuthScreen(){document.getElementById('auth-screen').classList.add('hidden')}
+function showAuthScreen(){document.getElementById('loading-screen').classList.add('hidden');document.getElementById('auth-screen').classList.remove('hidden');}
+function hideAuthScreen(){document.getElementById('auth-screen').classList.add('hidden');document.getElementById('loading-screen').classList.add('hidden');}
 function setAuthError(msg){const el=document.getElementById('auth-error');el.textContent=msg;el.classList.toggle('show',!!msg);document.getElementById('auth-success').classList.remove('show')}
 function setAuthSuccess(msg){const el=document.getElementById('auth-success');el.textContent=msg;el.classList.toggle('show',!!msg);document.getElementById('auth-error').classList.remove('show')}
 let authMode='login';
@@ -4276,11 +4286,13 @@ document.addEventListener('DOMContentLoaded', async ()=>{
             showAuthScreen();
         }
     });
-    // Check for password reset link first
+    // Check for password reset link first; fall back to session check.
+    // Loading screen stays up until onUserSignedIn resolves or we confirm no session.
     const isReset=await handlePasswordReset();
     if(!isReset){
         const {data:{session}}=await sb.auth.getSession();
-        if(!session) showAuthScreen();
+        if(!session) showAuthScreen(); // no session → show auth form
+        // if session exists, onAuthStateChange already called onUserSignedIn which hides loading
     }
 
     // Save on tab hide; re-acquire wake lock when screen comes back on mid-timer
