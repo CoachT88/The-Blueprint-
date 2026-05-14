@@ -610,8 +610,8 @@
         </div>
         <div class="level-badge mx-2">
             <div class="flex justify-between items-center">
-                <div class="flex items-center gap-2"><i class="fas fa-shield-halved text-yellow-400 text-xs"></i><span id="hq-level-name" class="text-yellow-300 text-xs font-black uppercase tracking-widest">Recruit</span></div>
-                <span id="hq-level-next" class="text-[10px] text-slate-500 font-semibold">250 XP to next rank</span>
+                <div class="flex items-center gap-2"><i class="fas fa-shield-halved text-yellow-400 text-xs"></i><span id="hq-level-name" class="text-yellow-300 text-xs font-black uppercase tracking-widest">LVL 1 · RECRUIT</span></div>
+                <span id="hq-level-next" class="text-[10px] text-slate-500 font-semibold">65 XP to next level</span>
             </div>
             <div class="level-bar-track"><div id="hq-level-bar" class="level-bar-fill" style="width:0%"></div></div>
         </div>
@@ -1594,9 +1594,12 @@
 // ═══════════════════════════════════════════════════════════════════════════
 const DAY_NAMES=['SUN','MON','TUE','WED','THU','FRI','SAT'];
 const DIRECTIONALS=['OUT','UP','DOWN','LEFT','RIGHT'];
-const SESSION_XP={beginner:75,intermediate:100,advanced:140,elite:185,recovery:50};
+const SESSION_XP={beginner:10,intermediate:15,advanced:20,elite:25,recovery:5};
 const RANK_NAMES=['Recruit','Operator','Specialist','Veteran','Elite','Legend'];
-const LEVEL_XP=(function(){const t=[0];for(let i=1;i<50;i++)t.push(t[i-1]+Math.round(50*Math.pow(i,1.6)));return t;})();
+// Gap between level n and n+1 = (50 + 15*n) XP — linear ramp so early levels
+// take ~5 sessions and high levels take 30-50+ sessions each.
+// Level 11 (Operator) ≈ 88 sessions (~5 months at 4×/wk, 15 XP avg).
+const LEVEL_XP=(function(){const t=[0];for(let i=1;i<50;i++)t.push(t[i-1]+50+15*i);return t;})();
 const DIFFICULTIES=[
     {id:'beginner',     label:'Beginner',     durationMult:.5,  setsOffset:-1, xpMult:.7,  icon:'fa-seedling',         color:'text-emerald-400', activeCls:'diff-beginner'    },
     {id:'intermediate', label:'Intermediate', durationMult:1.0, setsOffset: 0, xpMult:1.0, icon:'fa-dumbbell',         color:'text-blue-400',    activeCls:'diff-intermediate'},
@@ -1942,6 +1945,14 @@ async function loadPersisted(){
                 lastTipDate:    data.last_tip_date   || '',
             };
         }
+        // XP migration — old per-tick system (5 XP/sec) and the first flat redesign
+        // (75-185/session) both over-inflate totalXp. If stored XP exceeds what the
+        // current system could ever award for the number of sessions logged, recalculate
+        // from session count at 15 XP each (intermediate average).
+        if(persisted.totalXp>(persisted.sessionLog||[]).length*50){
+            persisted.totalXp=(persisted.sessionLog||[]).length*15;
+            savePersisted();
+        }
         // Auto-reset completedDays if we're in a new week
         const currentWeek = getCurrentWeekKey();
         if(persisted.weekKey !== currentWeek){
@@ -2213,7 +2224,7 @@ function renderDifficultySelector(){
             const sampleEx=ROUTINES[session.routineType]?.[0];
             if(sampleEx){
                 const applied=applyDifficulty(sampleEx);
-                detail.innerHTML=`${d.label}: ${applied.duration}s per set · ${applied.sets} sets · ${d.xpMult}× XP`;
+                detail.innerHTML=`${d.label}: ${applied.duration}s per set · ${applied.sets} sets · ${SESSION_XP[d.id]||15} XP`;
             } else {
                 detail.innerHTML='';
             }
@@ -2527,9 +2538,9 @@ function getLevelInfo(xp){
     let lv=1;for(let i=1;i<LEVEL_XP.length;i++){if(xp>=LEVEL_XP[i])lv=i+1;else break;}lv=Math.min(lv,50);
     const ri=lv<=10?0:lv<=20?1:lv<=30?2:lv<=40?3:lv<=49?4:5;
     const rankName=RANK_NAMES[ri];
-    if(lv===50)return{level:50,rankName,pct:100,isMax:true,displayName:'LEGEND · MAX'};
+    if(lv===50)return{level:50,rankName,pct:100,isMax:true,displayName:'LVL 50 · LEGEND'};
     const cur=LEVEL_XP[lv-1],nxt=LEVEL_XP[lv];
-    return{level:lv,rankName,pct:Math.round(((xp-cur)/(nxt-cur))*100),isMax:false,xpToNext:nxt-xp,displayName:`${rankName.toUpperCase()} · LVL ${lv}`};
+    return{level:lv,rankName,pct:Math.round(((xp-cur)/(nxt-cur))*100),isMax:false,xpToNext:nxt-xp,displayName:`LVL ${lv} · ${rankName.toUpperCase()}`};
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
