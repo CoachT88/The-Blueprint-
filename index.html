@@ -1895,29 +1895,41 @@ function getCurrentWeekKey(){ return _getISOYear()+'_w'+getISOWeek(); }
 
 async function loadPersisted(){
     if(!currentUser)return;
+    // Read localStorage backup first so we can compare timestamps
+    let localData=null;
+    try{const raw=localStorage.getItem('bp_data_'+currentUser.id);if(raw)localData=JSON.parse(raw);}catch(e){}
     try{
         const {data,error} = await sb.from('user_data').select('*').eq('id',currentUser.id).single();
         if(error||!data){
-            // Fall back to localStorage backup
-            const local=localStorage.getItem('bp_data_'+currentUser.id);
-            if(local) try{persisted={...DEFAULT_PERSISTED,...JSON.parse(local)};}catch(e){}
+            if(localData) try{const {_savedAt:_,...rest}=localData;persisted={...DEFAULT_PERSISTED,...rest};}catch(e){}
             return;
         }
-        persisted = {
-            schedule:       data.schedule        || DEFAULT_PERSISTED.schedule,
-            completedDays:  data.completed_days  || DEFAULT_PERSISTED.completedDays,
-            totalXp:        data.total_xp        || 0,
-            sessionLog:     data.session_log     || [],
-            measurements:   data.measurements    || [],
-            seenMilestones: data.seen_milestones || [],
-            difficulty:     data.difficulty      || 'intermediate',
-            diffUnlockedDate: data.diff_unlocked_date || {intermediate:'',advanced:'',elite:''},
-            firstSessionDate: data.first_session_date || '',
-            weekKey:        data.week_key        || '',
-            records:        data.records         || {longestStreak:0,bestWeekXp:0,bestSessionXp:0},
-            tipIndex:       data.tip_index       || 0,
-            lastTipDate:    data.last_tip_date   || '',
-        };
+        // If the local backup is strictly newer than the Supabase row, use it — the
+        // last Supabase write may have silently failed (PWA / flaky mobile network).
+        const dbTime=new Date(data.updated_at||0).getTime();
+        const localTime=localData?new Date(localData._savedAt||0).getTime():0;
+        if(localTime>dbTime && localData){
+            const {_savedAt:_,...rest}=localData;
+            persisted={...DEFAULT_PERSISTED,...rest};
+            // Re-sync Supabase with the newer local data
+            try{await sb.from('user_data').upsert(_upsertPayload(),{onConflict:'id'});}catch(e){}
+        } else {
+            persisted = {
+                schedule:       data.schedule        || DEFAULT_PERSISTED.schedule,
+                completedDays:  data.completed_days  || DEFAULT_PERSISTED.completedDays,
+                totalXp:        data.total_xp        || 0,
+                sessionLog:     data.session_log     || [],
+                measurements:   data.measurements    || [],
+                seenMilestones: data.seen_milestones || [],
+                difficulty:     data.difficulty      || 'intermediate',
+                diffUnlockedDate: data.diff_unlocked_date || {intermediate:'',advanced:'',elite:''},
+                firstSessionDate: data.first_session_date || '',
+                weekKey:        data.week_key        || '',
+                records:        data.records         || {longestStreak:0,bestWeekXp:0,bestSessionXp:0},
+                tipIndex:       data.tip_index       || 0,
+                lastTipDate:    data.last_tip_date   || '',
+            };
+        }
         // Auto-reset completedDays if we're in a new week
         const currentWeek = getCurrentWeekKey();
         if(persisted.weekKey !== currentWeek){
@@ -1927,8 +1939,7 @@ async function loadPersisted(){
         }
     }catch(e){
         console.error('loadPersisted:',e);
-        const local=localStorage.getItem('bp_data_'+currentUser.id);
-        if(local) try{persisted={...DEFAULT_PERSISTED,...JSON.parse(local)};}catch(e2){}
+        if(localData) try{const {_savedAt:_,...rest}=localData;persisted={...DEFAULT_PERSISTED,...rest};}catch(e2){}
     }
 }
 
@@ -1955,8 +1966,8 @@ function _upsertPayload(){
     return{id:currentUser.id,..._buildSavePayload()};
 }
 function savePersisted(){
-    // Always write to localStorage immediately as backup
-    if(currentUser) try{localStorage.setItem('bp_data_'+currentUser.id,JSON.stringify(persisted));}catch(e){}
+    // Always write to localStorage immediately as backup (with timestamp so loadPersisted can prefer newer source)
+    if(currentUser) try{localStorage.setItem('bp_data_'+currentUser.id,JSON.stringify({...persisted,_savedAt:new Date().toISOString()}));}catch(e){}
     // Debounce the Supabase write
     clearTimeout(_saveDebounce);
     _saveDebounce = setTimeout(async()=>{
@@ -1969,7 +1980,7 @@ function _flushSaveNow(){
     // Called on visibility hidden — fire Supabase write immediately without debounce
     if(!currentUser)return;
     clearTimeout(_saveDebounce);
-    try{localStorage.setItem('bp_data_'+currentUser.id,JSON.stringify(persisted));}catch(e){}
+    try{localStorage.setItem('bp_data_'+currentUser.id,JSON.stringify({...persisted,_savedAt:new Date().toISOString()}));}catch(e){}
     sb.from('user_data').upsert(_upsertPayload(),{onConflict:'id'}).catch(()=>{});
 }
 
@@ -1984,6 +1995,22 @@ function resetSession(){
     session.exerciseIndex=0;session.setIndex=1;session.directionalIndex=0;session.xp=0;
     session.recoveryQueue=null;session.recoveryQueuePos=0;
     session.girthRound=1;session.girthTotalRounds=3;
+    _releaseWakeLock();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCREEN WAKE LOCK — keeps screen on while a timer is actively counting
+// ═══════════════════════════════════════════════════════════════════════════
+let _wakeLock=null;
+async function _acquireWakeLock(){
+    if(!('wakeLock' in navigator)||_wakeLock)return;
+    try{_wakeLock=await navigator.wakeLock.request('screen');_wakeLock.addEventListener('release',()=>{_wakeLock=null;});}catch(e){}
+}
+function _releaseWakeLock(){if(_wakeLock){_wakeLock.release().catch(()=>{});_wakeLock=null;}}
+// Call after any timer state change — acquires if any timer is running, releases if none are.
+function _syncWakeLock(){
+    const active=(session.timer?.isRunning())||(session.warmupTimer?.isRunning());
+    if(active)_acquireWakeLock();else _releaseWakeLock();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2537,12 +2564,12 @@ function resetWarmupUI(){document.getElementById('warmup-timer').innerText='10:0
 function toggleWarmup(){
     const btn=document.getElementById('warmup-btn');
     if(!session.warmupTimer){
-        session.warmupTimer=createTimer(600,rem=>{const m=Math.floor(rem/60).toString().padStart(2,'0'),s=(rem%60).toString().padStart(2,'0');document.getElementById('warmup-timer').innerText=`${m}:${s}`},()=>{btn.innerText='Complete!';haptic([80,40,80,40,200]);setTimeout(()=>nextStep(),800)});
-        session.warmupTimer.start();btn.innerText='Pause';
-    }else if(session.warmupTimer.isRunning()){session.warmupTimer.pause();btn.innerText='Resume'}
-    else{session.warmupTimer.resume();btn.innerText='Pause'}
+        session.warmupTimer=createTimer(600,rem=>{const m=Math.floor(rem/60).toString().padStart(2,'0'),s=(rem%60).toString().padStart(2,'0');document.getElementById('warmup-timer').innerText=`${m}:${s}`},()=>{btn.innerText='Complete!';haptic([80,40,80,40,200]);_syncWakeLock();setTimeout(()=>nextStep(),800)});
+        session.warmupTimer.start();btn.innerText='Pause';_syncWakeLock();
+    }else if(session.warmupTimer.isRunning()){session.warmupTimer.pause();btn.innerText='Resume';_syncWakeLock();}
+    else{session.warmupTimer.resume();btn.innerText='Pause';_syncWakeLock();}
 }
-function stopWarmup(){if(session.warmupTimer){session.warmupTimer.cancel();session.warmupTimer=null}resetWarmupUI()}
+function stopWarmup(){if(session.warmupTimer){session.warmupTimer.cancel();session.warmupTimer=null}resetWarmupUI();_syncWakeLock();}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EXERCISE ENGINE
@@ -2961,7 +2988,7 @@ function startSet(){
             if(activeCue) updateActiveCue(activeCue.text.replace('{DIR}',DIRECTIONALS[session.directionalIndex]));
         }
     },()=>onSetDone());
-    session.timer.start();
+    session.timer.start();_syncWakeLock();
 }
 function pauseResumeSet(){
     if(!session.timer)return;
@@ -2972,6 +2999,7 @@ function pauseResumeSet(){
         stopJelqStrokePacer();
         ic.className='fas fa-play text-4xl text-slate-300';
         if(lbl)lbl.innerText='Resume';
+        _syncWakeLock();
     } else {
         session.timer.resume();
         // Restart pacer if this is a Wet Jelq set
@@ -2979,13 +3007,14 @@ function pauseResumeSet(){
         if(ex.title==='Wet Jelq') startJelqStrokePacer();
         ic.className='fas fa-pause text-4xl text-slate-300';
         if(lbl)lbl.innerText='Pause';
+        _syncWakeLock();
     }
 }
 function onSetDone(){
     stopJelqStrokePacer();
     document.getElementById('ex-pause-btn').style.display='none';
     setFocusedMode(false);
-    session.timer=null;
+    session.timer=null;_syncWakeLock();
     haptic([60,30,60]);
     const ex=getCurEx();
     if(ex.isDirectional&&session.directionalIndex<DIRECTIONALS.length-1){session.directionalIndex++;document.getElementById('ex-timer').innerText=fmtDuration(ex.duration);updateExUI();}
@@ -3077,13 +3106,13 @@ function startRest(){
     },()=>{
         ov.classList.add('hidden');
         stopBoxBreathing();
-        session.timer=null;session.setIndex++;updateExUI();haptic([100]);
+        session.timer=null;_syncWakeLock();session.setIndex++;updateExUI();haptic([100]);
     });
-    session.timer.start();
+    session.timer.start();_syncWakeLock();
 }
 function skipRest(){
     if(session.timer){session.timer.cancel();session.timer=null}
-    stopBoxBreathing();
+    stopBoxBreathing();_syncWakeLock();
     document.getElementById('rest-overlay').classList.add('hidden');
     session.setIndex++;updateExUI();
 }
@@ -3137,11 +3166,11 @@ function startGirthRoundRest(){
         document.getElementById('rest-timer').innerText=rem;
         if(arc) arc.style.strokeDashoffset=String((1-(rem/restDur))*circumference);
     },()=>{
-        ov.classList.add('hidden');stopBoxBreathing();session.timer=null;
+        ov.classList.add('hidden');stopBoxBreathing();session.timer=null;_syncWakeLock();
         session.exerciseIndex=0;session.setIndex=1;session.directionalIndex=0;
         updateExUI();haptic([100]);
     });
-    session.timer.start();
+    session.timer.start();_syncWakeLock();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3733,7 +3762,8 @@ async function handleAuthSubmit(){
     try{
         let result;
         if(authMode==='login'){
-            result=await sb.auth.signInWithPassword({email,password});
+            const _timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('Connection timed out. Check your network and try again.')),20000));
+            result=await Promise.race([sb.auth.signInWithPassword({email,password}),_timeout]);
             if(!result.error){
                 if(_rememberMe)localStorage.setItem('bp_remember_email',email);
                 else localStorage.removeItem('bp_remember_email');
@@ -3768,11 +3798,15 @@ async function handleForgotPassword(){
     else setAuthSuccess('Password reset email sent. Check your inbox.');
 }
 async function handleLogout(){
-    _flushSaveNow(); // ensure pending changes reach Supabase before signing out
-    await sb.auth.signOut();
+    // Clear state and show auth screen immediately — don't wait on the network.
+    // Any in-flight onUserSignedIn will see currentUser cleared and abort.
     currentUser=null;persisted={...DEFAULT_PERSISTED};
+    clearTimeout(_localNotifTimer);_localNotifTimer=null;
+    _releaseWakeLock();
     showAuthScreen();
     document.querySelectorAll('.step-content').forEach(s=>{s.classList.add('hidden-step');s.classList.remove('active-step')});
+    _flushSaveNow();
+    try{await sb.auth.signOut();}catch(e){console.error('signOut error:',e);}
 }
 async function checkMembership(user){
     // Check members table in Supabase — you add rows manually or via Whop webhook later
@@ -3792,28 +3826,38 @@ async function checkMembership(user){
     }
 }
 
+let _signingIn=false;
 async function onUserSignedIn(user){
-    // Only skip re-init if the app is already showing for this user (e.g. TOKEN_REFRESHED).
-    // If the auth screen is visible, always run the full init — the guard was previously
-    // firing when currentUser was stale from a prior session, leaving users stuck on sign-in.
+    // Prevent concurrent calls (handleAuthSubmit + onAuthStateChange both call this on login).
+    // A concurrent second call for the same user is always redundant — skip it.
+    if(_signingIn && currentUser?.id===user.id) return;
     const authVisible=!document.getElementById('auth-screen').classList.contains('hidden');
     if(currentUser?.id===user.id && !authVisible) return;
-    currentUser=user;
-    // Check membership
-    const isMember=await checkMembership(user);
-    if(!isMember){currentUser=null;return;}
-    document.getElementById('hq-user-email').textContent=user.email;
-    await loadPersisted();
-    hideAuthScreen();
-    const welcomed=localStorage.getItem('bp_welcomed_'+user.id);
-    const onboarded=localStorage.getItem('bp_onboarded_'+user.id);
-    if(welcomed){
-        goToStep(0);
-        if(!onboarded) setTimeout(showOnboarding, 600);
-    } else {
-        document.querySelectorAll('.step-content').forEach(s=>{s.classList.add('hidden-step');s.classList.remove('active-step')});
-        const w=document.getElementById('step-welcome');
-        w.classList.remove('hidden-step');w.classList.add('active-step');
+    _signingIn=true;
+    try{
+        currentUser=user;
+        const isMember=await checkMembership(user);
+        // Bail if logout happened while we were awaiting
+        if(currentUser?.id!==user.id) return;
+        if(!isMember){currentUser=null;return;}
+        document.getElementById('hq-user-email').textContent=user.email;
+        await loadPersisted();
+        // Bail if logout happened while we were awaiting
+        if(currentUser?.id!==user.id) return;
+        _scheduleLocalNotif();
+        hideAuthScreen();
+        const welcomed=localStorage.getItem('bp_welcomed_'+user.id);
+        const onboarded=localStorage.getItem('bp_onboarded_'+user.id);
+        if(welcomed){
+            goToStep(0);
+            if(!onboarded) setTimeout(showOnboarding,600);
+        } else {
+            document.querySelectorAll('.step-content').forEach(s=>{s.classList.add('hidden-step');s.classList.remove('active-step')});
+            const w=document.getElementById('step-welcome');
+            w.classList.remove('hidden-step');w.classList.add('active-step');
+        }
+    }finally{
+        _signingIn=false;
     }
 }
 
@@ -3824,13 +3868,85 @@ const VAPID_PUBLIC_KEY='BHNs21bsR6oKAN19h2o7tSH5s5QHEB3YCqrxaZ6WmMQ6zMJEeuPC7gZ0
 function _urlBase64ToUint8(b64){const p=(b64+'='.repeat((4-b64.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/');const raw=atob(p);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));}
 let _swRegistration=null;
 async function initServiceWorker(){
-    if(!('serviceWorker' in navigator)||!('PushManager' in window))return;
+    if(!('serviceWorker' in navigator))return;
     try{_swRegistration=await navigator.serviceWorker.register('/sw.js');}
     catch(e){console.error('SW register:',e);}
 }
+
+// ── Local notification scheduler ──────────────────────────────────────────
+// Fires at the user-set time directly from the browser — no server needed.
+// Works as long as the PWA or browser tab is running. Re-schedules daily.
+let _localNotifTimer=null;
+
+const _NOTIF_MSGS={
+    rest:[
+        {title:'Recovery day.',body:'Hip flexors + RK holds. 5 minutes locks in the gains.'},
+        {title:'Active recovery today.',body:'Pelvic floor release + box breathing. 5 min. Do it.'},
+        {title:'Rest day protocol.',body:'Reverse kegels + hip openers. Recovery work compounds.'},
+        {title:'5-min recovery session.',body:'Stretch, breathe, release. Your tissue rebuilds tonight.'},
+        {title:'Recovery is the work.',body:'Drop into pelvic floor release + RK holds. 5 minutes.'},
+        {title:'Open The Blueprint.',body:'Recovery Protocol today — pelvic stretches + RK holds.'},
+        {title:'Rest day. Do the work.',body:'Hip openers + reverse kegels keep the floor supple.'},
+    ],
+    streak:[
+        (s)=>({title:`Day ${s+1}. Keep it moving.`,body:'Warm up, hit the protocol, log it. Streak stays alive.'}),
+        (s)=>({title:`${s}-day streak on the line.`,body:'One session keeps the chain unbroken. Open the app.'}),
+        (s)=>({title:`Day ${s+1}.`,body:'Consistent reps compound. Do not let today be the gap.'}),
+        (s)=>({title:`${s} days straight.`,body:'Warmup → protocol → done. That is the whole move.'}),
+        (s)=>({title:`Streak alive: ${s} days.`,body:'Tissue adapts in recovery. Give it the stimulus first.'}),
+        (s)=>({title:`Day ${s+1}. You know the drill.`,body:'10 minutes of warmup and the work is half done.'}),
+        (s)=>({title:`${s} days in.`,body:'This is where most guys stop. You are not most guys.'}),
+    ],
+    train:[
+        {title:'Time to train.',body:'10-min warmup → protocol → done. Open The Blueprint.'},
+        {title:'Your tissue is ready.',body:'Nothing left but the work. Open the app and get it done.'},
+        {title:'Consistency is the protocol.',body:'One session today keeps the adaptation cycle running.'},
+        {title:'Get the session in.',body:'Warm up, execute, recover. That is the whole job.'},
+        {title:'Progress is made tonight.',body:'Collagen remodels 48–72 h after the stimulus. Give it one.'},
+        {title:'Open The Blueprint.',body:'Start the warmup. The rest follows.'},
+        {title:'One session. That is it.',body:'Warmup, work, done. Your future self does not skip.'},
+    ],
+};
+
+function _buildNotifPayload(){
+    const day=new Date().getDay();
+    const todayKey=new Date().toISOString().split('T')[0];
+    const trained=(persisted?.sessionLog||[]).some(s=>s.date?.startsWith(todayKey));
+    if(trained) return null;
+    const todayType=(persisted?.schedule||[])[day]||'rest';
+    const isRest=todayType==='rest';
+    if(isRest) return _NOTIF_MSGS.rest[day%7];
+    const streak=getCurrentStreak();
+    if(streak>0) return _NOTIF_MSGS.streak[day%7](streak);
+    return _NOTIF_MSGS.train[day%7];
+}
+
+async function _fireLocalNotif(){
+    const payload=_buildNotifPayload();
+    if(payload){
+        const opts={body:payload.body,icon:'/icon-192.png',badge:'/badge-72.png',tag:'daily-reminder',data:{url:'/'},silent:false};
+        if(_swRegistration) await _swRegistration.showNotification(payload.title,opts).catch(()=>{});
+        else if(Notification.permission==='granted') new Notification(payload.title,{body:payload.body,icon:'/icon-192.png'});
+    }
+    _scheduleLocalNotif(); // re-arm for tomorrow
+}
+
+function _scheduleLocalNotif(){
+    clearTimeout(_localNotifTimer);_localNotifTimer=null;
+    if(Notification.permission!=='granted') return;
+    const prefs=JSON.parse(localStorage.getItem('bp_notif_prefs')||'{}');
+    if(!prefs.time) return;
+    const [h,m]=prefs.time.split(':').map(Number);
+    const now=new Date();
+    const target=new Date(now);
+    target.setHours(h,m,0,0);
+    if(target<=now) target.setDate(target.getDate()+1);
+    _localNotifTimer=setTimeout(_fireLocalNotif,target.getTime()-now.getTime());
+}
+
 function openNotifModal(){
     const modal=document.getElementById('notif-modal');
-    const supported='serviceWorker' in navigator && 'PushManager' in window;
+    const supported='Notification' in window && 'serviceWorker' in navigator;
     document.getElementById('notif-unsupported').classList.toggle('hidden',supported);
     document.getElementById('notif-supported').classList.toggle('hidden',!supported);
     if(supported) _refreshNotifUI();
@@ -3839,41 +3955,42 @@ function openNotifModal(){
 function closeNotifModal(){document.getElementById('notif-modal').classList.add('hidden');}
 async function _refreshNotifUI(){
     const perm=Notification.permission;
-    const sub=_swRegistration?await _swRegistration.pushManager.getSubscription():null;
-    const active=perm==='granted'&&!!sub;
+    const active=perm==='granted';
     document.getElementById('notif-enable-btn').classList.toggle('hidden',active);
     document.getElementById('notif-disable-btn').classList.toggle('hidden',!active);
     document.getElementById('notif-icon').className=active?'fas fa-bell text-xs text-blue-400':'fas fa-bell text-xs';
     document.getElementById('notif-btn').style.borderColor=active?'rgba(59,130,246,.4)':'';
     document.getElementById('notif-status').innerText=active?'Notifications are active.':perm==='denied'?'Notifications blocked in browser settings.':'';
-    // Load saved prefs
     const prefs=JSON.parse(localStorage.getItem('bp_notif_prefs')||'{}');
     if(prefs.time) document.getElementById('notif-time').value=prefs.time;
     const streakOn=prefs.streakWarn!==false;
     _setToggleUI('streak-warn-toggle','streak-warn-thumb',streakOn);
 }
-function _setToggleUI(id,thumbId,on){
-    const t=document.getElementById(id),th=document.getElementById(thumbId);
-    t.style.background=on?'#3b82f6':'';t.style.borderColor=on?'#3b82f6':'';
-    th.style.transform=on?'translateX(16px)':'';th.style.background=on?'#fff':'';
-}
 async function enableNotifications(){
-    if(!_swRegistration){document.getElementById('notif-status').innerText='Service worker not ready — try again.';return;}
     const btn=document.getElementById('notif-enable-btn');
     btn.innerHTML='<i class="fas fa-spinner fa-spin mr-2"></i>Requesting...';btn.disabled=true;
     try{
         const perm=await Notification.requestPermission();
         if(perm!=='granted'){document.getElementById('notif-status').innerText='Permission denied.';btn.innerHTML='Enable Notifications';btn.disabled=false;return;}
-        const sub=await _swRegistration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:_urlBase64ToUint8(VAPID_PUBLIC_KEY)});
-        await _savePushSubscription(sub);
+        // Local scheduler — works immediately, no server needed
+        _scheduleLocalNotif();
+        // Best-effort push subscription for server-side delivery (non-blocking)
+        if(_swRegistration&&'PushManager' in window){
+            try{
+                const sub=await _swRegistration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:_urlBase64ToUint8(VAPID_PUBLIC_KEY)});
+                await _savePushSubscription(sub);
+            }catch(e){/* push subscription optional — local scheduler already armed */}
+        }
         await _refreshNotifUI();
-    }catch(e){console.error('Push subscribe:',e);document.getElementById('notif-status').innerText='Could not enable — try again.';}
+    }catch(e){console.error('Enable notifications:',e);document.getElementById('notif-status').innerText='Could not enable — try again.';}
     btn.innerHTML='Enable Notifications';btn.disabled=false;
 }
 async function disableNotifications(){
-    if(!_swRegistration)return;
-    const sub=await _swRegistration.pushManager.getSubscription();
-    if(sub){await sub.unsubscribe();await _deletePushSubscription(sub);}
+    clearTimeout(_localNotifTimer);_localNotifTimer=null;
+    if(_swRegistration&&'PushManager' in window){
+        const sub=await _swRegistration.pushManager.getSubscription().catch(()=>null);
+        if(sub){await sub.unsubscribe().catch(()=>{});await _deletePushSubscription(sub);}
+    }
     await _refreshNotifUI();
 }
 async function _savePushSubscription(sub){
@@ -3900,10 +4017,11 @@ async function saveNotifPrefs(){
     const streakWarn=document.getElementById('streak-warn-toggle').style.background==='rgb(59, 130, 246)';
     const prefs={time,streakWarn};
     localStorage.setItem('bp_notif_prefs',JSON.stringify(prefs));
+    _scheduleLocalNotif(); // re-arm with new time
     // Update in Supabase if subscribed
-    if(currentUser){
-        const sub=_swRegistration?await _swRegistration.pushManager.getSubscription():null;
-        if(sub) await sb.from('push_subscriptions').update({reminder_time:time,streak_warn:streakWarn}).eq('user_id',currentUser.id);
+    if(currentUser&&_swRegistration&&'PushManager' in window){
+        const sub=await _swRegistration.pushManager.getSubscription().catch(()=>null);
+        if(sub) await sb.from('push_subscriptions').update({reminder_time:time,streak_warn:streakWarn}).eq('user_id',currentUser.id).catch(()=>{});
     }
 }
 
@@ -4165,9 +4283,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
         if(!session) showAuthScreen();
     }
 
-    // Save on tab hide (catches closed browser mid-session) — use flush, not debounce
+    // Save on tab hide; re-acquire wake lock when screen comes back on mid-timer
     document.addEventListener('visibilitychange',()=>{
         if(document.visibilityState==='hidden') _flushSaveNow();
+        else _syncWakeLock(); // wake lock is auto-released on hide; reclaim it if a timer is still running
     });
 });
 </script>
