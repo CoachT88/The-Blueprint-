@@ -3798,11 +3798,15 @@ async function handleForgotPassword(){
     else setAuthSuccess('Password reset email sent. Check your inbox.');
 }
 async function handleLogout(){
-    _flushSaveNow(); // ensure pending changes reach Supabase before signing out
-    await sb.auth.signOut();
+    // Clear state and show auth screen immediately — don't wait on the network.
+    // Any in-flight onUserSignedIn will see currentUser cleared and abort.
     currentUser=null;persisted={...DEFAULT_PERSISTED};
+    clearTimeout(_localNotifTimer);_localNotifTimer=null;
+    _releaseWakeLock();
     showAuthScreen();
     document.querySelectorAll('.step-content').forEach(s=>{s.classList.add('hidden-step');s.classList.remove('active-step')});
+    _flushSaveNow();
+    try{await sb.auth.signOut();}catch(e){console.error('signOut error:',e);}
 }
 async function checkMembership(user){
     // Check members table in Supabase — you add rows manually or via Whop webhook later
@@ -3822,29 +3826,38 @@ async function checkMembership(user){
     }
 }
 
+let _signingIn=false;
 async function onUserSignedIn(user){
-    // Only skip re-init if the app is already showing for this user (e.g. TOKEN_REFRESHED).
-    // If the auth screen is visible, always run the full init — the guard was previously
-    // firing when currentUser was stale from a prior session, leaving users stuck on sign-in.
+    // Prevent concurrent calls (handleAuthSubmit + onAuthStateChange both call this on login).
+    // A concurrent second call for the same user is always redundant — skip it.
+    if(_signingIn && currentUser?.id===user.id) return;
     const authVisible=!document.getElementById('auth-screen').classList.contains('hidden');
     if(currentUser?.id===user.id && !authVisible) return;
-    currentUser=user;
-    // Check membership
-    const isMember=await checkMembership(user);
-    if(!isMember){currentUser=null;return;}
-    document.getElementById('hq-user-email').textContent=user.email;
-    await loadPersisted();
-    _scheduleLocalNotif(); // re-arm scheduler now that persisted data is loaded
-    hideAuthScreen();
-    const welcomed=localStorage.getItem('bp_welcomed_'+user.id);
-    const onboarded=localStorage.getItem('bp_onboarded_'+user.id);
-    if(welcomed){
-        goToStep(0);
-        if(!onboarded) setTimeout(showOnboarding, 600);
-    } else {
-        document.querySelectorAll('.step-content').forEach(s=>{s.classList.add('hidden-step');s.classList.remove('active-step')});
-        const w=document.getElementById('step-welcome');
-        w.classList.remove('hidden-step');w.classList.add('active-step');
+    _signingIn=true;
+    try{
+        currentUser=user;
+        const isMember=await checkMembership(user);
+        // Bail if logout happened while we were awaiting
+        if(currentUser?.id!==user.id) return;
+        if(!isMember){currentUser=null;return;}
+        document.getElementById('hq-user-email').textContent=user.email;
+        await loadPersisted();
+        // Bail if logout happened while we were awaiting
+        if(currentUser?.id!==user.id) return;
+        _scheduleLocalNotif();
+        hideAuthScreen();
+        const welcomed=localStorage.getItem('bp_welcomed_'+user.id);
+        const onboarded=localStorage.getItem('bp_onboarded_'+user.id);
+        if(welcomed){
+            goToStep(0);
+            if(!onboarded) setTimeout(showOnboarding,600);
+        } else {
+            document.querySelectorAll('.step-content').forEach(s=>{s.classList.add('hidden-step');s.classList.remove('active-step')});
+            const w=document.getElementById('step-welcome');
+            w.classList.remove('hidden-step');w.classList.add('active-step');
+        }
+    }finally{
+        _signingIn=false;
     }
 }
 
