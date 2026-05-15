@@ -144,6 +144,13 @@ const RHYTHM_PATTERNS=[
   {n:'Lopsided',    pat:[5,3],       tag:'Odd',      desc:'Long-ish and shorter pair'},
   {n:'Waltz',       pat:[3,2,1],     tag:'3/4',      desc:'Waltz-style triplet arc'},
 ];
+const GENRE_STARTERS=[
+  {id:'trap',name:'Trap',pattern:'ABAB',desc:'2-chord loop. Repeat 8 times and it becomes hypnotic.',color:'#FF6B6B'},
+  {id:'rnb',name:'R&B',pattern:'ABAC',desc:'Same opening, different landing each time. Feels like breathing.',color:'#00FFD0'},
+  {id:'jazz',name:'Jazz',pattern:'AABA',desc:'Home three times. B section is the departure — makes return feel earned.',color:'#A78BFA'},
+  {id:'gospel',name:'Gospel',pattern:'ABCB',desc:'The 2nd chord is the anchor. Everything returns to it.',color:'#FFB347'},
+  {id:'pop',name:'Pop',pattern:'ABCD',desc:'All new — try going back to A to create your hook.'},
+];
 function ml(ch,cx,cy,r){return ch.map((c,i)=>{const a=(i/ch.length)*Math.PI*2-Math.PI/2;return{c,x:cx+Math.cos(a)*r,y:cy+Math.sin(a)*r};});}
 function tensionLevel(f,t){if(!f||!t)return 0;try{const v=vl(f,t);return Math.min(5,Math.round(v.tm/2));}catch(e){return 0;}}
 function midiVarLen(v){const b=[];let x=v&0x7f;v>>=7;while(v){b.unshift(0x80|(v&0x7f));v>>=7;}b.push(x);return b;}
@@ -721,6 +728,9 @@ const replayTids=useRef([]);
 const lastTapTimeRef=useRef(null);
 const autoCaptureRef=useRef([]);
 const[captureCount,setCaptureCount]=useState(0);
+const[genreTarget,setGenreTarget]=useState(null);
+const[loopCount,setLoopCount]=useState(0);
+const loopCycleRef=useRef(0);
 const[showSettings,setShowSettings]=useState(false);
 const[bpm,setBpm]=useState(90);const[beats,setBeats]=useState(4);const[stg,setStg]=useState(0.018);
 const[bpmInput,setBpmInput]=useState('90');
@@ -792,26 +802,26 @@ const patternGuide=useMemo(()=>{
   const ltc={};
   prog.forEach((c,i)=>{if(c&&c!=='REST'&&progPattern[i]&&!ltc[progPattern[i]])ltc[progPattern[i]]=c.startsWith('note:')?c.slice(5):c;});
   const NM={
-    'ABAB':{name:'Loop',icon:'↺',tip:"You're going around in a circle — the same two chords keep trading off. This is how most pop and R&B songs are built.",ex:'Think: verse-chorus-verse-chorus'},
-    'AABA':{name:'Classic Hook',icon:'✦',tip:"Home chord three times, then something new — the new chord feels huge because you earned it with repetition. Literally the most-used structure in hit songs.",ex:'Think: "Somewhere Over the Rainbow"'},
-    'ABAC':{name:'Story Arc',icon:'→',tip:"You start the same way each time but land in a different place. It sounds like someone telling a story — familiar opening, surprise ending.",ex:'Think: a repeated question with different answers'},
-    'ABCA':{name:'Bookend',icon:'⟨⟩',tip:"Your first chord comes back at the end, like closing a book where you started. The listener feels like the journey is complete.",ex:'Think: leaving home, adventuring, then coming home'},
-    'AAAB':{name:'Build-Up',icon:'△',tip:"Same chord three times in a row builds tension — then the new chord hits like a release. The longer you wait, the bigger the payoff.",ex:'Think: a record scratch before the drop'},
-    'ABBA':{name:'Mirror',icon:'⇄',tip:"The second half reverses the first — like a reflection. It feels balanced and resolved, almost mathematical in its satisfaction.",ex:'Think: walking up stairs and back down'},
-    'AAAA':{name:'Mantra',icon:'○',tip:"One chord on repeat. This isn't boring — the groove, rhythm, and melody carry the song. The chord becomes a hypnotic foundation.",ex:'Think: most of Kendrick, a lot of Drake'},
-    'ABCD':{name:'All New',icon:'×',tip:"Every chord is different so nothing feels like home. It's hard for the listener to follow or sing along. Repeat at least one chord to create a hook.",ex:'Tip: go back and tap your first chord again'}
+    'ABAB':{name:'Loop',icon:'↺',tip:"You're going around in a circle — the same two chords keep trading off. This is how most pop and R&B songs are built.",ex:'Think: verse-chorus-verse-chorus',genres:'Trap · R&B · Afrobeat',genreTip:"Trap: repeat 8+ times — the repetition becomes the hypnosis. R&B: this is your whole verse. Afrobeat: the groove lives here the entire song."},
+    'AABA':{name:'Classic Hook',icon:'✦',tip:"Home chord three times, then something new — the new chord feels huge because you earned it with repetition. Literally the most-used structure in hit songs.",ex:'Think: "Somewhere Over the Rainbow"',genres:'Jazz · Pop · Blues',genreTip:"Jazz calls this the 32-bar form — 8 bars of A, 8 more, 8 of B (the bridge), then home again. Pop uses it as verse-verse-chorus-verse. Blues uses it as the 12-bar."},
+    'ABAC':{name:'Story Arc',icon:'→',tip:"You start the same way each time but land in a different place. It sounds like someone telling a story — familiar opening, surprise ending.",ex:'Think: a repeated question with different answers',genres:'R&B · Soul · Neo-Soul',genreTip:"R&B and soul use this constantly — the familiar A opening grounds the listener, then the C ending adds the emotional twist. D'Angelo, Frank Ocean, SZA all live here."},
+    'ABCA':{name:'Bookend',icon:'⟨⟩',tip:"Your first chord comes back at the end, like closing a book where you started. The listener feels like the journey is complete.",ex:'Think: leaving home, adventuring, then coming home',genres:'Folk · Indie · Singer-Songwriter',genreTip:"Folk and indie use this for songs that feel like a journey with resolution. The return to A at the end gives listeners a sense of arrival — great for emotional payoff."},
+    'AAAB':{name:'Build-Up',icon:'△',tip:"Same chord three times in a row builds tension — then the new chord hits like a release. The longer you wait, the bigger the payoff.",ex:'Think: a record scratch before the drop',genres:'Electronic · Drill · Trap',genreTip:"Electronic and drill use this for anticipation — three bars of tension, then the drop. The repetition builds expectation that makes the change hit harder."},
+    'ABBA':{name:'Mirror',icon:'⇄',tip:"The second half reverses the first — like a reflection. It feels balanced and resolved, almost mathematical in its satisfaction.",ex:'Think: walking up stairs and back down',genres:'Classical · Pop-Rock · Film',genreTip:"Classical composers built entire movements around this (ABA form). Pop-rock uses it for songs that feel emotionally 'complete'. Film scores use it for themes that return transformed."},
+    'AAAA':{name:'Mantra',icon:'○',tip:"One chord on repeat. This isn't boring — the groove, rhythm, and melody carry the song. The chord becomes a hypnotic foundation.",ex:'Think: most of Kendrick, a lot of Drake',genres:'Hip-Hop · Drill · Lo-Fi',genreTip:"Hip-hop and drill thrive on single-chord vamps — the beat and flow carry the song, not the harmony. Lo-fi uses it to create atmosphere. This is how Kendrick, Drake, and Playboi Carti often work."},
+    'ABCD':{name:'All New',icon:'×',tip:"Every chord is different so nothing feels like home. It's hard for the listener to follow or sing along. Repeat at least one chord to create a hook.",ex:'Tip: go back and tap your first chord again',genres:'Jazz · Experimental',genreTip:"Jazz uses ABCD for through-composed progressions where each chord is a new harmonic idea. But even jazz has repetition — try turning it into ABCA or ABAC to create a hook."}
   };
   if(ls.length===0)return{type:'start',msg:'Tap any chord — it becomes your A'};
   if(ls.length===1)return{type:'building',current:'A _ _ _',steps:[{action:`Tap ${ltc['A']} again`,result:'A A _ _',hint:'builds a mantra'},{action:'Tap a different chord',result:'A B _ _',hint:'adds contrast'}]};
   if(ls.length===2){const[a,b]=ls;if(a===b)return{type:'building',current:'A A _ _',steps:[{action:`Tap something new (B)`,result:'A A B _',hint:'then A = AABA classic hook'},{action:`Tap ${ltc['A']} again`,result:'A A A _',hint:'building a mantra'}]};return{type:'building',current:'A B _ _',steps:[{action:`Tap ${ltc['A']} (A)`,result:'A B A _',hint:'sets up a hook or loop'},{action:`Tap ${ltc['B']} (B)`,result:'A B B _',hint:'doubles down on B'}]};}
   if(ls.length===3){const sugs=[];['A','B','C','D'].forEach(n=>{const c=[...ls,n].join('');if(NM[c]){const ch=ltc[n];sugs.push({action:ch?`Tap ${ch} (${n})`:`Tap new chord (${n})`,result:[...ls,n].join(' '),name:NM[c].name,icon:NM[c].icon});}});return{type:'almost',current:ls.join(' ')+' _',sugs:sugs.slice(0,3)};}
   const named=NM[ls.slice(0,4).join('')];
-  if(named)return{type:'named',name:named.name,icon:named.icon,pattern:ls.slice(0,4).join(' '),tip:named.tip,ex:named.ex};
+  if(named)return{type:'named',name:named.name,icon:named.icon,pattern:ls.slice(0,4).join(' '),tip:named.tip,ex:named.ex,genres:named.genres,genreTip:named.genreTip};
   return{type:'custom',pattern:ls.join(' '),tip:'Your own pattern — keep looping it until it feels inevitable'};
 },[prog,progPattern]);
 const nextTapChord=useMemo(()=>{if(!patternGuide||patternGuide.type!=='almost')return null;const sug=patternGuide.sugs[0];if(!sug)return null;const m=sug.action.match(/^Tap (\S+)/);return m?m[1]:null;},[patternGuide]);
 const playP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(resolveNotes);const raw=rhythmPat||getAutoRhythm();const pat=raw?raw.map(sec=>sec*b/60):null;audio.playProgression(n,b,i=>setPi(i),bt,s,pat);const t=ctip('play',{prog});if(t)setTimeout(()=>setTip(t),2000);},[prog,bpm,beats,stg,rhythmPat,getAutoRhythm,resolveNotes]);
-const loopP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(resolveNotes);const raw=rhythmPat||getAutoRhythm();const pat=raw?raw.map(sec=>sec*b/60):null;setProgLooping(true);audio.playLoop(n,b,i=>{setPi(i);},bt,s,pat);},[prog,bpm,beats,stg,rhythmPat,getAutoRhythm,resolveNotes]);
+const loopP=useCallback((b=bpm,bt=beats,s=stg)=>{const n=prog.map(resolveNotes);const raw=rhythmPat||getAutoRhythm();const pat=raw?raw.map(sec=>sec*b/60):null;loopCycleRef.current=0;setLoopCount(0);setProgLooping(true);audio.playLoop(n,b,i=>{setPi(i);if(i===0){loopCycleRef.current++;if(loopCycleRef.current>1)setLoopCount(loopCycleRef.current);}}  ,bt,s,pat);},[prog,bpm,beats,stg,rhythmPat,getAutoRhythm,resolveNotes]);
 // Resume AudioContext and restart loop when tab comes back to foreground
 const progLoopingRef=useRef(false);
 useEffect(()=>{progLoopingRef.current=progLooping;},[progLooping]);
@@ -1210,8 +1220,8 @@ visible={prog.length > 0}
 
   {/* ── SVG CHORD MAP (hero) ── */}
   <div style={{background:'rgba(0,0,0,0.45)',borderRadius:22,padding:10,border:'1px solid rgba(255,255,255,0.06)',marginBottom:12}}>
-    <svg viewBox="0 0 400 430" style={{width:'100%',height:'auto'}}>
-      <rect x="0" y="0" width="400" height="430" fill="transparent" onClick={()=>{if(swapIdx!==null)clearSwap();}}/>
+    <svg viewBox="0 0 400 400" style={{width:'100%',height:'auto'}}>
+      <rect x="0" y="0" width="400" height="400" fill="transparent" onClick={()=>{if(swapIdx!==null)clearSwap();}}/>
       {k&&gcon(k.ch,k.m).map((c,i)=>{const ly=ml(k.ch,200,200,148);const f=ly.find(n=>n.c===c.f),t=ly.find(n=>n.c===c.t);if(!f||!t)return null;const h=sch&&(c.f===sch||c.t===sch);const isStrong=c.st==='strong';
         return<line key={i} x1={f.x} y1={f.y} x2={t.x} y2={t.y} stroke={h?(isStrong?'#FFD700':cc(sch)):isStrong?'rgba(255,215,0,0.45)':'rgba(255,255,255,0.11)'} strokeWidth={h?(isStrong?4:2.5):isStrong?2.5:1} strokeDasharray={isStrong?'none':'5 5'} style={{transition:'all 0.3s',filter:h&&isStrong?'drop-shadow(0 0 4px #FFD700)':'none'}}/>;
       })}
@@ -1241,11 +1251,6 @@ visible={prog.length > 0}
           <circle cx={nd.x} cy={nd.y} r={sel?38:30} fill={col+(sel?'30':'10')} stroke={col+(sel?'80':'35')} strokeWidth={sel?2:1} style={{transition:'all 0.3s'}}/>
           <circle cx={nd.x} cy={nd.y} r={sel?28:23} fill={col+(sel?'30':'15')} stroke={col} strokeWidth={sel?3:1.5} style={{transition:'all 0.3s',filter:sel?`drop-shadow(0 0 12px ${col}90)`:isNextTap?`drop-shadow(0 0 8px #FFB34780)`:'none'}}/>
           {ip&&<circle cx={nd.x} cy={nd.y} r={32} fill="none" stroke="#FFD700" strokeWidth={2.5} strokeDasharray="4 3"/>}
-          {sel&&hookNoteData&&ext!=='note'&&<>
-            <circle cx={nd.x+38} cy={nd.y-26} r={13} fill={hookNoteData.color+'22'} stroke={hookNoteData.color+'80'} strokeWidth={1.5} style={{pointerEvents:'none',filter:`drop-shadow(0 0 6px ${hookNoteData.color}60)`}}/>
-            <text x={nd.x+38} y={nd.y-25} textAnchor="middle" dominantBaseline="middle" fill={hookNoteData.color} fontSize="9" fontWeight="900" style={{pointerEvents:'none'}}>{hookNoteData.n}</text>
-            <text x={nd.x+38} y={nd.y-11} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="5" style={{pointerEvents:'none'}}>hum</text>
-          </>}
           <text x={nd.x} y={nd.y+1} textAnchor="middle" dominantBaseline="middle" fill={sel?'#fff':col} fontSize={sel?14:12} fontWeight="800" style={{pointerEvents:'none'}}>{displayLbl}</text>
           <text x={nd.x} y={nd.y+(sel?47:39)} textAnchor="middle" fill="rgba(255,255,255,0.78)" fontSize="7" fontWeight="600" style={{pointerEvents:'none'}}>{fnName}</text>
           {!isNoteMode&&<text x={nd.x} y={nd.y+(sel?55:47)} textAnchor="middle" fill="rgba(255,215,0,0.72)" fontSize="6" style={{pointerEvents:'none'}}>{fnRN&&`(${fnRN})`}</text>}
@@ -1254,22 +1259,20 @@ visible={prog.length > 0}
         </g>;})}
       <text x="200" y="195" textAnchor="middle" fill={swapIdx!==null?'#FFD700':'rgba(255,255,255,0.35)'} fontSize="12" fontWeight="700">{sk}</text>
       <text x="200" y="211" textAnchor="middle" fill={swapIdx!==null?'rgba(255,215,0,0.6)':'rgba(255,255,255,0.22)'} fontSize="8">{swapIdx!==null?`replacing slot ${swapIdx+1}`:ext==='note'?'Tap a note':'Tap a chord'}</text>
-      {/* Pattern hint at bottom of map */}
-      {patternGuide&&patternGuide.type==='almost'&&patternGuide.sugs[0]&&(()=>{const s=patternGuide.sugs[0];return<>
-        <text x="200" y="388" textAnchor="middle" fill="rgba(255,183,71,0.55)" fontSize="8" fontWeight="600" style={{pointerEvents:'none'}}>ONE MORE CHORD</text>
-        <text x="200" y="404" textAnchor="middle" fill="#FFB347" fontSize="10" fontWeight="800" style={{pointerEvents:'none'}}>{s.icon} {s.action} → {s.name}</text>
-      </>;})()}
-      {patternGuide&&patternGuide.type==='building'&&patternGuide.steps[0]&&<>
-        <text x="200" y="388" textAnchor="middle" fill="rgba(245,166,35,0.5)" fontSize="8" fontWeight="600" style={{pointerEvents:'none'}}>NEXT</text>
-        <text x="200" y="404" textAnchor="middle" fill="rgba(245,166,35,0.8)" fontSize="10" style={{pointerEvents:'none'}}>{patternGuide.steps[0].action}</text>
-      </>}
-      {patternGuide&&patternGuide.type==='start'&&<text x="200" y="400" textAnchor="middle" fill="rgba(255,255,255,0.18)" fontSize="9" style={{pointerEvents:'none'}}>Tap any chord — it becomes your A</text>}
-      {patternGuide&&patternGuide.type==='named'&&<>
-        <text x="200" y="386" textAnchor="middle" fill="rgba(245,166,35,0.55)" fontSize="8" fontWeight="700" style={{pointerEvents:'none'}}>{patternGuide.icon} {patternGuide.name.toUpperCase()}</text>
-        <text x="200" y="402" textAnchor="middle" fill="rgba(245,166,35,0.75)" fontSize="10" letterSpacing="4" fontWeight="900" style={{pointerEvents:'none'}}>{patternGuide.pattern}</text>
-      </>}
     </svg>
   </div>
+
+  {/* ── GENRE STARTERS ── */}
+  {prog.length<4&&<div style={{marginBottom:10}}>
+    <div style={{fontSize:9,color:'rgba(255,255,255,0.25)',fontWeight:700,letterSpacing:1,textTransform:'uppercase',marginBottom:6}}>Build for a genre</div>
+    <div style={{display:'flex',gap:6,overflowX:'auto',scrollbarWidth:'none',paddingBottom:2}}>
+      {GENRE_STARTERS.map(gs=>{const active=genreTarget?.id===gs.id;const col=gs.color||'rgba(255,255,255,0.5)';return<button key={gs.id} onClick={()=>setGenreTarget(active?null:gs)} style={{flexShrink:0,background:active?col+'22':'rgba(255,255,255,0.04)',border:`1.5px solid ${active?col+'70':'rgba(255,255,255,0.08)'}`,borderRadius:12,padding:'8px 12px',cursor:'pointer',textAlign:'left',transition:'all 0.15s',minWidth:100,boxShadow:active?`0 0 12px ${col}30`:'none'}}>
+        <div style={{fontSize:11,fontWeight:800,color:active?col:'rgba(255,255,255,0.7)',lineHeight:1.2,marginBottom:3}}>{gs.name}</div>
+        <div style={{fontSize:10,fontWeight:900,letterSpacing:3,color:active?col:'rgba(255,255,255,0.35)',marginBottom:4}}>{gs.pattern}</div>
+        <div style={{fontSize:8,color:active?col+'cc':'rgba(255,255,255,0.28)',lineHeight:1.4}}>{gs.desc}</div>
+      </button>;})}
+    </div>
+  </div>}
 
   {/* ── HOOK NOTE CARD ── */}
   {sch&&hookNoteData&&ext!=='note'&&<div style={{background:`${hookNoteData.color}10`,border:`1px solid ${hookNoteData.color}30`,borderRadius:14,padding:'11px 14px',marginBottom:10,animation:'fadeIn 0.25s',display:'flex',alignItems:'flex-start',gap:12}}>
@@ -1286,16 +1289,20 @@ visible={prog.length > 0}
   </div>}
 
   {/* ── PATTERN EXPLANATION ── */}
-  {patternGuide&&patternGuide.type==='named'&&<div style={{background:'rgba(245,166,35,0.07)',border:'1px solid rgba(245,166,35,0.2)',borderRadius:14,padding:'12px 14px',marginBottom:10,animation:'fadeIn 0.3s'}}>
-    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-      <span style={{fontSize:20,lineHeight:1}}>{patternGuide.icon}</span>
-      <div>
-        <div style={{fontSize:13,fontWeight:900,color:'#F5A623',lineHeight:1}}>{patternGuide.name}</div>
-        <div style={{fontSize:9,letterSpacing:4,color:'rgba(245,166,35,0.55)',fontWeight:800,marginTop:2}}>{patternGuide.pattern}</div>
+  {patternGuide&&patternGuide.type==='named'&&<div style={{background:'rgba(139,92,246,0.07)',border:'1px solid rgba(139,92,246,0.2)',borderRadius:14,padding:'12px 14px',marginBottom:10,animation:'fadeIn 0.3s'}}>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:6}}>
+      <div style={{display:'flex',alignItems:'center',gap:8}}>
+        <span style={{fontSize:20,lineHeight:1}}>{patternGuide.icon}</span>
+        <div>
+          <div style={{fontSize:13,fontWeight:900,color:'#8B5CF6',lineHeight:1}}>{patternGuide.name}</div>
+          <div style={{fontSize:9,letterSpacing:4,color:'rgba(139,92,246,0.55)',fontWeight:800,marginTop:2}}>{patternGuide.pattern}</div>
+        </div>
       </div>
+      {patternGuide.genres&&<div style={{fontSize:8,color:'rgba(255,255,255,0.35)',background:'rgba(255,255,255,0.05)',borderRadius:6,padding:'3px 8px',flexShrink:0}}>{patternGuide.genres}</div>}
     </div>
     <div style={{fontSize:12,color:'rgba(255,255,255,0.65)',lineHeight:1.6,marginBottom:6}}>{patternGuide.tip}</div>
-    {patternGuide.ex&&<div style={{fontSize:10,color:'rgba(245,166,35,0.6)',fontStyle:'italic'}}>{patternGuide.ex}</div>}
+    {patternGuide.genreTip&&<div style={{fontSize:10,color:'rgba(139,92,246,0.8)',lineHeight:1.5,marginBottom:4,background:'rgba(139,92,246,0.06)',borderRadius:8,padding:'6px 9px'}}>{patternGuide.genreTip}</div>}
+    {patternGuide.ex&&<div style={{fontSize:10,color:'rgba(255,255,255,0.35)',fontStyle:'italic'}}>{patternGuide.ex}</div>}
   </div>}
   {patternGuide&&patternGuide.type==='custom'&&prog.filter(c=>c&&c!=='REST').length>=4&&<div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:14,padding:'10px 14px',marginBottom:10}}>
     <div style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.35)',letterSpacing:2,marginBottom:4}}>YOUR PATTERN</div>
