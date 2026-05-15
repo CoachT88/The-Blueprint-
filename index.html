@@ -3776,8 +3776,10 @@ async function handlePasswordReset(){
 // ═══════════════════════════════════════════════════════════════════════════
 // AUTH ENGINE
 // ═══════════════════════════════════════════════════════════════════════════
-function showAuthScreen(){document.getElementById('loading-screen').classList.add('hidden');document.getElementById('auth-screen').classList.remove('hidden');}
-function hideAuthScreen(){document.getElementById('auth-screen').classList.add('hidden');document.getElementById('loading-screen').classList.add('hidden');}
+let _loadingDeadline=null;
+function _clearLoadingDeadline(){clearTimeout(_loadingDeadline);_loadingDeadline=null;}
+function showAuthScreen(){_clearLoadingDeadline();document.getElementById('loading-screen').classList.add('hidden');document.getElementById('auth-screen').classList.remove('hidden');}
+function hideAuthScreen(){_clearLoadingDeadline();document.getElementById('auth-screen').classList.add('hidden');document.getElementById('loading-screen').classList.add('hidden');}
 function setAuthError(msg){const el=document.getElementById('auth-error');el.textContent=msg;el.classList.toggle('show',!!msg);document.getElementById('auth-success').classList.remove('show')}
 function setAuthSuccess(msg){const el=document.getElementById('auth-success');el.textContent=msg;el.classList.toggle('show',!!msg);document.getElementById('auth-error').classList.remove('show')}
 let authMode='login';
@@ -3852,7 +3854,9 @@ async function handleLogout(){
 async function checkMembership(user){
     // Check members table in Supabase — you add rows manually or via Whop webhook later
     try{
-        const {data,error}=await sb.from('members').select('email').eq('email',user.email).single();
+        const _timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000));
+        const _query=sb.from('members').select('email').eq('email',user.email).single();
+        const {data,error}=await Promise.race([_query,_timeout]);
         if(error||!data){
             // Not in members table — show access denied
             setAuthError('Access denied. Purchase The Blueprint at your Whop link to get access.');
@@ -3862,7 +3866,7 @@ async function checkMembership(user){
         }
         return true;
     }catch(e){
-        // If members table doesnt exist yet, allow access (for testing)
+        // Network timeout or members table doesn't exist yet — allow access
         return true;
     }
 }
@@ -4304,6 +4308,11 @@ document.addEventListener('DOMContentLoaded', async ()=>{
         saveNotifPrefs();
     });
     initServiceWorker();
+    // Safety net: if auth + membership check + data load don't complete in 12 s,
+    // drop to the login screen so the user isn't stuck on a blank loading screen.
+    _loadingDeadline=setTimeout(()=>{
+        if(!document.getElementById('loading-screen').classList.contains('hidden'))showAuthScreen();
+    },12000);
     sb.auth.onAuthStateChange(async(event,session)=>{
         if(event==='SIGNED_OUT'){
             currentUser=null;persisted={...DEFAULT_PERSISTED};
